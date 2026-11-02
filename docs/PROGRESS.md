@@ -3,7 +3,7 @@
 Maintained by Claude Code. Updated at the end of every phase/prompt.
 Legend: `[ ]` todo · `[x]` done · `[~]` in progress · **[HUMAN]** needs people, access or sign-off · 🔒 blocked on a human input.
 
-Last updated: 2026-11-02 (Prompt 3: P1 offline post-call pipeline)
+Last updated: 2026-11-02 (Prompt 4b: P1 open-data track)
 
 ---
 
@@ -51,13 +51,13 @@ Exit gate: report runs on 100 real calls; first baseline numbers.
 - [x] `report.json` + single-file `report.html` (waveform SVG, events, scorecard, timelines, highlighted redacted transcript); also stored via the local `ObjectStore`
 - [x] `scripts/download_models.py` (pinned commit hashes) + generated `ml/MODEL_LICENSES.md` (drift-tested)
 - [x] Stub-mode integration test against all fixtures' `expected_events.json` (docs/06 matching rule): 10/10 exact, no false positives
-- [ ] Open-data track: `ml/data/DATASETS.md` register with `commercial_ok` gate; loaders for T1–T15, R1–R4, A1–A4
-- [ ] Back-transliteration model (BanglaTLit) for Banglish sets
-- [ ] Harmonise → `unified.jsonl` (masked labels, dedupe/MinHash, split inheritance, re-weighting) + data card
-- [ ] BanglaBERT-family multi-task classifier on open data only (see open question Q-03 on licence)
-- [ ] Slang-lexicon candidate mining (log-odds/PMI) → review export
-- [ ] First KWS model on BAAD
-- [ ] LLM judge baseline on open synthetic windows (few-shot / LoRA)
+- [x] Open-data track: `ml/data/datasets.yaml` → `DATASETS.md` register with the `commercial_ok` gate (prod/research run tags); one loader per dataset T1–T15, R1–R4, A1–A4; T1/T6/T8 auto-downloaded and built for real (57,698 rows), the rest await manual placement
+- [~] Back-transliteration: seq2seq trainer + inference (tiny smoke run OK) and a rule-based fallback in the build; real training needs BanglaTLit (manual) + GPU
+- [x] Harmonise → `unified.jsonl` (`label_map.yaml` per §5, masked labels + soft weak targets, LID filter, cleaning, MinHash dedupe + weighted conflict votes, official-test preservation, BIDWESH parent splits, domain re-weighting, ASR-noise copies, spoken-style rewrite hook) + data card + per-model views
+- [~] BanglaBERT-family multi-task classifier on open data only: trainer (masked focal BCE, soft targets, aggression aux, ordinal severity) + public_aux report vs §8; CPU smoke on real data learns (dev macro-F1 0.45, tiny random encoder); full encoder runs on the GPU box
+- [x] Slang-lexicon candidate mining (log-odds with Dirichlet prior + PMI, variant grouping) → review CSV (307 candidates from the real build, kept in `.gale/`)
+- [~] First KWS model on BAAD: CNN on log-mel with telephony augmentation, speaker-held-out dev; smoke run OK; real run needs BAAD (manual) + GPU
+- [~] LLM judge baseline: open-synthetic SFT windows built (41,989, docs/08 §4 format, grounded evidence); LoRA training is P3
 - [ ] **[HUMAN]** Seed lexicon review and approval 🔒
 - [ ] **[HUMAN]** 50-call pilot annotation to validate the guide 🔒
 - [ ] **[HUMAN]** Manual download of non-redistributable datasets 🔒
@@ -155,6 +155,7 @@ Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own
 | D-17 | `normalize()` lower-cases Latin text but keeps placeholder tags (`<PHONE>`, `<GALI_1>`) intact, so tag and lexicon matching survive normalisation. | P0 |
 | D-18 | GAL-E mints its own UUID `call_id` (never a PBX channel name or caller-derived id). The log scrubber keeps `call_id` / `trace_id` unredacted only when the value is a valid UUID; any other value, e.g. `PJSIP/017…`, is still scrubbed. From Q-10, approved 2026-11-02. P4 ingest-gateway mints the UUID when ARI/FreeSWITCH report a new call. | P0 |
 | D-19 | Fusion `rules.yaml` v2: named rules with parameters in YAML; shouted abuse raises the abusive event's severity; event spans come from word/window-precise signals; cool-down suppresses alerts, not events. Register: customer → তুমি fires only with negative context. Overtalk counts turn starts on crosstalk-trimmed VAD. Ground truth follows the same merge/overtalk conventions. Details in ADR-011. | P1 |
+| D-20 | Open-data prototype runs on `--run-tag research` without the licence review (owner decision 2026-11-02, ADR-012): everything trained is `research_only` / not promotable. Raw data, unified set and lexicon candidates stay under `.gale/`. Training deps are an opt-in `ml-train` group; trainer smoke tests skip where torch is absent (CI). | P1 |
 | D-15 | Mono/diarized audio: `Channel.mixed` is allowed only before diarization. Fusion accepts only `agent`/`customer`. Segments that can't be attributed are stored but never alert. | P1 |
 
 ---
@@ -163,7 +164,7 @@ Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own
 
 **2026-11-02 answers:** Q-01 to Q-05 and Q-07 to Q-09 approved with the defaults below. Q-10 approved later that day (D-18). As a result, D-01 to D-15 are accepted. Q-06 was answered **native Windows, no WSL2** (ADR-008).
 
-Licence review (Q-03, Q-04) is still a **[HUMAN]** legal action. The approval covers only the engineering default: swappable encoder, ship `commercial_ok` only.
+Licence review (Q-03, Q-04) is still a **[HUMAN]** legal action. **2026-11-02:** the owner waived it for the prototype (ADR-012, D-20); it is required again before any production training run. The approval covers only the engineering default: swappable encoder, ship `commercial_ok` only.
 
 | ID | Question | Why it matters | My default if you don't object |
 |---|---|---|---|
@@ -262,6 +263,32 @@ Smaller inconsistencies, resolved in-line without an ADR:
 - Licence review: emotion2vec+ (`verify`), BanglaBERT (`research_only`) (Q-03).
 - 100 real stereo calls for the P1 exit gate.
 
+## Prompt 4b summary (2026-11-02)
+
+**Built:**
+- `ml/data/open/`: register and licence gate; 23 loaders driven by `datasets.yaml`; label mapping (`ml/textclf/label_map.yaml` per docs/09 §5); cleaning, language ID, back-transliteration (rule fallback + seq2seq), MinHash dedupe, harmonisation, augmentation; views (text classifier, LLM SFT) and data card; CLI with `status`, `download` and `build`.
+- `ml/lexicon/mine.py`.
+- Trainers with CPU smoke modes: `ml/textclf/` (multi-task classifier + public_aux report), `ml/translit/train.py`, `ml/kws/` (log-mel CNN, telephony augmentation).
+- `docs/runbooks/open_data.md`; ADR-012.
+
+**Ran on this machine with real data:**
+- Downloaded T1, T6 and T8: 57,698 rows → 63,435 unified (338 near-duplicates removed, 6,075 ASR-noised copies, 0 test/train leakage).
+- 41,989 SFT windows.
+- 307 lexicon candidates for review.
+- Tiny text classifier trained on CPU: dev macro-F1 0.45, which shows the pipeline learns. Real numbers need a pretrained encoder on the GPU box.
+
+**Fixed along the way:**
+- transformers 5 silently ignores `BertTokenizerFast(vocab_file=…)` (5-token vocabulary).
+- Placeholder tags were treated as Latin script and transliterated.
+
+**Verified:** `make check`: 248 tests at 99.2% coverage, plus ruff and mypy. The 3 trainer smoke tests run only where `ml-train` is installed; CI skips them.
+
+**Needs a human:**
+- Manual downloads for 17 text/translit sets and the 4 audio sets (list in the runbook).
+- Licence review before any production use (ADR-012).
+- A GPU box for the encoder, transliteration and KWS runs.
+- Human review of the lexicon candidates.
+
 ## Next step
 
-Run **Prompt 4b: P1 open-data track** (dataset register with licence gate, harmonisation, text classifier on open data). It runs before Prompt 4 because it needs no in-house data (see the Prompt 0 notes). Alternatively, **Prompt 4: P2 data engine**, once recordings are accessible.
+Run **Prompt 5: P2 evaluation harness** (`make eval`), reusing the docs/06 matching rule from the Prompt 3 integration test. Prompt 4 (data engine) needs access to real call recordings.

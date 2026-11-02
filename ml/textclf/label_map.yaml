@@ -1,0 +1,195 @@
+# Source labels → GAL-E taxonomy (docs/09 §5). Read by ml/data/open/label_map.py.
+#
+# Per source:
+#   annotates: GAL-E labels this source annotates. A row that is not mapped to one of them gets 0
+#              (an annotated negative); labels NOT listed stay null (not annotated → no loss).
+#   fields:    raw field (as the loader names it) → raw value → list of hits.
+#              A hit is a label name, or {label, conf, weight}: conf < 1 is a weak mapping
+#              (soft target, label_confidence); weight < 1 down-weights the row (§6.8 domain
+#              re-weighting: political/religious/geopolitical hate → 0.3). `drop: true` drops the row.
+#   toxic_any: {field, negative: [values]} — toxic unless the value is one of `negative`.
+#   severity / target: {field, map}.
+# Raw values are matched case-insensitively after trimming.
+version: 1
+weak_confidence: 0.6
+low_weight: 0.3
+labels: [slang_profanity, insult, threat, sexual_harassment, hate_identity, sarcasm_mockery, dismissive_rude, aggression]
+
+sources:
+  banglamultihate:  # T1
+    annotates: [slang_profanity, insult, hate_identity]
+    fields:
+      hate_type:
+        Profane: [slang_profanity]
+        Abusive: [insult]
+        Religious Hate: [hate_identity]
+        Sexism: [hate_identity]
+        Political Hate: [{label: hate_identity, weight: 0.3}]
+        None: []
+    toxic_any: {field: hate_type, negative: [None]}
+    severity: {field: hate_severity, map: {Little to None: 0, Mild: 1, Severe: 3}}  # mild = 1–2 per §5; calibrate on dev
+    target: {field: to_whom, map: {None: null, Individual: individual, Organization: organization, Community: group, Society: society}}
+
+  bdshs:  # T2 (type is multi-label; hate gates everything)
+    annotates: [insult, threat, hate_identity]
+    fields:
+      type:
+        slander: [insult]
+        callToViolence: [threat]
+        religion: [hate_identity]
+        gender: [hate_identity]
+    toxic_any: {field: hate, negative: ["0", "no", "nh", "false"]}
+    target: {field: target, map: {ind: individual, male: group, female: group, group: group}}
+
+  banglacat:  # T3
+    annotates: [slang_profanity, insult, threat, sarcasm_mockery, sexual_harassment, hate_identity]
+    fields:
+      types:
+        Profanity: [slang_profanity]
+        Insult: [insult]
+        Threat: [threat]
+        Incitement: [threat]
+        Mockery/Ridicule: [sarcasm_mockery]
+        Mockery: [sarcasm_mockery]
+        Sexual Harassment: [sexual_harassment]
+        Identity Attack: [hate_identity]
+        Hate Speech: [hate_identity]
+        Dehumanization: [{label: insult, severity_delta: 1}]
+        Harassment: [insult]
+        Toxic Endorsement: []
+    toxic_any: {field: toxic, negative: ["0", "non-toxic", "nontoxic", "no", "false"]}
+    context_flags: {field: context_case, map: {banter: banter, consensual banter: banter, quoted: reported_speech, quoted speech: reported_speech, sarcasm: null, veiled threat: null}}
+
+  bidwesh:  # T4 = BD-SHS labels in dialects
+    same_as: bdshs
+
+  cyberbully_multilabel:  # T5 (one 0/1 column per class)
+    annotates: [insult, sexual_harassment, hate_identity, threat]
+    fields:
+      bully: {"1": [insult]}
+      sexual: {"1": [sexual_harassment]}
+      religious: {"1": [hate_identity]}
+      threat: {"1": [threat]}
+      spam: {"1": [{drop: true}]}
+    toxic_any: {any_of: [bully, sexual, religious, threat], positive: ["1"]}
+
+  violens:  # T6: 0 non-violence, 1 passive (derogatory/abusive/slang), 2 direct violence
+    annotates: [insult, threat]
+    fields:
+      label:
+        "0": []
+        "1": [insult]  # + slang_profanity when the lexicon hits (applied in build, not here)
+        "2": [threat]
+    toxic_any: {field: label, negative: ["0"]}
+
+  trac2_bn:  # T7
+    annotates: [aggression, insult, sarcasm_mockery, hate_identity]
+    fields:
+      aggression:
+        OAG: [aggression, {label: insult, conf: 0.6}]
+        CAG: [aggression, {label: sarcasm_mockery, conf: 0.6}]
+        NAG: []
+      gendered:
+        GEN: [hate_identity]
+        NGEN: []
+    toxic_any: {field: aggression, negative: [NAG]}
+
+  karim_bn_hate:  # T8: positives only (every row is hateful)
+    annotates: [insult, hate_identity]
+    positives_only: true
+    fields:
+      label:
+        Personal: [insult]
+        Gender abusive: [hate_identity]
+        Religious: [{label: hate_identity, weight: 0.3}]
+        Geopolitical: [{label: hate_identity, weight: 0.3}]
+        Political: [{label: hate_identity, weight: 0.3}]
+    toxic_any: {constant: 1}
+
+  romim2020:  # T9: binary only
+    annotates: []
+    toxic_any: {field: hate, negative: ["0", "no", "not hate", "false"]}
+
+  hsban:  # T10: binary only
+    annotates: []
+    toxic_any: {field: hate, negative: ["0", "non-hate", "not hate", "no", "false"]}
+
+  brac_online_comments:  # T11
+    annotates: [insult, sexual_harassment, threat]
+    fields:
+      category:
+        bully: [insult]
+        harassment: [insult]
+        sexual: [sexual_harassment]
+        threat: [threat]
+        not bully: []
+        neutral: []
+    toxic_any: {field: category, negative: [not bully, neutral, none]}
+
+  banglaharassnet:  # T12
+    annotates: [sarcasm_mockery, insult, sexual_harassment, hate_identity]
+    fields:
+      category:
+        trolling: [sarcasm_mockery]
+        cyberbullying: [insult]
+        sexual harassment: [sexual_harassment]
+        hate: [hate_identity]
+        neutral: []
+    toxic_any: {field: category, negative: [neutral]}
+    severity: {field: severity, map: {low: 1, mild: 1, medium: 2, moderate: 2, high: 3, severe: 3}}
+
+  bangla_toco:  # T13: binary with conversational context
+    annotates: []
+    toxic_any: {field: toxic, negative: ["0", "non-toxic", "nontoxic", "no"]}
+
+  boishommo:  # T14 (one column per identity axis)
+    annotates: [hate_identity]
+    fields:
+      race: {"1": [hate_identity]}
+      gender: {"1": [hate_identity]}
+      religion: {"1": [{label: hate_identity, weight: 0.3}]}
+      politics: {"1": [{label: hate_identity, weight: 0.3}]}
+    toxic_any: {any_of: [race, gender, religion, politics], positive: ["1"]}
+
+  hatealert_bengali:  # T15: hate / offensive / normal
+    annotates: [hate_identity, insult]
+    fields:
+      label:
+        hate: [hate_identity]
+        hatespeech: [hate_identity]
+        offensive: [{label: insult, conf: 0.6}]
+        normal: []
+    toxic_any: {field: label, negative: [normal]}
+
+  banth:  # R1 (multi-label column, comma-separated)
+    annotates: [insult, slang_profanity, threat, hate_identity]
+    fields:
+      labels:
+        Personal Offence: [insult]
+        Abusive/Violence: [slang_profanity, {label: threat, conf: 0.6}]
+        Gender: [hate_identity]
+        Religious: [{label: hate_identity, weight: 0.3}]
+        Origin: [hate_identity]
+        Body-shaming: [insult]
+        Political: [{label: hate_identity, weight: 0.3}]
+    toxic_any: {field: hate, negative: ["0", "no", "false", "non-hate"]}
+
+  codemixed_chaos:  # R2
+    annotates: [slang_profanity, insult, threat, sexual_harassment, sarcasm_mockery, hate_identity]
+    fields:
+      type:
+        Vulgar: [slang_profanity]
+        Insult: [insult]
+        Threat: [threat]
+        Sexual: [sexual_harassment]
+        Troll: [sarcasm_mockery]
+        Religious-hostility: [{label: hate_identity, weight: 0.3}]
+        Religious: [{label: hate_identity, weight: 0.3}]
+        Race: [hate_identity]
+        Loathe: [insult]
+        Political: [{label: hate_identity, weight: 0.3}]
+    toxic_any: {field: toxic, negative: ["0", "non-toxic", "nontoxic", "no"]}
+
+  mixtox_sa:  # R3: eval only
+    annotates: []
+    toxic_any: {field: label, negative: [non-toxic, neutral, nontoxic]}

@@ -27,6 +27,10 @@ dev = [
     "httpx>=0.27",
     "pre-commit>=4.0",
 ]
+# ml/data/open readers: xlsx (Mendeley sets) and parquet (HF sets) (D-16)
+ml-data = ["openpyxl>=3.1", "pyarrow>=17"]
+# ml training (opt-in: `uv sync --group ml-train`; CPU smoke here, full runs on the GPU box)
+ml-train = ["torch>=2.5", "transformers>=4.46", "accelerate>=1.0", "sentencepiece>=0.2"]
 # scripts/download_models.py (build host only)
 download = ["huggingface-hub>=0.26"]
 # Docker-free dev stack (ADR-009)
@@ -37,7 +41,7 @@ devstack = [
 
 [tool.uv]
 package = false
-default-groups = ["dev", "devstack"]
+default-groups = ["dev", "devstack", "ml-data"]
 
 [tool.uv.workspace]
 members = ["packages/*", "services/*"]
@@ -76,6 +80,10 @@ known-first-party = ["galecore", "gale_*", "ml", "tools"]
 "tools/fixtures_gen/scenarios.py" = ["E501"]  # transcript data
 "packages/gale_postcall/src/gale_postcall/report.py" = ["E501"]  # HTML/CSS template
 "scripts/**" = ["S603", "S607"]
+"ml/**" = ["S311"]  # data shuffling / augmentation, not cryptography
+# Markdown templates and word lists
+"ml/data/open/{card,registry,lid}.py" = ["E501"]
+"ml/tests/**" = ["S101", "E501"]
 
 [tool.mypy]
 python_version = "3.12"

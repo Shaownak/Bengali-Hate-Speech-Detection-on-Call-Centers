@@ -12,7 +12,7 @@ import itertools
 import re
 import unicodedata
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 
 import numpy as np
 import numpy.typing as npt
@@ -123,7 +123,9 @@ class LocalVitsTTS:  # pragma: no cover - needs torch, transformers and local we
         self._torch = torch
         self.model_dir = model_dir
         self._tok = AutoTokenizer.from_pretrained(model_dir, local_files_only=True)
-        self._model = VitsModel.from_pretrained(model_dir, local_files_only=True).eval()
+        # Any: the same code type-checks with and without the optional transformers install
+        model: Any = VitsModel.from_pretrained(model_dir, local_files_only=True)
+        self._model = model.eval()
         self._sr = int(self._model.config.sampling_rate)
         self._stub = StubTTS()
 
