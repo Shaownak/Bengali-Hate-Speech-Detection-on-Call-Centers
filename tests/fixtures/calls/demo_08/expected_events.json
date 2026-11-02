@@ -1,0 +1,69 @@
+{
+  "schema_version": "1",
+  "call_id": "demo_08",
+  "tolerance_s": 0.5,
+  "events": [
+    {
+      "category": "interruption_overtalk",
+      "speaker": "agent",
+      "target": "customer",
+      "t_start": 13.828,
+      "t_end": 14.728,
+      "severity": 1,
+      "turn_idx": 2,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "overlap_s": 0.9,
+        "source": "vad_overtalk"
+      }
+    },
+    {
+      "category": "interruption_overtalk",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 80.757,
+      "t_end": 82.557,
+      "severity": 2,
+      "turn_idx": 22,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "overlap_s": 1.8,
+        "source": "vad_overtalk"
+      }
+    },
+    {
+      "category": "shouting",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 80.757,
+      "t_end": 83.527,
+      "severity": 2,
+      "turn_idx": 22,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "gain_db": 12.0,
+        "pitch_factor": 1.35,
+        "source": "dsp"
+      }
+    },
+    {
+      "category": "shouting",
+      "speaker": "agent",
+      "target": "customer",
+      "t_start": 84.146,
+      "t_end": 86.116,
+      "severity": 2,
+      "turn_idx": 23,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "gain_db": 12.0,
+        "pitch_factor": 1.35,
+        "source": "dsp"
+      }
+    }
+  ]
+}

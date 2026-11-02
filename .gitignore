@@ -29,3 +29,6 @@ web/next-env.d.ts
 !.env.example
 configs/lexicon/*.real.*
 *.enc
+
+# synthetic fixture audio is rendered on demand from script.json (ADR-010)
+tests/fixtures/calls/*/call.wav

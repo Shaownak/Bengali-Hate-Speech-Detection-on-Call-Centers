@@ -1,0 +1,69 @@
+{
+  "schema_version": "1",
+  "call_id": "demo_05",
+  "tolerance_s": 0.5,
+  "events": [
+    {
+      "category": "shouting",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 70.552,
+      "t_end": 73.882,
+      "severity": 2,
+      "turn_idx": 20,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "gain_db": 12.0,
+        "pitch_factor": 1.35,
+        "source": "dsp"
+      }
+    },
+    {
+      "category": "shouting",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 76.674,
+      "t_end": 78.414,
+      "severity": 2,
+      "turn_idx": 22,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "gain_db": 12.0,
+        "pitch_factor": 1.35,
+        "source": "dsp"
+      }
+    },
+    {
+      "category": "shouting",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 78.914,
+      "t_end": 80.554,
+      "severity": 2,
+      "turn_idx": 23,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "gain_db": 12.0,
+        "pitch_factor": 1.35,
+        "source": "dsp"
+      }
+    },
+    {
+      "category": "dismissive_rude",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 83.876,
+      "t_end": 86.786,
+      "severity": 1,
+      "turn_idx": 25,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "source": "annotation"
+      }
+    }
+  ]
+}

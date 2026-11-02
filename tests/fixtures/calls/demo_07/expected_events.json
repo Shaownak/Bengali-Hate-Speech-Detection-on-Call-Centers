@@ -1,0 +1,73 @@
+{
+  "schema_version": "1",
+  "call_id": "demo_07",
+  "tolerance_s": 0.5,
+  "events": [
+    {
+      "category": "disrespect_register",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 67.268,
+      "t_end": 67.568,
+      "severity": 1,
+      "turn_idx": 20,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "from": "apni",
+        "to": "tumi",
+        "pronoun": "তুমি",
+        "source": "register"
+      }
+    },
+    {
+      "category": "disrespect_register",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 72.407,
+      "t_end": 72.707,
+      "severity": 2,
+      "turn_idx": 22,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "from": "apni",
+        "to": "tui",
+        "pronoun": "তোকে",
+        "source": "register"
+      }
+    },
+    {
+      "category": "shouting",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 72.407,
+      "t_end": 74.517,
+      "severity": 2,
+      "turn_idx": 22,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "gain_db": 12.0,
+        "pitch_factor": 1.35,
+        "source": "dsp"
+      }
+    },
+    {
+      "category": "threat",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 74.017,
+      "t_end": 74.467,
+      "severity": 3,
+      "turn_idx": 22,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "term": "<GALI_17>",
+        "lexicon_id": "gali_17",
+        "source": "lexicon"
+      }
+    }
+  ]
+}

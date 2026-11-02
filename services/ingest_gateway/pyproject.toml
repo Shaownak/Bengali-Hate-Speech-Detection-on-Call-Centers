@@ -3,7 +3,7 @@ name = "gale-ingest-gateway"
 version = "0.1.0"
 description = "GAL-E ingest-gateway"
 requires-python = ">=3.12,<3.13"
-dependencies = ["galecore"]
+dependencies = ["galecore", "websockets>=13"]
 
 [project.scripts]
 gale-ingest-gateway = "gale_ingest_gateway.__main__:main"

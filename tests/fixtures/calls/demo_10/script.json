@@ -1,0 +1,1751 @@
+{
+  "schema_version": "1",
+  "call_id": "demo_10",
+  "title": "Banglish code-switching with harassment",
+  "description": "Romanised Banglish mixed with Bangla script; customer becomes over-familiar (tumi) and harasses the agent.",
+  "synthetic": true,
+  "sample_rate": 8000,
+  "layout": "stereo_agent_left",
+  "duration_s": 156.449,
+  "tts": {
+    "backend": "stub"
+  },
+  "render": {
+    "speech_dbfs": -26.0,
+    "shout_gain_db": 12.0,
+    "shout_pitch": 1.35,
+    "noise_dbfs": -60.0,
+    "bleed_db": -32.0
+  },
+  "voices": {
+    "agent": {
+      "f0_hz": 215.0,
+      "seed": 1101
+    },
+    "customer": {
+      "f0_hz": 118.0,
+      "seed": 1102
+    }
+  },
+  "turns": [
+    {
+      "idx": 0,
+      "speaker": "agent",
+      "text": "Assalamu alaikum, customer care theke bolchi. Apnake kivabe help korte pari?",
+      "style": "normal",
+      "pronoun_register": "apni",
+      "t_start": 1.477,
+      "t_end": 8.657,
+      "words": [
+        {
+          "w": "Assalamu",
+          "t_start": 1.477,
+          "t_end": 2.197
+        },
+        {
+          "w": "alaikum",
+          "t_start": 2.267,
+          "t_end": 2.917
+        },
+        {
+          "w": "customer",
+          "t_start": 3.117,
+          "t_end": 3.837
+        },
+        {
+          "w": "care",
+          "t_start": 3.907,
+          "t_end": 4.347
+        },
+        {
+          "w": "theke",
+          "t_start": 4.417,
+          "t_end": 4.927
+        },
+        {
+          "w": "bolchi",
+          "t_start": 4.997,
+          "t_end": 5.577
+        },
+        {
+          "w": "Apnake",
+          "t_start": 5.777,
+          "t_end": 6.357
+        },
+        {
+          "w": "kivabe",
+          "t_start": 6.427,
+          "t_end": 7.007
+        },
+        {
+          "w": "help",
+          "t_start": 7.077,
+          "t_end": 7.517
+        },
+        {
+          "w": "korte",
+          "t_start": 7.587,
+          "t_end": 8.097
+        },
+        {
+          "w": "pari",
+          "t_start": 8.167,
+          "t_end": 8.607
+        }
+      ]
+    },
+    {
+      "idx": 1,
+      "speaker": "customer",
+      "text": "Hello, amar package ta auto renew hoye geche, apni ektu check korben?",
+      "style": "normal",
+      "pronoun_register": "apni",
+      "t_start": 9.295,
+      "t_end": 16.145,
+      "words": [
+        {
+          "w": "Hello",
+          "t_start": 9.295,
+          "t_end": 9.805
+        },
+        {
+          "w": "amar",
+          "t_start": 10.005,
+          "t_end": 10.445
+        },
+        {
+          "w": "package",
+          "t_start": 10.515,
+          "t_end": 11.165
+        },
+        {
+          "w": "ta",
+          "t_start": 11.235,
+          "t_end": 11.535
+        },
+        {
+          "w": "auto",
+          "t_start": 11.605,
+          "t_end": 12.045
+        },
+        {
+          "w": "renew",
+          "t_start": 12.115,
+          "t_end": 12.625
+        },
+        {
+          "w": "hoye",
+          "t_start": 12.695,
+          "t_end": 13.135
+        },
+        {
+          "w": "geche",
+          "t_start": 13.205,
+          "t_end": 13.715
+        },
+        {
+          "w": "apni",
+          "t_start": 13.915,
+          "t_end": 14.355
+        },
+        {
+          "w": "ektu",
+          "t_start": 14.425,
+          "t_end": 14.865
+        },
+        {
+          "w": "check",
+          "t_start": 14.935,
+          "t_end": 15.445
+        },
+        {
+          "w": "korben",
+          "t_start": 15.515,
+          "t_end": 16.095
+        }
+      ]
+    },
+    {
+      "idx": 2,
+      "speaker": "agent",
+      "text": "অসুবিধার জন্য আমরা আন্তরিকভাবে দুঃখিত।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 17.119,
+      "t_end": 19.719,
+      "words": [
+        {
+          "w": "অসুবিধার",
+          "t_start": 17.119,
+          "t_end": 17.629
+        },
+        {
+          "w": "জন্য",
+          "t_start": 17.699,
+          "t_end": 18.069
+        },
+        {
+          "w": "আমরা",
+          "t_start": 18.139,
+          "t_end": 18.509
+        },
+        {
+          "w": "আন্তরিকভাবে",
+          "t_start": 18.579,
+          "t_end": 19.229
+        },
+        {
+          "w": "দুঃখিত",
+          "t_start": 19.299,
+          "t_end": 19.669
+        }
+      ]
+    },
+    {
+      "idx": 3,
+      "speaker": "customer",
+      "text": "জি, গতকাল রাতে রিচার্জ করেছিলাম।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 20.701,
+      "t_end": 23.081,
+      "words": [
+        {
+          "w": "জি",
+          "t_start": 20.701,
+          "t_end": 20.931
+        },
+        {
+          "w": "গতকাল",
+          "t_start": 21.131,
+          "t_end": 21.571
+        },
+        {
+          "w": "রাতে",
+          "t_start": 21.641,
+          "t_end": 21.941
+        },
+        {
+          "w": "রিচার্জ",
+          "t_start": 22.011,
+          "t_end": 22.451
+        },
+        {
+          "w": "করেছিলাম",
+          "t_start": 22.521,
+          "t_end": 23.031
+        }
+      ]
+    },
+    {
+      "idx": 4,
+      "speaker": "agent",
+      "text": "একটা রেফারেন্স নম্বর এসএমএসে পাঠানো হবে।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 23.782,
+      "t_end": 26.752,
+      "words": [
+        {
+          "w": "একটা",
+          "t_start": 23.782,
+          "t_end": 24.152
+        },
+        {
+          "w": "রেফারেন্স",
+          "t_start": 24.222,
+          "t_end": 24.732
+        },
+        {
+          "w": "নম্বর",
+          "t_start": 24.802,
+          "t_end": 25.242
+        },
+        {
+          "w": "এসএমএসে",
+          "t_start": 25.312,
+          "t_end": 25.892
+        },
+        {
+          "w": "পাঠানো",
+          "t_start": 25.962,
+          "t_end": 26.332
+        },
+        {
+          "w": "হবে",
+          "t_start": 26.402,
+          "t_end": 26.702
+        }
+      ]
+    },
+    {
+      "idx": 5,
+      "speaker": "customer",
+      "text": "ঠিক আছে, অপেক্ষা করছি।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 27.717,
+      "t_end": 29.517,
+      "words": [
+        {
+          "w": "ঠিক",
+          "t_start": 27.717,
+          "t_end": 28.017
+        },
+        {
+          "w": "আছে",
+          "t_start": 28.087,
+          "t_end": 28.387
+        },
+        {
+          "w": "অপেক্ষা",
+          "t_start": 28.587,
+          "t_end": 29.027
+        },
+        {
+          "w": "করছি",
+          "t_start": 29.097,
+          "t_end": 29.467
+        }
+      ]
+    },
+    {
+      "idx": 6,
+      "speaker": "agent",
+      "text": "অভিযোগটি আমরা নথিভুক্ত করেছি।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 30.153,
+      "t_end": 32.173,
+      "words": [
+        {
+          "w": "অভিযোগটি",
+          "t_start": 30.153,
+          "t_end": 30.663
+        },
+        {
+          "w": "আমরা",
+          "t_start": 30.733,
+          "t_end": 31.103
+        },
+        {
+          "w": "নথিভুক্ত",
+          "t_start": 31.173,
+          "t_end": 31.683
+        },
+        {
+          "w": "করেছি",
+          "t_start": 31.753,
+          "t_end": 32.123
+        }
+      ]
+    },
+    {
+      "idx": 7,
+      "speaker": "customer",
+      "text": "জি, শুনতে পাচ্ছি।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 32.992,
+      "t_end": 34.282,
+      "words": [
+        {
+          "w": "জি",
+          "t_start": 32.992,
+          "t_end": 33.222
+        },
+        {
+          "w": "শুনতে",
+          "t_start": 33.422,
+          "t_end": 33.792
+        },
+        {
+          "w": "পাচ্ছি",
+          "t_start": 33.862,
+          "t_end": 34.232
+        }
+      ]
+    },
+    {
+      "idx": 8,
+      "speaker": "agent",
+      "text": "এলাকায় নেটওয়ার্কের কাজ চলছে, তাই একটু সমস্যা হচ্ছে।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 35.057,
+      "t_end": 38.967,
+      "words": [
+        {
+          "w": "এলাকায়",
+          "t_start": 35.057,
+          "t_end": 35.497
+        },
+        {
+          "w": "নেটওয়ার্কের",
+          "t_start": 35.567,
+          "t_end": 36.217
+        },
+        {
+          "w": "কাজ",
+          "t_start": 36.287,
+          "t_end": 36.587
+        },
+        {
+          "w": "চলছে",
+          "t_start": 36.657,
+          "t_end": 37.027
+        },
+        {
+          "w": "তাই",
+          "t_start": 37.227,
+          "t_end": 37.527
+        },
+        {
+          "w": "একটু",
+          "t_start": 37.597,
+          "t_end": 37.967
+        },
+        {
+          "w": "সমস্যা",
+          "t_start": 38.037,
+          "t_end": 38.477
+        },
+        {
+          "w": "হচ্ছে",
+          "t_start": 38.547,
+          "t_end": 38.917
+        }
+      ]
+    },
+    {
+      "idx": 9,
+      "speaker": "customer",
+      "text": "ঠিক আছে, অপেক্ষা করছি।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 39.902,
+      "t_end": 41.702,
+      "words": [
+        {
+          "w": "ঠিক",
+          "t_start": 39.902,
+          "t_end": 40.202
+        },
+        {
+          "w": "আছে",
+          "t_start": 40.272,
+          "t_end": 40.572
+        },
+        {
+          "w": "অপেক্ষা",
+          "t_start": 40.772,
+          "t_end": 41.212
+        },
+        {
+          "w": "করছি",
+          "t_start": 41.282,
+          "t_end": 41.652
+        }
+      ]
+    },
+    {
+      "idx": 10,
+      "speaker": "agent",
+      "text": "জি, একটু অপেক্ষা করুন, আমি সিস্টেমে দেখছি।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 42.59,
+      "t_end": 45.84,
+      "words": [
+        {
+          "w": "জি",
+          "t_start": 42.59,
+          "t_end": 42.82
+        },
+        {
+          "w": "একটু",
+          "t_start": 43.02,
+          "t_end": 43.39
+        },
+        {
+          "w": "অপেক্ষা",
+          "t_start": 43.46,
+          "t_end": 43.9
+        },
+        {
+          "w": "করুন",
+          "t_start": 43.97,
+          "t_end": 44.34
+        },
+        {
+          "w": "আমি",
+          "t_start": 44.54,
+          "t_end": 44.84
+        },
+        {
+          "w": "সিস্টেমে",
+          "t_start": 44.91,
+          "t_end": 45.35
+        },
+        {
+          "w": "দেখছি",
+          "t_start": 45.42,
+          "t_end": 45.79
+        }
+      ]
+    },
+    {
+      "idx": 11,
+      "speaker": "customer",
+      "text": "কতক্ষণ লাগবে বলতে পারবেন?",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 46.905,
+      "t_end": 48.855,
+      "words": [
+        {
+          "w": "কতক্ষণ",
+          "t_start": 46.905,
+          "t_end": 47.415
+        },
+        {
+          "w": "লাগবে",
+          "t_start": 47.485,
+          "t_end": 47.855
+        },
+        {
+          "w": "বলতে",
+          "t_start": 47.925,
+          "t_end": 48.295
+        },
+        {
+          "w": "পারবেন",
+          "t_start": 48.365,
+          "t_end": 48.805
+        }
+      ]
+    },
+    {
+      "idx": 12,
+      "speaker": "agent",
+      "text": "আটচল্লিশ ঘণ্টার মধ্যে সমাধান হয়ে যাবে, ইনশাআল্লাহ।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 49.449,
+      "t_end": 53.129,
+      "words": [
+        {
+          "w": "আটচল্লিশ",
+          "t_start": 49.449,
+          "t_end": 50.029
+        },
+        {
+          "w": "ঘণ্টার",
+          "t_start": 50.099,
+          "t_end": 50.539
+        },
+        {
+          "w": "মধ্যে",
+          "t_start": 50.609,
+          "t_end": 50.979
+        },
+        {
+          "w": "সমাধান",
+          "t_start": 51.049,
+          "t_end": 51.489
+        },
+        {
+          "w": "হয়ে",
+          "t_start": 51.559,
+          "t_end": 51.859
+        },
+        {
+          "w": "যাবে",
+          "t_start": 51.929,
+          "t_end": 52.229
+        },
+        {
+          "w": "ইনশাআল্লাহ",
+          "t_start": 52.429,
+          "t_end": 53.079
+        }
+      ]
+    },
+    {
+      "idx": 13,
+      "speaker": "customer",
+      "text": "সন্ধ্যার দিকে নেট একদম ধীর হয়ে যায়।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 53.643,
+      "t_end": 56.563,
+      "words": [
+        {
+          "w": "সন্ধ্যার",
+          "t_start": 53.643,
+          "t_end": 54.153
+        },
+        {
+          "w": "দিকে",
+          "t_start": 54.223,
+          "t_end": 54.523
+        },
+        {
+          "w": "নেট",
+          "t_start": 54.593,
+          "t_end": 54.893
+        },
+        {
+          "w": "একদম",
+          "t_start": 54.963,
+          "t_end": 55.403
+        },
+        {
+          "w": "ধীর",
+          "t_start": 55.473,
+          "t_end": 55.773
+        },
+        {
+          "w": "হয়ে",
+          "t_start": 55.843,
+          "t_end": 56.143
+        },
+        {
+          "w": "যায়",
+          "t_start": 56.213,
+          "t_end": 56.513
+        }
+      ]
+    },
+    {
+      "idx": 14,
+      "speaker": "agent",
+      "text": "জি, শেষ রিচার্জের তথ্যটা দেখা যাচ্ছে।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 56.951,
+      "t_end": 59.631,
+      "words": [
+        {
+          "w": "জি",
+          "t_start": 56.951,
+          "t_end": 57.181
+        },
+        {
+          "w": "শেষ",
+          "t_start": 57.381,
+          "t_end": 57.681
+        },
+        {
+          "w": "রিচার্জের",
+          "t_start": 57.751,
+          "t_end": 58.261
+        },
+        {
+          "w": "তথ্যটা",
+          "t_start": 58.331,
+          "t_end": 58.771
+        },
+        {
+          "w": "দেখা",
+          "t_start": 58.841,
+          "t_end": 59.141
+        },
+        {
+          "w": "যাচ্ছে",
+          "t_start": 59.211,
+          "t_end": 59.581
+        }
+      ]
+    },
+    {
+      "idx": 15,
+      "speaker": "customer",
+      "text": "জি, ঠিক আছে।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 60.603,
+      "t_end": 61.753,
+      "words": [
+        {
+          "w": "জি",
+          "t_start": 60.603,
+          "t_end": 60.833
+        },
+        {
+          "w": "ঠিক",
+          "t_start": 61.033,
+          "t_end": 61.333
+        },
+        {
+          "w": "আছে",
+          "t_start": 61.403,
+          "t_end": 61.703
+        }
+      ]
+    },
+    {
+      "idx": 16,
+      "speaker": "agent",
+      "text": "বিলের তথ্য এখন স্ক্রিনে দেখতে পাচ্ছি।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 62.349,
+      "t_end": 65.039,
+      "words": [
+        {
+          "w": "বিলের",
+          "t_start": 62.349,
+          "t_end": 62.719
+        },
+        {
+          "w": "তথ্য",
+          "t_start": 62.789,
+          "t_end": 63.159
+        },
+        {
+          "w": "এখন",
+          "t_start": 63.229,
+          "t_end": 63.599
+        },
+        {
+          "w": "স্ক্রিনে",
+          "t_start": 63.669,
+          "t_end": 64.109
+        },
+        {
+          "w": "দেখতে",
+          "t_start": 64.179,
+          "t_end": 64.549
+        },
+        {
+          "w": "পাচ্ছি",
+          "t_start": 64.619,
+          "t_end": 64.989
+        }
+      ]
+    },
+    {
+      "idx": 17,
+      "speaker": "customer",
+      "text": "জি, শুনতে পাচ্ছি।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 65.704,
+      "t_end": 66.994,
+      "words": [
+        {
+          "w": "জি",
+          "t_start": 65.704,
+          "t_end": 65.934
+        },
+        {
+          "w": "শুনতে",
+          "t_start": 66.134,
+          "t_end": 66.504
+        },
+        {
+          "w": "পাচ্ছি",
+          "t_start": 66.574,
+          "t_end": 66.944
+        }
+      ]
+    },
+    {
+      "idx": 18,
+      "speaker": "agent",
+      "text": "জি, শেষ রিচার্জের তথ্যটা দেখা যাচ্ছে।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 67.601,
+      "t_end": 70.281,
+      "words": [
+        {
+          "w": "জি",
+          "t_start": 67.601,
+          "t_end": 67.831
+        },
+        {
+          "w": "শেষ",
+          "t_start": 68.031,
+          "t_end": 68.331
+        },
+        {
+          "w": "রিচার্জের",
+          "t_start": 68.401,
+          "t_end": 68.911
+        },
+        {
+          "w": "তথ্যটা",
+          "t_start": 68.981,
+          "t_end": 69.421
+        },
+        {
+          "w": "দেখা",
+          "t_start": 69.491,
+          "t_end": 69.791
+        },
+        {
+          "w": "যাচ্ছে",
+          "t_start": 69.861,
+          "t_end": 70.231
+        }
+      ]
+    },
+    {
+      "idx": 19,
+      "speaker": "customer",
+      "text": "বিলটা এই মাসে অনেক বেশি এসেছে।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 71.047,
+      "t_end": 73.457,
+      "words": [
+        {
+          "w": "বিলটা",
+          "t_start": 71.047,
+          "t_end": 71.417
+        },
+        {
+          "w": "এই",
+          "t_start": 71.487,
+          "t_end": 71.787
+        },
+        {
+          "w": "মাসে",
+          "t_start": 71.857,
+          "t_end": 72.157
+        },
+        {
+          "w": "অনেক",
+          "t_start": 72.227,
+          "t_end": 72.597
+        },
+        {
+          "w": "বেশি",
+          "t_start": 72.667,
+          "t_end": 72.967
+        },
+        {
+          "w": "এসেছে",
+          "t_start": 73.037,
+          "t_end": 73.407
+        }
+      ]
+    },
+    {
+      "idx": 20,
+      "speaker": "agent",
+      "text": "প্যাকেজের মেয়াদ আগামী সপ্তাহে শেষ হবে।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 74.462,
+      "t_end": 77.152,
+      "words": [
+        {
+          "w": "প্যাকেজের",
+          "t_start": 74.462,
+          "t_end": 74.972
+        },
+        {
+          "w": "মেয়াদ",
+          "t_start": 75.042,
+          "t_end": 75.412
+        },
+        {
+          "w": "আগামী",
+          "t_start": 75.482,
+          "t_end": 75.852
+        },
+        {
+          "w": "সপ্তাহে",
+          "t_start": 75.922,
+          "t_end": 76.362
+        },
+        {
+          "w": "শেষ",
+          "t_start": 76.432,
+          "t_end": 76.732
+        },
+        {
+          "w": "হবে",
+          "t_start": 76.802,
+          "t_end": 77.102
+        }
+      ]
+    },
+    {
+      "idx": 21,
+      "speaker": "customer",
+      "text": "ঠিক আছে, অপেক্ষা করছি।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 77.717,
+      "t_end": 79.517,
+      "words": [
+        {
+          "w": "ঠিক",
+          "t_start": 77.717,
+          "t_end": 78.017
+        },
+        {
+          "w": "আছে",
+          "t_start": 78.087,
+          "t_end": 78.387
+        },
+        {
+          "w": "অপেক্ষা",
+          "t_start": 78.587,
+          "t_end": 79.027
+        },
+        {
+          "w": "করছি",
+          "t_start": 79.097,
+          "t_end": 79.467
+        }
+      ]
+    },
+    {
+      "idx": 22,
+      "speaker": "agent",
+      "text": "Ji sir, ami check korchi, ektu hold korun.",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 80.407,
+      "t_end": 84.727,
+      "words": [
+        {
+          "w": "Ji",
+          "t_start": 80.407,
+          "t_end": 80.707
+        },
+        {
+          "w": "sir",
+          "t_start": 80.777,
+          "t_end": 81.147
+        },
+        {
+          "w": "ami",
+          "t_start": 81.347,
+          "t_end": 81.717
+        },
+        {
+          "w": "check",
+          "t_start": 81.787,
+          "t_end": 82.297
+        },
+        {
+          "w": "korchi",
+          "t_start": 82.367,
+          "t_end": 82.947
+        },
+        {
+          "w": "ektu",
+          "t_start": 83.147,
+          "t_end": 83.587
+        },
+        {
+          "w": "hold",
+          "t_start": 83.657,
+          "t_end": 84.097
+        },
+        {
+          "w": "korun",
+          "t_start": 84.167,
+          "t_end": 84.677
+        }
+      ]
+    },
+    {
+      "idx": 23,
+      "speaker": "customer",
+      "text": "tumi onek sweet kore kotha bolo, <GALI_19_V>",
+      "style": "normal",
+      "pronoun_register": "tumi",
+      "t_start": 85.789,
+      "t_end": 89.619,
+      "words": [
+        {
+          "w": "tumi",
+          "t_start": 85.789,
+          "t_end": 86.229
+        },
+        {
+          "w": "onek",
+          "t_start": 86.299,
+          "t_end": 86.739
+        },
+        {
+          "w": "sweet",
+          "t_start": 86.809,
+          "t_end": 87.319
+        },
+        {
+          "w": "kore",
+          "t_start": 87.389,
+          "t_end": 87.829
+        },
+        {
+          "w": "kotha",
+          "t_start": 87.899,
+          "t_end": 88.409
+        },
+        {
+          "w": "bolo",
+          "t_start": 88.479,
+          "t_end": 88.919
+        },
+        {
+          "w": "<GALI_19_V>",
+          "t_start": 89.119,
+          "t_end": 89.569
+        }
+      ]
+    },
+    {
+      "idx": 24,
+      "speaker": "agent",
+      "text": "Sir, please call er bishoy niye kotha bolun.",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 90.655,
+      "t_end": 95.055,
+      "words": [
+        {
+          "w": "Sir",
+          "t_start": 90.655,
+          "t_end": 91.025
+        },
+        {
+          "w": "please",
+          "t_start": 91.225,
+          "t_end": 91.805
+        },
+        {
+          "w": "call",
+          "t_start": 91.875,
+          "t_end": 92.315
+        },
+        {
+          "w": "er",
+          "t_start": 92.385,
+          "t_end": 92.685
+        },
+        {
+          "w": "bishoy",
+          "t_start": 92.755,
+          "t_end": 93.335
+        },
+        {
+          "w": "niye",
+          "t_start": 93.405,
+          "t_end": 93.845
+        },
+        {
+          "w": "kotha",
+          "t_start": 93.915,
+          "t_end": 94.425
+        },
+        {
+          "w": "bolun",
+          "t_start": 94.495,
+          "t_end": 95.005
+        }
+      ]
+    },
+    {
+      "idx": 25,
+      "speaker": "agent",
+      "text": "আটচল্লিশ ঘণ্টার মধ্যে সমাধান হয়ে যাবে, ইনশাআল্লাহ।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 95.542,
+      "t_end": 99.222,
+      "words": [
+        {
+          "w": "আটচল্লিশ",
+          "t_start": 95.542,
+          "t_end": 96.122
+        },
+        {
+          "w": "ঘণ্টার",
+          "t_start": 96.192,
+          "t_end": 96.632
+        },
+        {
+          "w": "মধ্যে",
+          "t_start": 96.702,
+          "t_end": 97.072
+        },
+        {
+          "w": "সমাধান",
+          "t_start": 97.142,
+          "t_end": 97.582
+        },
+        {
+          "w": "হয়ে",
+          "t_start": 97.652,
+          "t_end": 97.952
+        },
+        {
+          "w": "যাবে",
+          "t_start": 98.022,
+          "t_end": 98.322
+        },
+        {
+          "w": "ইনশাআল্লাহ",
+          "t_start": 98.522,
+          "t_end": 99.172
+        }
+      ]
+    },
+    {
+      "idx": 26,
+      "speaker": "customer",
+      "text": "এসএমএসটা এখনো আসেনি।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 99.796,
+      "t_end": 101.376,
+      "words": [
+        {
+          "w": "এসএমএসটা",
+          "t_start": 99.796,
+          "t_end": 100.446
+        },
+        {
+          "w": "এখনো",
+          "t_start": 100.516,
+          "t_end": 100.886
+        },
+        {
+          "w": "আসেনি",
+          "t_start": 100.956,
+          "t_end": 101.326
+        }
+      ]
+    },
+    {
+      "idx": 27,
+      "speaker": "agent",
+      "text": "জি, শেষ রিচার্জের তথ্যটা দেখা যাচ্ছে।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 102.406,
+      "t_end": 105.086,
+      "words": [
+        {
+          "w": "জি",
+          "t_start": 102.406,
+          "t_end": 102.636
+        },
+        {
+          "w": "শেষ",
+          "t_start": 102.836,
+          "t_end": 103.136
+        },
+        {
+          "w": "রিচার্জের",
+          "t_start": 103.206,
+          "t_end": 103.716
+        },
+        {
+          "w": "তথ্যটা",
+          "t_start": 103.786,
+          "t_end": 104.226
+        },
+        {
+          "w": "দেখা",
+          "t_start": 104.296,
+          "t_end": 104.596
+        },
+        {
+          "w": "যাচ্ছে",
+          "t_start": 104.666,
+          "t_end": 105.036
+        }
+      ]
+    },
+    {
+      "idx": 28,
+      "speaker": "customer",
+      "text": "গত সপ্তাহেও একবার ফোন করেছিলাম।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 105.909,
+      "t_end": 108.299,
+      "words": [
+        {
+          "w": "গত",
+          "t_start": 105.909,
+          "t_end": 106.209
+        },
+        {
+          "w": "সপ্তাহেও",
+          "t_start": 106.279,
+          "t_end": 106.789
+        },
+        {
+          "w": "একবার",
+          "t_start": 106.859,
+          "t_end": 107.299
+        },
+        {
+          "w": "ফোন",
+          "t_start": 107.369,
+          "t_end": 107.669
+        },
+        {
+          "w": "করেছিলাম",
+          "t_start": 107.739,
+          "t_end": 108.249
+        }
+      ]
+    },
+    {
+      "idx": 29,
+      "speaker": "agent",
+      "text": "প্যাকেজের মেয়াদ আগামী সপ্তাহে শেষ হবে।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 108.763,
+      "t_end": 111.453,
+      "words": [
+        {
+          "w": "প্যাকেজের",
+          "t_start": 108.763,
+          "t_end": 109.273
+        },
+        {
+          "w": "মেয়াদ",
+          "t_start": 109.343,
+          "t_end": 109.713
+        },
+        {
+          "w": "আগামী",
+          "t_start": 109.783,
+          "t_end": 110.153
+        },
+        {
+          "w": "সপ্তাহে",
+          "t_start": 110.223,
+          "t_end": 110.663
+        },
+        {
+          "w": "শেষ",
+          "t_start": 110.733,
+          "t_end": 111.033
+        },
+        {
+          "w": "হবে",
+          "t_start": 111.103,
+          "t_end": 111.403
+        }
+      ]
+    },
+    {
+      "idx": 30,
+      "speaker": "customer",
+      "text": "জি, ঠিক আছে।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 112.183,
+      "t_end": 113.333,
+      "words": [
+        {
+          "w": "জি",
+          "t_start": 112.183,
+          "t_end": 112.413
+        },
+        {
+          "w": "ঠিক",
+          "t_start": 112.613,
+          "t_end": 112.913
+        },
+        {
+          "w": "আছে",
+          "t_start": 112.983,
+          "t_end": 113.283
+        }
+      ]
+    },
+    {
+      "idx": 31,
+      "speaker": "agent",
+      "text": "নিবন্ধিত নম্বরটা একবার নিশ্চিত করবেন, প্লিজ?",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 114.394,
+      "t_end": 117.634,
+      "words": [
+        {
+          "w": "নিবন্ধিত",
+          "t_start": 114.394,
+          "t_end": 114.904
+        },
+        {
+          "w": "নম্বরটা",
+          "t_start": 114.974,
+          "t_end": 115.484
+        },
+        {
+          "w": "একবার",
+          "t_start": 115.554,
+          "t_end": 115.994
+        },
+        {
+          "w": "নিশ্চিত",
+          "t_start": 116.064,
+          "t_end": 116.504
+        },
+        {
+          "w": "করবেন",
+          "t_start": 116.574,
+          "t_end": 117.014
+        },
+        {
+          "w": "প্লিজ",
+          "t_start": 117.214,
+          "t_end": 117.584
+        }
+      ]
+    },
+    {
+      "idx": 32,
+      "speaker": "customer",
+      "text": "প্যাকেজটা কীভাবে বন্ধ করা যায়?",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 118.503,
+      "t_end": 120.683,
+      "words": [
+        {
+          "w": "প্যাকেজটা",
+          "t_start": 118.503,
+          "t_end": 119.013
+        },
+        {
+          "w": "কীভাবে",
+          "t_start": 119.083,
+          "t_end": 119.453
+        },
+        {
+          "w": "বন্ধ",
+          "t_start": 119.523,
+          "t_end": 119.893
+        },
+        {
+          "w": "করা",
+          "t_start": 119.963,
+          "t_end": 120.263
+        },
+        {
+          "w": "যায়",
+          "t_start": 120.333,
+          "t_end": 120.633
+        }
+      ]
+    },
+    {
+      "idx": 33,
+      "speaker": "agent",
+      "text": "লাইনে থাকার জন্য ধন্যবাদ।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 121.646,
+      "t_end": 123.526,
+      "words": [
+        {
+          "w": "লাইনে",
+          "t_start": 121.646,
+          "t_end": 122.016
+        },
+        {
+          "w": "থাকার",
+          "t_start": 122.086,
+          "t_end": 122.456
+        },
+        {
+          "w": "জন্য",
+          "t_start": 122.526,
+          "t_end": 122.896
+        },
+        {
+          "w": "ধন্যবাদ",
+          "t_start": 122.966,
+          "t_end": 123.476
+        }
+      ]
+    },
+    {
+      "idx": 34,
+      "speaker": "customer",
+      "text": "রিচার্জ করার পরেও ব্যালেন্স দেখাচ্ছে না।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 124.55,
+      "t_end": 127.31,
+      "words": [
+        {
+          "w": "রিচার্জ",
+          "t_start": 124.55,
+          "t_end": 124.99
+        },
+        {
+          "w": "করার",
+          "t_start": 125.06,
+          "t_end": 125.43
+        },
+        {
+          "w": "পরেও",
+          "t_start": 125.5,
+          "t_end": 125.87
+        },
+        {
+          "w": "ব্যালেন্স",
+          "t_start": 125.94,
+          "t_end": 126.45
+        },
+        {
+          "w": "দেখাচ্ছে",
+          "t_start": 126.52,
+          "t_end": 126.96
+        },
+        {
+          "w": "না",
+          "t_start": 127.03,
+          "t_end": 127.26
+        }
+      ]
+    },
+    {
+      "idx": 35,
+      "speaker": "agent",
+      "text": "প্যাকেজের মেয়াদ আগামী সপ্তাহে শেষ হবে।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 128.245,
+      "t_end": 130.935,
+      "words": [
+        {
+          "w": "প্যাকেজের",
+          "t_start": 128.245,
+          "t_end": 128.755
+        },
+        {
+          "w": "মেয়াদ",
+          "t_start": 128.825,
+          "t_end": 129.195
+        },
+        {
+          "w": "আগামী",
+          "t_start": 129.265,
+          "t_end": 129.635
+        },
+        {
+          "w": "সপ্তাহে",
+          "t_start": 129.705,
+          "t_end": 130.145
+        },
+        {
+          "w": "শেষ",
+          "t_start": 130.215,
+          "t_end": 130.515
+        },
+        {
+          "w": "হবে",
+          "t_start": 130.585,
+          "t_end": 130.885
+        }
+      ]
+    },
+    {
+      "idx": 36,
+      "speaker": "customer",
+      "text": "প্যাকেজটা কীভাবে বন্ধ করা যায়?",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 131.995,
+      "t_end": 134.175,
+      "words": [
+        {
+          "w": "প্যাকেজটা",
+          "t_start": 131.995,
+          "t_end": 132.505
+        },
+        {
+          "w": "কীভাবে",
+          "t_start": 132.575,
+          "t_end": 132.945
+        },
+        {
+          "w": "বন্ধ",
+          "t_start": 133.015,
+          "t_end": 133.385
+        },
+        {
+          "w": "করা",
+          "t_start": 133.455,
+          "t_end": 133.755
+        },
+        {
+          "w": "যায়",
+          "t_start": 133.825,
+          "t_end": 134.125
+        }
+      ]
+    },
+    {
+      "idx": 37,
+      "speaker": "agent",
+      "text": "লাইনে থাকার জন্য ধন্যবাদ।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 135.025,
+      "t_end": 136.905,
+      "words": [
+        {
+          "w": "লাইনে",
+          "t_start": 135.025,
+          "t_end": 135.395
+        },
+        {
+          "w": "থাকার",
+          "t_start": 135.465,
+          "t_end": 135.835
+        },
+        {
+          "w": "জন্য",
+          "t_start": 135.905,
+          "t_end": 136.275
+        },
+        {
+          "w": "ধন্যবাদ",
+          "t_start": 136.345,
+          "t_end": 136.855
+        }
+      ]
+    },
+    {
+      "idx": 38,
+      "speaker": "customer",
+      "text": "রিচার্জ করার পরেও ব্যালেন্স দেখাচ্ছে না।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 137.976,
+      "t_end": 140.736,
+      "words": [
+        {
+          "w": "রিচার্জ",
+          "t_start": 137.976,
+          "t_end": 138.416
+        },
+        {
+          "w": "করার",
+          "t_start": 138.486,
+          "t_end": 138.856
+        },
+        {
+          "w": "পরেও",
+          "t_start": 138.926,
+          "t_end": 139.296
+        },
+        {
+          "w": "ব্যালেন্স",
+          "t_start": 139.366,
+          "t_end": 139.876
+        },
+        {
+          "w": "দেখাচ্ছে",
+          "t_start": 139.946,
+          "t_end": 140.386
+        },
+        {
+          "w": "না",
+          "t_start": 140.456,
+          "t_end": 140.686
+        }
+      ]
+    },
+    {
+      "idx": 39,
+      "speaker": "agent",
+      "text": "সমস্যাটা আমাদের টেকনিক্যাল টিমকে জানানো হয়েছে।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 141.368,
+      "t_end": 144.408,
+      "words": [
+        {
+          "w": "সমস্যাটা",
+          "t_start": 141.368,
+          "t_end": 141.878
+        },
+        {
+          "w": "আমাদের",
+          "t_start": 141.948,
+          "t_end": 142.388
+        },
+        {
+          "w": "টেকনিক্যাল",
+          "t_start": 142.458,
+          "t_end": 143.038
+        },
+        {
+          "w": "টিমকে",
+          "t_start": 143.108,
+          "t_end": 143.478
+        },
+        {
+          "w": "জানানো",
+          "t_start": 143.548,
+          "t_end": 143.918
+        },
+        {
+          "w": "হয়েছে",
+          "t_start": 143.988,
+          "t_end": 144.358
+        }
+      ]
+    },
+    {
+      "idx": 40,
+      "speaker": "customer",
+      "text": "জি, শুনতে পাচ্ছি।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 145.299,
+      "t_end": 146.589,
+      "words": [
+        {
+          "w": "জি",
+          "t_start": 145.299,
+          "t_end": 145.529
+        },
+        {
+          "w": "শুনতে",
+          "t_start": 145.729,
+          "t_end": 146.099
+        },
+        {
+          "w": "পাচ্ছি",
+          "t_start": 146.169,
+          "t_end": 146.539
+        }
+      ]
+    },
+    {
+      "idx": 41,
+      "speaker": "agent",
+      "text": "আর কোনো বিষয়ে সাহায্য করতে পারি?",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 147.05,
+      "t_end": 149.53,
+      "words": [
+        {
+          "w": "আর",
+          "t_start": 147.05,
+          "t_end": 147.35
+        },
+        {
+          "w": "কোনো",
+          "t_start": 147.42,
+          "t_end": 147.72
+        },
+        {
+          "w": "বিষয়ে",
+          "t_start": 147.79,
+          "t_end": 148.16
+        },
+        {
+          "w": "সাহায্য",
+          "t_start": 148.23,
+          "t_end": 148.67
+        },
+        {
+          "w": "করতে",
+          "t_start": 148.74,
+          "t_end": 149.11
+        },
+        {
+          "w": "পারি",
+          "t_start": 149.18,
+          "t_end": 149.48
+        }
+      ]
+    },
+    {
+      "idx": 42,
+      "speaker": "customer",
+      "text": "না, আর কিছু না।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 150.594,
+      "t_end": 152.044,
+      "words": [
+        {
+          "w": "না",
+          "t_start": 150.594,
+          "t_end": 150.824
+        },
+        {
+          "w": "আর",
+          "t_start": 151.024,
+          "t_end": 151.324
+        },
+        {
+          "w": "কিছু",
+          "t_start": 151.394,
+          "t_end": 151.694
+        },
+        {
+          "w": "না",
+          "t_start": 151.764,
+          "t_end": 151.994
+        }
+      ]
+    },
+    {
+      "idx": 43,
+      "speaker": "agent",
+      "text": "ফোন করার জন্য ধন্যবাদ, ভালো থাকবেন।",
+      "style": "normal",
+      "pronoun_register": null,
+      "t_start": 152.829,
+      "t_end": 155.649,
+      "words": [
+        {
+          "w": "ফোন",
+          "t_start": 152.829,
+          "t_end": 153.129
+        },
+        {
+          "w": "করার",
+          "t_start": 153.199,
+          "t_end": 153.569
+        },
+        {
+          "w": "জন্য",
+          "t_start": 153.639,
+          "t_end": 154.009
+        },
+        {
+          "w": "ধন্যবাদ",
+          "t_start": 154.079,
+          "t_end": 154.589
+        },
+        {
+          "w": "ভালো",
+          "t_start": 154.789,
+          "t_end": 155.089
+        },
+        {
+          "w": "থাকবেন",
+          "t_start": 155.159,
+          "t_end": 155.599
+        }
+      ]
+    }
+  ]
+}

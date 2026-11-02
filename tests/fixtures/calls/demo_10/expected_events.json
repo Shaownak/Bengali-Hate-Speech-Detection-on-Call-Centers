@@ -1,0 +1,40 @@
+{
+  "schema_version": "1",
+  "call_id": "demo_10",
+  "tolerance_s": 0.5,
+  "events": [
+    {
+      "category": "disrespect_register",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 85.789,
+      "t_end": 86.229,
+      "severity": 1,
+      "turn_idx": 23,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "from": "apni",
+        "to": "tumi",
+        "pronoun": "tumi",
+        "source": "register"
+      }
+    },
+    {
+      "category": "sexual_harassment",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 89.119,
+      "t_end": 89.569,
+      "severity": 3,
+      "turn_idx": 23,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "term": "<GALI_19_V>",
+        "lexicon_id": "gali_19",
+        "source": "lexicon"
+      }
+    }
+  ]
+}

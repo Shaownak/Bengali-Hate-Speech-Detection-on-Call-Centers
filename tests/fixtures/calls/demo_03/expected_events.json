@@ -1,0 +1,55 @@
+{
+  "schema_version": "1",
+  "call_id": "demo_03",
+  "tolerance_s": 0.5,
+  "events": [
+    {
+      "category": "disrespect_register",
+      "speaker": "agent",
+      "target": "customer",
+      "t_start": 79.405,
+      "t_end": 79.705,
+      "severity": 2,
+      "turn_idx": 24,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "from": "apni",
+        "to": "tumi",
+        "pronoun": "তুমি",
+        "source": "register"
+      }
+    },
+    {
+      "category": "dismissive_rude",
+      "speaker": "agent",
+      "target": "customer",
+      "t_start": 84.845,
+      "t_end": 87.175,
+      "severity": 2,
+      "turn_idx": 26,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "source": "annotation"
+      }
+    },
+    {
+      "category": "disrespect_register",
+      "speaker": "agent",
+      "target": "customer",
+      "t_start": 84.845,
+      "t_end": 85.145,
+      "severity": 3,
+      "turn_idx": 26,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "from": "apni",
+        "to": "tui",
+        "pronoun": "তুই",
+        "source": "register"
+      }
+    }
+  ]
+}

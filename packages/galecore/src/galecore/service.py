@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from contextlib import AbstractAsyncContextManager
 
 from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse
@@ -12,6 +13,7 @@ from galecore.config import Settings, get_settings
 from galecore.logging import configure_logging
 
 ReadyCheck = Callable[[], Awaitable[bool]]
+Lifespan = Callable[[FastAPI], AbstractAsyncContextManager[None]]
 
 # Default local ports (docs/04 §3 API on 8000; workers expose health/metrics only)
 SERVICE_PORTS: dict[str, int] = {
@@ -31,10 +33,11 @@ def create_app(
     version: str = "0.1.0",
     ready_checks: dict[str, ReadyCheck] | None = None,
     settings: Settings | None = None,
+    lifespan: Lifespan | None = None,
 ) -> FastAPI:
     s = settings or get_settings()
     configure_logging(name, s.log_level, s.log_json)
-    app = FastAPI(title=f"gal-e {name}", version=version)
+    app = FastAPI(title=f"gal-e {name}", version=version, lifespan=lifespan)
     checks = ready_checks or {}
 
     @app.get("/healthz")

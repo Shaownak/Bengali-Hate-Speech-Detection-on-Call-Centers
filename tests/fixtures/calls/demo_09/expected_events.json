@@ -1,0 +1,43 @@
+{
+  "schema_version": "1",
+  "call_id": "demo_09",
+  "tolerance_s": 0.5,
+  "events": [
+    {
+      "category": "slang_profanity",
+      "speaker": "customer",
+      "target": "third_party",
+      "t_start": 9.802,
+      "t_end": 10.252,
+      "severity": 1,
+      "turn_idx": 1,
+      "alert": false,
+      "context_flags": [
+        "reported_speech"
+      ],
+      "evidence": {
+        "term": "<GALI_3>",
+        "lexicon_id": "gali_03",
+        "source": "lexicon"
+      }
+    },
+    {
+      "category": "slang_profanity",
+      "speaker": "customer",
+      "target": "self",
+      "t_start": 76.859,
+      "t_end": 77.309,
+      "severity": 1,
+      "turn_idx": 23,
+      "alert": false,
+      "context_flags": [
+        "self_directed"
+      ],
+      "evidence": {
+        "term": "<GALI_6>",
+        "lexicon_id": "gali_06",
+        "source": "lexicon"
+      }
+    }
+  ]
+}

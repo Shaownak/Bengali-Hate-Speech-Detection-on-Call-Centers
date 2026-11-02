@@ -3,14 +3,14 @@
 Maintained by Claude Code. Updated at the end of every phase/prompt.
 Legend: `[ ]` todo · `[x]` done · `[~]` in progress · **[HUMAN]** needs people, access or sign-off · 🔒 blocked on a human input.
 
-Last updated: 2026-11-02 (Prompt 1: P0 monorepo scaffold & shared core)
+Last updated: 2026-11-02 (Prompt 2: P0 synthetic fixtures & call simulator)
 
 ---
 
 ## Phase checklist
 
 ### P0 — Foundations (weeks 1–2) · Prompts 1–2
-Exit gate: `make dev-up` runs; CI green.
+Exit gate: `make dev-up` runs; CI green. **Met 2026-11-02** (CI run #3 green on `07ce4bd`).
 - [x] Spec review, PROGRESS.md, ADR template and ADR-001..007 (Prompt 0)
 - [x] uv workspace: `packages/galecore`, 7 `services/*` skeletons with `/healthz` `/readyz` `/metrics`, `ml/*` empty modules (ml is a plain package, not a workspace member: D-16)
 - [x] `galecore.schemas`: enums (Channel, Speaker, Category, Target, ContextFlag, SignalSource, EventStatus) + AudioFrame, Word, AsrSegment, Evidence, Signal, FusedEvent, CallLifecycle, Review, WindowJudgement, CallScorecard; tests check Category against docs/02 and docs/08
@@ -30,9 +30,10 @@ Exit gate: `make dev-up` runs; CI green.
 - [x] `.gitattributes` (`* text=auto eol=lf`), Windows-safe Makefile (`SHELL := bash`), and a Windows CI job (ADR-008)
 - [x] Makefile (`setup`, `dev-up`, `dev-down`, `dev-status`, `check`, `gen-types`, later-phase targets print where they arrive), pre-commit (local hooks only)
 - [x] `make gen-types`: pydantic → JSON Schema (`tools/gen_types.py`) → TypeScript (`web/scripts/gen-types.mjs`) + `make gen-types-check` drift check
-- [x] GitHub Actions CI written: ruff, mypy --strict, pytest + coverage ≥ 80% (Linux + Windows), eslint, tsc, vitest, types drift, docker build, Trivy. **Not yet run on GitHub** (nothing pushed)
-- [ ] `tools/fixtures_gen`: 10 synthetic stereo 8 kHz calls with `script.json` + `expected_events.json` (placeholders only)
-- [ ] `tools/simulator`: RTP (G.711 µ-law), WebSocket PCM, file-drop modes; `--speed`; round-trip decode test
+- [x] GitHub Actions CI: ruff, mypy --strict, pytest + coverage ≥ 80% (Linux + Windows), eslint, tsc, vitest, types drift, docker build (7 images), Trivy. Green since run #3 (fixes: uv-managed Python on runners, trivy-action pinned by commit)
+- [x] `tools/fixtures_gen`: 10 synthetic stereo 8 kHz calls (138–167 s) with `script.json` + `expected_events.json` (placeholders only); pluggable TTS (stub + local VITS); `call.wav` rendered on demand (ADR-010)
+- [x] `tools/simulator`: RTP (G.711 µ-law/A-law), WebSocket PCM, file-drop modes; `--speed`; round-trip decode tests; `make simulate`
+- [x] ingest-gateway P0 stub transports: RTP session registry + UDP receiver, WebSocket PCM, decode → 16 kHz → 200 ms `AudioFrame` → counting sink; `galecore.rtp` (RFC 3550 codec, loss/reorder tracking)
 - [ ] **[HUMAN]** Legal basis and DPIA started (PDPO 2025) 🔒
 - [ ] **[HUMAN]** Call-data access approval 🔒
 - [ ] **[HUMAN]** Dataset and model licence review started 🔒
@@ -130,7 +131,7 @@ Exit gate: pilot exit criteria (`06_EVALUATION.md` §6).
 ## Decisions
 
 Accepted (from spec): ADR-001..007 in `docs/adr/`.
-Accepted 2026-11-02: ADR-008 native Windows development; ADR-009 Docker-free local dev (venv + fakeredis + embedded Postgres + local object store + dev auth; all caches on G:).
+Accepted 2026-11-02: ADR-008 native Windows development; ADR-009 Docker-free local dev (venv + fakeredis + embedded Postgres + local object store + dev auth; all caches on G:); ADR-010 synthetic fixtures (script is the source of truth, WAV rendered on demand) and the simulator ↔ gateway stub protocol.
 
 Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own ADR when the phase that needs it is implemented. The ⚠ marks the item that was a human decision.
 
@@ -172,6 +173,7 @@ Licence review (Q-03, Q-04) is still a **[HUMAN]** legal action. The approval co
 | Q-06 | **Windows dev environment.** You're on Windows. `make`, Docker Compose and some audio libs work best under WSL2. Develop in WSL2 (recommended), or keep native Windows + Git Bash (I'd need `make` installed and a Windows-safe Makefile)? | Affects `make setup` / `make dev-up` from Prompt 1. | ~~WSL2~~ → **Answered: native Windows** (ADR-008) |
 | Q-07 | **Repo naming.** Spec layout roots at `gal-e/`; this repo is `Bengali-Hate-Speech-Detection-on-Call-Centers` with the spec at the root. OK to scaffold the monorepo directly at this repo root? | Layout only. | Yes, repo root = `gal-e/` |
 | Q-08 | **Model ids.** Qwen3.5, Gemma 4, Qwen3-ASR-bn etc. are taken from the research summary. I'll verify each exists and pin it by commit hash at download time (P1). Do you have a preferred hosting mirror (internal registry/MinIO) for weights? | Supply chain (05 §7). | Download to `GALE_MODEL_DIR` from HF in build, mirror to MinIO |
+| Q-10 | **Log scrubber vs identifiers.** The PII scrubber redacts any ≥ 7-digit run in every log value. It mangled ISO timestamps (fixed: timestamps are now added after scrubbing) and also mangles ids with long digit runs, e.g. UUID tails (`…-446655440000` → `<ACCT>`), so `call_id` in logs becomes unusable for tracing. Exempting `call_id` / `trace_id` is a privacy-posture change (some PBX channel names embed caller numbers). Proposal: GAL-E always mints its own UUID `call_id` (never a PBX channel name), and those keys are exempt only when the value is a valid UUID. | Security posture: CLAUDE.md says ask. | Exempt UUID-shaped `call_id` / `trace_id` only |
 | Q-09 | **PBX target.** Which platform does the call centre use (Asterisk, FreeSWITCH, Genesys/Avaya/Cisco via SIPREC)? Are recordings stereo for all queues? | P4 scope; mono needs diarization path. | Build Asterisk + file mode first |
 
 ---
@@ -202,6 +204,30 @@ Smaller inconsistencies, resolved in-line without an ADR:
 
 **Incident (2026-11-02):** pnpm 12's global virtual store keeps a junction from `<store>/projects/<hash>` to `web/`. Moving the store followed it and moved web config files into the store. Files were restored from there, nothing was lost, and `enableGlobalVirtualStore: false` now prevents it (ADR-009).
 
+## Prompt 2 summary (2026-11-02)
+
+**Built:**
+- `tools/fixtures_gen`: scenario DSL, deterministic stub TTS (local VITS optional), ground-truth derivation, renderer, `gen` / `render` / `check` CLI.
+- 10 committed fixture scripts covering slang, insult, threat, sexual harassment, register drop (agent and customer), shouting, overtalk, dismissive-rude, context negatives (reported speech, self-directed) and a clean control.
+- `tools/simulator`: RTP µ-law/A-law, WebSocket PCM, file drop; `--speed`; CRC integrity report.
+- `galecore.rtp`.
+- ingest-gateway stub transports (session registry, UDP RTP receiver, WebSocket endpoint, soxr streaming resample to 200 ms 16 kHz `AudioFrame`s, Prometheus counters).
+- `make simulate` / `fixtures` / `fixtures-wav`; ADR-010.
+
+**Verified on this Windows machine:**
+- `make check` passes: 171 pytest tests at 99.3% coverage, plus mypy --strict, ruff and the web checks.
+- `make simulate CALL=tests/fixtures/calls/demo_01 SPEED=20` against `make dev-up`: 8,330 RTP packets per channel, 0 lost, 833 frames per channel, CRC round trip OK. WebSocket mode is also OK.
+- The gateway log has counts only, with no audio or text.
+
+**Fixed along the way:** the log scrubber redacted ISO timestamps as `<ACCT>`. The timestamp is now added after scrubbing, with a regression test. Identifier scrubbing is raised as Q-10.
+
+**Stubbed:**
+- The TTS (not real Bangla speech).
+- The gateway's frame sink (counts only, no bus publish yet: P4).
+- No RTP jitter buffer (P4).
+
+**Needs a human:** answer Q-10. Optional: a local Bangla TTS checkpoint at `GALE_TTS_DIR` for speech-realistic fixtures (licence check first; MMS-TTS is CC-BY-NC-4.0).
+
 ## Next step
 
-Run **Prompt 2: P0 synthetic fixtures & call simulator** (`tools/fixtures_gen`, `tools/simulator`, `make simulate`).
+Run **Prompt 3: P1 offline post-call pipeline** (`make report FILE=tests/fixtures/calls/demo_01/call.wav`). Stub models key off each fixture's `script.json`, and an integration test checks the events against `expected_events.json`. It also brings the local `ObjectStore` backend.

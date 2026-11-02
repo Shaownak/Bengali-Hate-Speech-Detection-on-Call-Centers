@@ -1,0 +1,53 @@
+{
+  "schema_version": "1",
+  "call_id": "demo_04",
+  "tolerance_s": 0.5,
+  "events": [
+    {
+      "category": "interruption_overtalk",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 77.071,
+      "t_end": 78.271,
+      "severity": 1,
+      "turn_idx": 21,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "overlap_s": 1.2,
+        "source": "vad_overtalk"
+      }
+    },
+    {
+      "category": "insult",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 78.521,
+      "t_end": 78.971,
+      "severity": 2,
+      "turn_idx": 21,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "term": "<GALI_13>",
+        "lexicon_id": "gali_13",
+        "source": "lexicon"
+      }
+    },
+    {
+      "category": "interruption_overtalk",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 87.196,
+      "t_end": 87.996,
+      "severity": 1,
+      "turn_idx": 23,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "overlap_s": 0.8,
+        "source": "vad_overtalk"
+      }
+    }
+  ]
+}

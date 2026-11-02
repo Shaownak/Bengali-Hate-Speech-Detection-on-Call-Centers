@@ -35,6 +35,14 @@ def test_pii_patterns_redacted_in_values_and_message() -> None:
     assert out["nested"] == {"n": "<EMAIL>"}
 
 
+def test_timestamp_is_not_mistaken_for_pii() -> None:
+    out = capture()
+    ts = str(out["timestamp"])
+    assert "<" not in ts
+    assert ts[:2] == "20"
+    assert ts.endswith("Z")
+
+
 def test_nested_forbidden_keys_and_bytes() -> None:
     out = capture(meta={"text": "x", "ok": 1, "items": ["01712345678", b"raw"]})
     assert out["meta"] == {"text": "[dropped]", "ok": 1, "items": ["<PHONE>", "[dropped]"]}

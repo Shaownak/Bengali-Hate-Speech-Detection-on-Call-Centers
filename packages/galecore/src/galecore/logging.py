@@ -5,7 +5,7 @@ The scrubber:
   (so ``text_redacted``, ``pcm_s16le``, ``audio_b64`` are dropped too: even redacted
   transcripts stay out of logs);
 - redacts phone/NID/account/email patterns in every remaining string value, including the
-  event message itself.
+  event message itself. The timestamp is added after scrubbing (it is ours, never PII).
 """
 
 from __future__ import annotations
@@ -74,8 +74,9 @@ def configure_logging(
         processors=[
             structlog.contextvars.merge_contextvars,
             structlog.processors.add_log_level,
-            structlog.processors.TimeStamper(fmt="iso", utc=True),
             scrub_event,
+            # after the scrubber: the date's digit run would otherwise be redacted as <ACCT>
+            structlog.processors.TimeStamper(fmt="iso", utc=True),
             structlog.processors.format_exc_info,
             renderer,
         ],

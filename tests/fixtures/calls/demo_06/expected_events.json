@@ -1,0 +1,39 @@
+{
+  "schema_version": "1",
+  "call_id": "demo_06",
+  "tolerance_s": 0.5,
+  "events": [
+    {
+      "category": "slang_profanity",
+      "speaker": "agent",
+      "target": "customer",
+      "t_start": 76.062,
+      "t_end": 76.512,
+      "severity": 1,
+      "turn_idx": 23,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "term": "<GALI_9>",
+        "lexicon_id": "gali_09",
+        "source": "lexicon"
+      }
+    },
+    {
+      "category": "insult",
+      "speaker": "agent",
+      "target": "customer",
+      "t_start": 81.879,
+      "t_end": 82.329,
+      "severity": 1,
+      "turn_idx": 25,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "term": "<GALI_15>",
+        "lexicon_id": "gali_15",
+        "source": "lexicon"
+      }
+    }
+  ]
+}

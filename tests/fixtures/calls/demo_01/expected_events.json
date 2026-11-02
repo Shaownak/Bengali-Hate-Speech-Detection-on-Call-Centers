@@ -1,0 +1,71 @@
+{
+  "schema_version": "1",
+  "call_id": "demo_01",
+  "tolerance_s": 0.5,
+  "events": [
+    {
+      "category": "slang_profanity",
+      "speaker": "customer",
+      "target": "company",
+      "t_start": 87.272,
+      "t_end": 87.722,
+      "severity": 2,
+      "turn_idx": 23,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "term": "<GALI_4>",
+        "lexicon_id": "gali_04",
+        "source": "lexicon"
+      }
+    },
+    {
+      "category": "shouting",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 94.733,
+      "t_end": 97.713,
+      "severity": 2,
+      "turn_idx": 25,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "gain_db": 12.0,
+        "pitch_factor": 1.35,
+        "source": "dsp"
+      }
+    },
+    {
+      "category": "shouting",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 98.113,
+      "t_end": 100.803,
+      "severity": 2,
+      "turn_idx": 26,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "gain_db": 12.0,
+        "pitch_factor": 1.35,
+        "source": "dsp"
+      }
+    },
+    {
+      "category": "slang_profanity",
+      "speaker": "customer",
+      "target": "agent",
+      "t_start": 98.113,
+      "t_end": 98.563,
+      "severity": 3,
+      "turn_idx": 26,
+      "alert": true,
+      "context_flags": [],
+      "evidence": {
+        "term": "<GALI_1>",
+        "lexicon_id": "gali_01",
+        "source": "lexicon"
+      }
+    }
+  ]
+}

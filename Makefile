@@ -33,7 +33,7 @@ PY_PKGS := -p galecore -p gale_api -p gale_ingest_gateway -p gale_audio_worker \
            -p gale_asr_worker -p gale_text_worker -p gale_llm_judge -p gale_fusion_engine
 
 .PHONY: help setup dev-up dev-down dev-status check check-py check-web lint fmt typecheck test \
-        test-web gen-types gen-types-check simulate report eval e2e clean-caches
+        test-web gen-types gen-types-check simulate fixtures fixtures-wav report eval e2e clean-caches
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  %-16s %s\n",$$1,$$2}'
@@ -102,8 +102,17 @@ gen-types-check: gen-types ## fail if generated types are out of date
 
 # --- later phases (targets exist so the CLAUDE.md command list is stable) -----------------
 
-simulate: ## replay a synthetic call as live RTP/WS (Prompt 2)
-	@echo "simulate: arrives in P0 Prompt 2 (tools/simulator). See docs/PROGRESS.md." && exit 2
+CALL ?= tests/fixtures/calls/demo_01
+MODE ?= rtp
+SPEED ?= 1
+simulate: ## replay a synthetic call: make simulate CALL=tests/fixtures/calls/demo_01 [MODE=rtp|ws|file] [SPEED=10]
+	$(PY) -m tools.simulator $(CALL) --mode $(MODE) --speed $(SPEED)
+
+fixtures: ## regenerate synthetic fixture calls (script.json, expected_events.json, call.wav)
+	$(PY) -m tools.fixtures_gen gen
+
+fixtures-wav: ## render missing call.wav files from the committed scripts
+	$(PY) -m tools.fixtures_gen render
 
 report: ## offline post-call report (Prompt 3)
 	@echo "report: arrives in P1 Prompt 3. See docs/PROGRESS.md." && exit 2
