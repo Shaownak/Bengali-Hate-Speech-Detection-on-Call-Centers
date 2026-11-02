@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import secrets
 import shutil
 import socket
 import time
+import uuid
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
@@ -46,10 +46,8 @@ def load_call(path: Path, call_id: str | None = None) -> Call:
         raise ValueError(
             f"{wav}: expected a stereo (agent left) recording, got {audio.shape[1]} channel(s)"
         )
-    name = path.name if path.is_dir() else path.stem
-    # hex suffix: long digit runs in ids look like account numbers to the log scrubber
-    call_id = call_id or f"sim-{name}-{secrets.token_hex(4)}"
-    return Call(call_id, wav, int(sr), np.ascontiguousarray(audio))
+    # GAL-E mints UUID call ids (D-18), which also keeps them readable in scrubbed logs
+    return Call(call_id or str(uuid.uuid4()), wav, int(sr), np.ascontiguousarray(audio))
 
 
 class Pacer:

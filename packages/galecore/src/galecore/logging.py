@@ -6,11 +6,14 @@ The scrubber:
   transcripts stay out of logs);
 - redacts phone/NID/account/email patterns in every remaining string value, including the
   event message itself. The timestamp is added after scrubbing (it is ours, never PII).
+- keeps ``call_id`` / ``trace_id`` as-is only when the value is a UUID (Q-10, D-18: GAL-E
+  mints its own UUID call ids; anything else, e.g. a PBX channel name, is still scrubbed).
 """
 
 from __future__ import annotations
 
 import logging
+import re
 import sys
 from collections.abc import Mapping, MutableMapping
 from typing import Any
@@ -21,11 +24,17 @@ from galecore.redact import redact
 
 FORBIDDEN_KEY_PARTS = ("text", "transcript", "audio", "pcm")
 DROPPED = "[dropped]"
+UUID_KEYS = frozenset({"call_id", "trace_id"})
+_UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 
 
 def _is_forbidden(key: str) -> bool:
     k = key.lower()
     return any(part in k for part in FORBIDDEN_KEY_PARTS)
+
+
+def _is_uuid(value: Any) -> bool:
+    return isinstance(value, str) and _UUID.fullmatch(value) is not None
 
 
 def _scrub_value(value: Any) -> Any:
@@ -51,6 +60,8 @@ def scrub_event(
             continue
         if _is_forbidden(key):
             del event_dict[key]
+        elif key in UUID_KEYS and _is_uuid(event_dict[key]):
+            continue
         else:
             event_dict[key] = _scrub_value(event_dict[key])
     if isinstance(event_dict.get("event"), str):

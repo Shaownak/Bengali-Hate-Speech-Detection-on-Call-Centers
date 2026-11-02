@@ -43,6 +43,18 @@ def test_timestamp_is_not_mistaken_for_pii() -> None:
     assert ts.endswith("Z")
 
 
+def test_uuid_identifiers_are_kept_other_ids_scrubbed() -> None:
+    # Q-10 / D-18: GAL-E mints UUID call ids; only UUID-shaped values skip the scrubber
+    uid = "550e8400-e29b-41d4-a716-446655440000"
+    out = capture(call_id=uid, trace_id=uid.upper(), other_id=uid)
+    assert out["call_id"] == uid
+    assert out["trace_id"] == uid.upper()
+    assert out["other_id"] != uid  # not an exempt key
+    # a PBX channel name embedding a caller number is still scrubbed
+    assert "01712345678" not in str(capture(call_id="PJSIP/01712345678-00000001")["call_id"])
+    assert capture(call_id=f"{uid} 01712345678")["call_id"] != f"{uid} 01712345678"
+
+
 def test_nested_forbidden_keys_and_bytes() -> None:
     out = capture(meta={"text": "x", "ok": 1, "items": ["01712345678", b"raw"]})
     assert out["meta"] == {"text": "[dropped]", "ok": 1, "items": ["<PHONE>", "[dropped]"]}

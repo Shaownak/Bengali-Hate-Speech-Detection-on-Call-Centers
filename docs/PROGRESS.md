@@ -153,13 +153,14 @@ Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own
 | D-14 | The rules "simulate on last N calls" feature (04 §2.8) and any threshold tooling exclude golden-set call ids at the query level. | P5 |
 | D-16 | `ml/` is a plain package at the repo root (so `python -m ml.eval.run` works), not a uv workspace member; heavy ML deps arrive as root dependency groups per component. | P0 |
 | D-17 | `normalize()` lower-cases Latin text but keeps placeholder tags (`<PHONE>`, `<GALI_1>`) intact, so tag and lexicon matching survive normalisation. | P0 |
+| D-18 | GAL-E mints its own UUID `call_id` (never a PBX channel name or caller-derived id). The log scrubber keeps `call_id` / `trace_id` unredacted only when the value is a valid UUID; any other value, e.g. `PJSIP/017…`, is still scrubbed. From Q-10, approved 2026-11-02. P4 ingest-gateway mints the UUID when ARI/FreeSWITCH report a new call. | P0 |
 | D-15 | Mono/diarized audio: `Channel.mixed` is allowed only before diarization. Fusion accepts only `agent`/`customer`. Segments that can't be attributed are stored but never alert. | P1 |
 
 ---
 
 ## Open questions for the human
 
-**2026-11-02 answers:** Q-01 to Q-05 and Q-07 to Q-09 approved with the defaults below. As a result, D-01 to D-15 are accepted. Q-06 was answered **native Windows, no WSL2** (ADR-008).
+**2026-11-02 answers:** Q-01 to Q-05 and Q-07 to Q-09 approved with the defaults below. Q-10 approved later that day (D-18). As a result, D-01 to D-15 are accepted. Q-06 was answered **native Windows, no WSL2** (ADR-008).
 
 Licence review (Q-03, Q-04) is still a **[HUMAN]** legal action. The approval covers only the engineering default: swappable encoder, ship `commercial_ok` only.
 
@@ -173,7 +174,7 @@ Licence review (Q-03, Q-04) is still a **[HUMAN]** legal action. The approval co
 | Q-06 | **Windows dev environment.** You're on Windows. `make`, Docker Compose and some audio libs work best under WSL2. Develop in WSL2 (recommended), or keep native Windows + Git Bash (I'd need `make` installed and a Windows-safe Makefile)? | Affects `make setup` / `make dev-up` from Prompt 1. | ~~WSL2~~ → **Answered: native Windows** (ADR-008) |
 | Q-07 | **Repo naming.** Spec layout roots at `gal-e/`; this repo is `Bengali-Hate-Speech-Detection-on-Call-Centers` with the spec at the root. OK to scaffold the monorepo directly at this repo root? | Layout only. | Yes, repo root = `gal-e/` |
 | Q-08 | **Model ids.** Qwen3.5, Gemma 4, Qwen3-ASR-bn etc. are taken from the research summary. I'll verify each exists and pin it by commit hash at download time (P1). Do you have a preferred hosting mirror (internal registry/MinIO) for weights? | Supply chain (05 §7). | Download to `GALE_MODEL_DIR` from HF in build, mirror to MinIO |
-| Q-10 | **Log scrubber vs identifiers.** The PII scrubber redacts any ≥ 7-digit run in every log value. It mangled ISO timestamps (fixed: timestamps are now added after scrubbing) and also mangles ids with long digit runs, e.g. UUID tails (`…-446655440000` → `<ACCT>`), so `call_id` in logs becomes unusable for tracing. Exempting `call_id` / `trace_id` is a privacy-posture change (some PBX channel names embed caller numbers). Proposal: GAL-E always mints its own UUID `call_id` (never a PBX channel name), and those keys are exempt only when the value is a valid UUID. | Security posture: CLAUDE.md says ask. | Exempt UUID-shaped `call_id` / `trace_id` only |
+| Q-10 | **Log scrubber vs identifiers.** The PII scrubber redacts any ≥ 7-digit run in every log value. It mangled ISO timestamps (fixed: timestamps are now added after scrubbing) and also mangles ids with long digit runs, e.g. UUID tails (`…-446655440000` → `<ACCT>`), so `call_id` in logs becomes unusable for tracing. Exempting `call_id` / `trace_id` is a privacy-posture change (some PBX channel names embed caller numbers). Proposal: GAL-E always mints its own UUID `call_id` (never a PBX channel name), and those keys are exempt only when the value is a valid UUID. | Security posture: CLAUDE.md says ask. | **Approved 2026-11-02** → D-18 |
 | Q-09 | **PBX target.** Which platform does the call centre use (Asterisk, FreeSWITCH, Genesys/Avaya/Cisco via SIPREC)? Are recordings stereo for all queues? | P4 scope; mono needs diarization path. | Build Asterisk + file mode first |
 
 ---
@@ -226,7 +227,7 @@ Smaller inconsistencies, resolved in-line without an ADR:
 - The gateway's frame sink (counts only, no bus publish yet: P4).
 - No RTP jitter buffer (P4).
 
-**Needs a human:** answer Q-10. Optional: a local Bangla TTS checkpoint at `GALE_TTS_DIR` for speech-realistic fixtures (licence check first; MMS-TTS is CC-BY-NC-4.0).
+**Needs a human:** ~~answer Q-10~~ (approved → D-18, implemented: UUID exemption in `galecore.logging`, simulator mints UUID call ids). Optional: a local Bangla TTS checkpoint at `GALE_TTS_DIR` for speech-realistic fixtures (licence check first; MMS-TTS is CC-BY-NC-4.0).
 
 ## Next step
 

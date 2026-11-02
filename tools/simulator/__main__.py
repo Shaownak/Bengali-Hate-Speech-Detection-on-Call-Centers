@@ -123,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--gateway", default="http://127.0.0.1:8001", help="ingest-gateway base URL")
     ap.add_argument("--rtp-host", default="127.0.0.1")
     ap.add_argument("--spawn", choices=["auto", "never", "always"], default="auto")
-    ap.add_argument("--call-id")
+    ap.add_argument("--call-id", help="default: a new UUID (D-18)")
     ap.add_argument("--drop-dir", type=Path, default=REPO_ROOT / ".gale" / "drop")
     a = ap.parse_args(argv)
 
@@ -134,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
         ensure_wav(a.call)
     call = load_call(a.call, a.call_id)
     print(
-        f"simulating {call.path} as {call.call_id}: {call.duration_s:.1f} s, "
+        f"simulating {call.path} as call {call.call_id}: {call.duration_s:.1f} s, "
         f"mode={a.mode}, speed={a.speed:g}"
     )
 
