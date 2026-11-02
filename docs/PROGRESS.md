@@ -24,6 +24,7 @@ Exit gate: `make dev-up` runs; CI green.
 - [ ] `configs/`: `thresholds.yaml`, `rules.yaml`, `models.yaml`, `lexicon/fake_lexicon.yaml` (`<GALI_1>`..`<GALI_20>`)
 - [ ] `infra/compose/docker-compose.dev.yml`: postgres, redis, minio, keycloak (realm with 5 roles + demo users), all services in stub mode, web
 - [ ] `web/` skeleton: Next.js App Router, TS strict, Tailwind, shadcn/ui, next-intl (bn default, en)
+- [ ] `.gitattributes` (`* text=auto eol=lf`), Windows-safe Makefile (`SHELL := bash`), and a Windows CI job (ADR-008)
 - [ ] Makefile (`setup`, `dev-up`, `dev-down`, `check`, `gen-types`, `simulate`, `report`, `eval`, `e2e`), pre-commit
 - [ ] `make gen-types`: pydantic → JSON Schema → `web/src/types/generated` + drift check
 - [ ] GitHub Actions CI: ruff, mypy --strict, pytest + coverage ≥ 80%, eslint, tsc, vitest, docker build, Trivy
@@ -126,8 +127,9 @@ Exit gate: pilot exit criteria (`06_EVALUATION.md` §6).
 ## Decisions
 
 Accepted (from spec): ADR-001..007 in `docs/adr/`.
+Accepted 2026-11-02: ADR-008 native Windows development.
 
-Proposed resolutions from the Prompt 0 review. Each gets its own ADR when the phase that needs it is implemented. Items marked ⚠ need a human answer first (see Open questions).
+Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own ADR when the phase that needs it is implemented. The ⚠ marks the item that was a human decision.
 
 | ID | Decision | Phase |
 |---|---|---|
@@ -151,6 +153,10 @@ Proposed resolutions from the Prompt 0 review. Each gets its own ADR when the ph
 
 ## Open questions for the human
 
+**2026-11-02 answers:** Q-01 to Q-05 and Q-07 to Q-09 approved with the defaults below. As a result, D-01 to D-15 are accepted. Q-06 was answered **native Windows, no WSL2** (ADR-008).
+
+Licence review (Q-03, Q-04) is still a **[HUMAN]** legal action. The approval covers only the engineering default: swappable encoder, ship `commercial_ok` only.
+
 | ID | Question | Why it matters | My default if you don't object |
 |---|---|---|---|
 | Q-01 | **Bus privacy posture.** Spec says un-redacted text "exists only in memory", but `AsrSegment.text` goes over Redis Streams, and Redis AOF (05 §2) writes it to disk. Raw audio frames also land in AOF. OK to redact inside asr-worker and run Redis with AOF off for audio streams (or on encrypted volumes)? | Security posture: CLAUDE.md says ask. | D-01 |
@@ -158,7 +164,7 @@ Proposed resolutions from the Prompt 0 review. Each gets its own ADR when the ph
 | Q-03 | **Model licences.** From what I know, `csebuetnlp/banglabert(_large)` is CC BY-NC-SA 4.0 (non-commercial), and SONAR/MuTox are non-commercial too. If confirmed, the primary text encoder can't ship commercially. Alternatives: MuRIL (Apache-2.0), IndicBERTv2 (MIT), XLM-R (MIT). Also check: emotion2vec+, tugstugi Whisper, Qwen3-ASR-bn fine-tune, pyannote community-1, MinIO (AGPL-3.0). | Licence: irreversible, needs legal. | Build behind `TextClassifier` so the encoder is swappable. Bake off BanglaBERT vs MuRIL vs IndicBERTv2, and ship only `commercial_ok` |
 | Q-04 | **Dataset licences.** Almost every set in 09 is `VERIFY`. Who owns `ml/data/DATASETS.md` sign-off, and can research-only sets be used in non-promotable research runs? | Gates P1 open-data track. | Research runs allowed and tagged `research_only` (blocks promotion), per 09 |
 | Q-05 | **Fairness attributes.** The fairness panel (04 §2.5, 06 §3) needs agent gender and dialect region. Neither is in the schema, and gender is sensitive data under PDPO. May we store `agents.gender` (restricted to admin/QA, aggregate-only in UI)? | Sensitive personal data. | Add column, nullable, restricted, aggregate-only |
-| Q-06 | **Windows dev environment.** You're on Windows. `make`, Docker Compose and some audio libs work best under WSL2. Develop in WSL2 (recommended), or keep native Windows + Git Bash (I'd need `make` installed and a Windows-safe Makefile)? | Affects `make setup` / `make dev-up` from Prompt 1. | WSL2 + Docker Desktop |
+| Q-06 | **Windows dev environment.** You're on Windows. `make`, Docker Compose and some audio libs work best under WSL2. Develop in WSL2 (recommended), or keep native Windows + Git Bash (I'd need `make` installed and a Windows-safe Makefile)? | Affects `make setup` / `make dev-up` from Prompt 1. | ~~WSL2~~ → **Answered: native Windows** (ADR-008) |
 | Q-07 | **Repo naming.** Spec layout roots at `gal-e/`; this repo is `Bengali-Hate-Speech-Detection-on-Call-Centers` with the spec at the root. OK to scaffold the monorepo directly at this repo root? | Layout only. | Yes, repo root = `gal-e/` |
 | Q-08 | **Model ids.** Qwen3.5, Gemma 4, Qwen3-ASR-bn etc. are taken from the research summary. I'll verify each exists and pin it by commit hash at download time (P1). Do you have a preferred hosting mirror (internal registry/MinIO) for weights? | Supply chain (05 §7). | Download to `GALE_MODEL_DIR` from HF in build, mirror to MinIO |
 | Q-09 | **PBX target.** Which platform does the call centre use (Asterisk, FreeSWITCH, Genesys/Avaya/Cisco via SIPREC)? Are recordings stereo for all queues? | P4 scope; mono needs diarization path. | Build Asterisk + file mode first |
@@ -179,4 +185,9 @@ Smaller inconsistencies, resolved in-line without an ADR:
 
 ## Next step
 
-Answer Q-01, Q-03, Q-06 (Q-07 if you disagree). Then run **Prompt 1 — P0 monorepo scaffold & shared core**.
+1. Windows toolchain (ADR-008), 2026-11-02:
+   - [x] uv 0.13.6, GNU Make 4.4.1, pnpm 12.16.1 installed via winget (user scope). Corepack couldn't write to `C:\Program Files\nodejs`, so pnpm is the standalone build.
+   - [ ] **[HUMAN]** `C:\Dev-Cpp\bin` (make 3.80) is on the *machine* PATH, which comes before the user PATH. Either move it after `%LOCALAPPDATA%\Microsoft\WinGet\Links` (admin), or prepend that folder in your shell profiles.
+   - [ ] **[HUMAN]** Install Docker Desktop (`winget install Docker.DockerDesktop`). It needs admin/UAC and acceptance of Docker's subscription terms; the paid licence applies to orgs > 250 staff or > $10M revenue. It uses the WSL2 engine internally, which is already enabled, but you keep working in Windows.
+   - Already present: Python 3.12.3, Node 20.12.2, Git Bash 5.2.
+2. Run **Prompt 1: P0 monorepo scaffold & shared core**.
