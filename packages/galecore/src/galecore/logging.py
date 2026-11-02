@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import logging
 import re
-import sys
 from collections.abc import Mapping, MutableMapping
 from typing import Any
 
@@ -92,7 +91,10 @@ def configure_logging(
             renderer,
         ],
         wrapper_class=structlog.make_filtering_bound_logger(lvl),
-        logger_factory=structlog.PrintLoggerFactory(file=stream or sys.stdout),
+        # no stream: resolve sys.stdout per logger (it may be swapped after configuring)
+        logger_factory=structlog.PrintLoggerFactory(file=stream)
+        if stream
+        else structlog.PrintLoggerFactory(),
         cache_logger_on_first_use=False,
     )
     structlog.contextvars.clear_contextvars()

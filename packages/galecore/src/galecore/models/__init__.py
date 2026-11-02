@@ -1,10 +1,14 @@
-"""Model registry: picks stub or real implementations from ``GALE_MODEL_MODE``."""
+"""Model registry: picks stub or real implementations from ``GALE_MODEL_MODE``.
+
+``load_models`` builds the stub set (galecore has no heavy dependencies). Real backends live
+in the worker packages that own them and are assembled by ``gale_postcall.models``.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from galecore.config import Settings, get_settings
+from galecore.config import Settings, get_settings, load_lexicon
 from galecore.models.base import (
     ASRBackend,
     AudioToxModel,
@@ -14,7 +18,9 @@ from galecore.models.base import (
     SERModel,
     ShoutDetector,
     TextClassifier,
+    VADModel,
 )
+from galecore.models.oracle import FixtureOracle
 from galecore.models.stubs import (
     StubASR,
     StubAudioTox,
@@ -24,21 +30,20 @@ from galecore.models.stubs import (
     StubSER,
     StubShout,
     StubTextClassifier,
+    StubVAD,
 )
+from galecore.schemas import Category
 
-__all__ = ["ModelSet", "RealModelsUnavailableError", "load_models"]
+__all__ = ["FixtureOracle", "ModelSet", "RealModelsUnavailableError", "load_models"]
 
 
 class RealModelsUnavailableError(RuntimeError):
-    """Raised when ``GALE_MODEL_MODE=real`` but real backends are not implemented/installed.
-
-    Real backends (faster-whisper, NeMo, emotion2vec+, BanglaBERT-family, vLLM client) are
-    delivered in phase P1, Prompt 3 (docs/PROGRESS.md).
-    """
+    """Raised when ``GALE_MODEL_MODE=real`` but a backend's weights or packages are missing."""
 
 
 @dataclass(frozen=True, slots=True)
 class ModelSet:
+    vad: VADModel
     asr: ASRBackend
     shout: ShoutDetector
     ser: SERModel
@@ -49,19 +54,27 @@ class ModelSet:
     llm: LLMJudge
 
 
-def load_models(settings: Settings | None = None) -> ModelSet:
+def load_models(settings: Settings | None = None, oracle: FixtureOracle | None = None) -> ModelSet:
+    """Stub model set. ``oracle`` keys the stubs to a synthetic fixture (see ``oracle``)."""
     s = settings or get_settings()
-    if s.model_mode == "stub":
-        return ModelSet(
-            asr=StubASR(),
-            shout=StubShout(),
-            ser=StubSER(),
-            audio_tox=StubAudioTox(),
-            kws=StubKWS(),
-            text_clf=StubTextClassifier(),
-            register=StubRegister(),
-            llm=StubLLMJudge(),
+    if s.model_mode != "stub":
+        raise RealModelsUnavailableError(
+            "galecore.models.load_models only builds stubs; use gale_postcall.models.build_models"
         )
-    raise RealModelsUnavailableError(
-        "GALE_MODEL_MODE=real: real model backends arrive in P1 (Prompt 3); use stub for now"
+    tags: dict[str, tuple[Category, int]] = {
+        term: (e.category, e.severity)
+        for e in load_lexicon(s).entries
+        for term in [e.term, *e.variants]
+        if term.startswith("<")
+    }
+    return ModelSet(
+        vad=StubVAD(),
+        asr=StubASR(oracle),
+        shout=StubShout(),
+        ser=StubSER(),
+        audio_tox=StubAudioTox(),
+        kws=StubKWS(),
+        text_clf=StubTextClassifier(tags, oracle.turn_annotations() if oracle else None),
+        register=StubRegister(),
+        llm=StubLLMJudge(oracle),
     )

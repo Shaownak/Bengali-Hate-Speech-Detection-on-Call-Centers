@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     object_store: Literal["local", "s3"] = "local"
     object_store_dir: Path = REPO_ROOT / ".gale" / "objects"
 
+    # LLM judge: our own vLLM (OpenAI-compatible) server, never an external API (CLAUDE.md rule 1)
+    llm_base_url: str = "http://127.0.0.1:8100/v1"
+    llm_model: str = "gale-llm-judge"
+
     auth_mode: Literal["oidc", "dev"] = "oidc"
     log_level: str = "INFO"
     log_json: bool = True

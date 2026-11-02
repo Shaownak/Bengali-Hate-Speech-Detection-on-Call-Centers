@@ -5,6 +5,10 @@ description = "GAL-E audio-worker"
 requires-python = ">=3.12,<3.13"
 dependencies = ["galecore"]
 
+[project.optional-dependencies]
+# GALE_MODEL_MODE=real (D-12): emotion2vec+ via FunASR, LightGBM shouting model
+real = ["funasr>=1.2", "lightgbm>=4.5"]
+
 [project.scripts]
 gale-audio-worker = "gale_audio_worker.__main__:main"
 

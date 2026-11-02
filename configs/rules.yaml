@@ -1,31 +1,51 @@
-# Fusion rules (docs/03 §8.2). Interpreted by the fusion engine (P1 v0, P3 full).
-# Thresholds here are rule triggers on calibrated scores; alert thresholds live in thresholds.yaml.
-version: 1
+# Fusion rules v0 (docs/03 §8.2), interpreted by services/fusion_engine (gale_fusion_engine.rules).
+# Each rule name maps to one handler; its parameters live here, never in code. Scores are
+# calibrated probabilities (v0 calibration = identity). Alert thresholds live in thresholds.yaml.
+version: 2
 rules:
-  - name: slang_fast_path
-    description: KWS or exact lexicon hit raises provisional slang; alerts when the agent said it
-    when: {any: [{source: kws, category: slang_profanity, score_gte: 0.9},
-                 {source: lexicon, match: exact, severity_gte: 2}]}
-    then: {event: slang_profanity, severity_from: lexicon, status: provisional, alert_if_speaker: agent}
+  # --- signal → provisional event ------------------------------------------------------------
+  - name: lexicon_fast_path
+    description: lexicon hit (exact / fuzzy / phonetic) raises an event of the entry's category; severity from the lexicon
+    when: {source: lexicon, score_gte: 0.7}
+    then: {event: from_signal, severity_from: signal}
+  - name: kws_fast_path
+    description: confident keyword spotting raises slang even when ASR missed the word
+    when: {source: kws, score_gte: 0.9}
+    then: {event: from_signal, severity: 2}
+  - name: text_clf_event
+    description: text classifier on its own, for categories that words can carry
+    when: {source: text_clf, score_gte: 0.6,
+           category_in: [slang_profanity, insult, threat, sexual_harassment, hate_identity,
+                         dismissive_rude, sarcasm_mockery]}
+    then: {event: from_signal, severity_from: signal}
   - name: sustained_shout
     description: DSP shouting held for at least 2 s
     when: {source: dsp_shout, score_gte: 0.8, min_duration_s: 2.0}
-    then: {event: shouting}
-  - name: shout_plus_abuse
-    description: shouting together with insult/threat/slang text raises severity
-    when: {all: [{event: shouting},
-                 {source: text_clf, category_in: [insult, threat, slang_profanity], score_gte: 0.6,
-                  within_s: 3.0}]}
-    then: {severity_delta: 1}
-  - name: llm_dismiss
-    description: LLM dismissal within 8 s downgrades a provisional event unless KWS is very sure
-    when: {source: llm_window, decision: dismiss, within_s: 8.0}
-    then: {status: dismissed_by_llm, unless: {source: kws, score_gte: 0.97}}
-  - name: agent_register_drop
-    description: agent switches down to তুমি/তুই
-    when: {source: register, speaker: agent}
-    then: {event: disrespect_register, severity: 2}
+    then: {event: shouting, severity: 2}
+  - name: harsh_tone_ser
+    description: SER anger/contempt held for 1.5 s (SER alone, high bar)
+    when: {source: ser, score_gte: 0.85, min_duration_s: 1.5}
+    then: {event: harsh_tone, severity: 1}
+  - name: register_drop
+    description: "register detector fired (docs/03 §6.1: agent moves down a level, anyone to তুই, customer to তুমি only with negative context)"
+    when: {source: register}
+    then:
+      event: disrespect_register
+      severity_by_level: {agent: {tumi: 2, tui: 3}, customer: {tumi: 1, tui: 2}}
   - name: overtalk
     description: "repeated interruptions (docs/02 §3.4, at least 3 in 60 s)"
     when: {source: vad_overtalk, count_gte: 3, window_s: 60}
     then: {event: interruption_overtalk, severity: 1}
+  - name: llm_window_event
+    description: LLM-only finding (sarcasm, veiled threat …) after the grounding check
+    when: {source: llm_window, score_gte: 0.8}
+    then: {event: from_signal, severity_from: signal}
+  # --- event modifiers ------------------------------------------------------------------------
+  - name: shout_plus_abuse
+    description: abuse shouted by the same speaker gets one more severity level
+    when: {all: [{event: shouting}, {event_in: [insult, threat, slang_profanity], within_s: 3.0}]}
+    then: {severity_delta: 1}
+  - name: llm_dismiss
+    description: LLM dismissal downgrades a provisional event unless KWS is very sure
+    when: {source: llm_window, decision: dismiss}
+    then: {status: dismissed_by_llm, unless: {source: kws, score_gte: 0.97}}

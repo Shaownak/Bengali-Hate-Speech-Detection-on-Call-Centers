@@ -29,7 +29,7 @@ endif
 UV ?= uv
 PNPM ?= pnpm
 DEV_STACK ?= local
-PY_PKGS := -p galecore -p gale_api -p gale_ingest_gateway -p gale_audio_worker \
+PY_PKGS := -p galecore -p gale_postcall -p gale_api -p gale_ingest_gateway -p gale_audio_worker \
            -p gale_asr_worker -p gale_text_worker -p gale_llm_judge -p gale_fusion_engine
 
 .PHONY: help setup dev-up dev-down dev-status check check-py check-web lint fmt typecheck test \
@@ -114,8 +114,10 @@ fixtures: ## regenerate synthetic fixture calls (script.json, expected_events.js
 fixtures-wav: ## render missing call.wav files from the committed scripts
 	$(PY) -m tools.fixtures_gen render
 
-report: ## offline post-call report (Prompt 3)
-	@echo "report: arrives in P1 Prompt 3. See docs/PROGRESS.md." && exit 2
+OPEN ?= 1
+report: ## offline post-call report: make report FILE=tests/fixtures/calls/demo_01/call.wav [OPEN=0]
+	@test -n "$(FILE)" || (echo "usage: make report FILE=path/to/stereo.wav" && exit 2)
+	$(PY) -m gale_postcall report $(FILE) $(if $(filter 1,$(OPEN)),--open,)
 
 eval: ## eval harness (Prompt 5)
 	@echo "eval: arrives in P2 Prompt 5. See docs/PROGRESS.md." && exit 2

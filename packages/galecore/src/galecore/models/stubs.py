@@ -28,8 +28,10 @@ from galecore.models.base import (
     TextClassifier,
     TextClfOutput,
     TextContext,
+    VADModel,
     WindowInput,
 )
+from galecore.models.oracle import FixtureOracle, OracleEvent
 from galecore.schemas import (
     AgentScore,
     AsrSegment,
@@ -38,16 +40,20 @@ from galecore.schemas import (
     Channel,
     CustomerScore,
     Escalation,
+    EventStatus,
     Evidence,
+    FusedEvent,
     ProvisionalDecision,
     Signal,
     SignalSource,
+    Speaker,
     WindowJudgement,
 )
 
 STUB_VERSION = "stub-0.1"
 _NS = uuid.UUID("6a1e0a1e-0000-4000-8000-000000000a1e")
-_GALI = re.compile(r"<GALI_\d+>")
+_GALI = re.compile(r"<GALI_\d+(?:_V)?>")
+_TAG = re.compile(r"<[A-Z][A-Z0-9_]*>")
 SPEECH_DBFS = -45.0
 SHOUT_DB_ABOVE_BASELINE = 10.0
 
@@ -99,11 +105,20 @@ def _loudness_signals(
 
 
 class StubASR(ASRBackend):
-    """One segment per voiced region (energy-based); text is a numbered placeholder."""
+    """Deterministic ASR.
+
+    With a fixture oracle: the script's own words and timings for words whose midpoint falls in
+    the chunk (a perfect recogniser). Without one: one placeholder segment per voiced region.
+    """
 
     name = "stub"
 
+    def __init__(self, oracle: FixtureOracle | None = None) -> None:
+        self.oracle = oracle
+
     def transcribe(self, chunk: AudioChunk) -> list[RawSegment]:
+        if self.oracle is not None:
+            return self._from_script(chunk, self.oracle)
         frames = _windows(chunk, 0.2, 0.2)
         regions: list[tuple[float, float]] = []
         for ts0, ts1, db in frames:
@@ -134,6 +149,57 @@ class StubASR(ASRBackend):
             )
         return segments
 
+    @staticmethod
+    def _from_script(chunk: AudioChunk, oracle: FixtureOracle) -> list[RawSegment]:
+        t0, t1 = chunk.offset_s, chunk.offset_s + chunk.duration_s
+        out = []
+        for turn in oracle.turns:
+            if turn.channel != chunk.channel or turn.end < t0 or turn.start > t1:
+                continue
+            words = [w for w in turn.words if t0 <= (w.start + w.end) / 2 < t1]
+            if not words:
+                continue
+            out.append(
+                RawSegment(
+                    channel=chunk.channel,
+                    ts_start=words[0].start,
+                    ts_end=words[-1].end,
+                    text=" ".join(w.token for w in words),
+                    words=[RawWord(w.token, w.start, w.end, 0.95) for w in words],
+                    is_final=True,
+                    avg_conf=0.95,
+                    model_version=f"{STUB_VERSION}+script",
+                )
+            )
+        return out
+
+
+class StubVAD(VADModel):
+    """Energy VAD on 30 ms frames. The threshold adapts per channel (noise floor + 12 dB and
+    peak level - 22 dB), so far-end crosstalk at about -32 dB stays below it."""
+
+    def __init__(self, frame_s: float = 0.03, min_gap_s: float = 0.3, min_len_s: float = 0.15):
+        self.frame_s, self.min_gap_s, self.min_len_s = frame_s, min_gap_s, min_len_s
+
+    def speech_regions(self, chunk: AudioChunk) -> list[tuple[float, float]]:
+        n = int(self.frame_s * chunk.sample_rate)
+        x = chunk.samples[: len(chunk.samples) // n * n].reshape(-1, n)
+        if not len(x):
+            return []
+        db = 10 * np.log10(np.mean(x.astype(np.float64) ** 2, axis=1) + 1e-12)
+        thr = max(float(np.percentile(db, 10)) + 12, float(np.percentile(db, 95)) - 22, -60.0)
+        regions: list[tuple[float, float]] = []
+        for k in np.flatnonzero(db > thr):
+            a, b = k * self.frame_s, (k + 1) * self.frame_s
+            if regions and a - regions[-1][1] <= self.min_gap_s:
+                regions[-1] = (regions[-1][0], b)
+            else:
+                regions.append((a, b))
+        off = chunk.offset_s
+        return [
+            (round(off + a, 3), round(off + b, 3)) for a, b in regions if b - a >= self.min_len_s
+        ]
+
 
 class StubShout(ShoutDetector):
     def detect(self, chunk: AudioChunk) -> list[Signal]:
@@ -156,20 +222,39 @@ class StubKWS(KWSModel):
 
 
 class StubTextClassifier(TextClassifier):
-    """Placeholder slang ⇒ high slang score; তুই/তোর ⇒ moderate disrespect score."""
+    """Placeholder tags score high on their fake-lexicon category; তুই/তোর gives a moderate
+    disrespect score; with a fixture oracle, annotated turn-level categories score 0.9."""
+
+    def __init__(
+        self,
+        tag_categories: dict[str, tuple[Category, int]] | None = None,
+        annotations: dict[str, list[tuple[Category, int]]] | None = None,
+    ) -> None:
+        self.tags = tag_categories or {}
+        self.annotations = {normalize(k): v for k, v in (annotations or {}).items()}
 
     def classify(self, ctx: TextContext) -> TextClfOutput:
         text = normalize(ctx.current)
         scores = dict.fromkeys(Category, 0.02)
         severity = 0
-        if _GALI.search(text):
-            scores[Category.SLANG_PROFANITY] = 0.95
-            scores[Category.INSULT] = 0.4
-            severity = 2
+        for tag in _TAG.findall(text):
+            if tag in self.tags:
+                cat, sev = self.tags[tag]
+            elif _GALI.fullmatch(tag):
+                cat, sev = Category.SLANG_PROFANITY, 2
+            else:
+                continue
+            scores[cat] = max(scores[cat], 0.9)
+            severity = max(severity, sev)
         toks = {t.text for t in tokenize(text)}
         if toks & {"তুই", "তোর", "তোকে"}:
-            scores[Category.DISRESPECT_REGISTER] = 0.6
+            scores[Category.DISRESPECT_REGISTER] = max(scores[Category.DISRESPECT_REGISTER], 0.6)
             severity = max(severity, 1)
+        for key, cats in self.annotations.items():
+            if len(text) >= 8 and (text in key or key in text):
+                for cat, sev in cats:
+                    scores[cat] = max(scores[cat], 0.9)
+                    severity = max(severity, sev)
         return TextClfOutput(scores=scores, severity=severity, model_version=STUB_VERSION)
 
 
@@ -186,7 +271,7 @@ class StubRegister(RegisterDetector):
     def __init__(self) -> None:
         self._state: dict[tuple[str, Channel], str] = {}
 
-    def observe(self, segment: AsrSegment) -> list[Signal]:
+    def observe(self, segment: AsrSegment, negative_context: bool = False) -> list[Signal]:
         toks = {t.text for t in tokenize(normalize(segment.text_redacted))}
         level = (
             "tui" if toks & _TUI else "tumi" if toks & _TUMI else "apni" if toks & _APNI else None
@@ -220,31 +305,78 @@ class StubRegister(RegisterDetector):
 
 
 class StubLLMJudge(LLMJudge):
-    """Confirms every provisional event, adds none; neutral scorecard."""
+    """Confirms provisional events and adds none. With a fixture oracle it dismisses events that
+    the ground truth marks as not alerting (reported speech, self-directed), as a well-tuned
+    judge would. The call scorecard is derived from the fused events."""
+
+    def __init__(self, oracle: FixtureOracle | None = None) -> None:
+        self.oracle = oracle
+
+    def _context(self, e: FusedEvent) -> OracleEvent | None:
+        if self.oracle is None:
+            return None
+        mid = (e.ts_start + e.ts_end) / 2
+        for g in self.oracle.events:
+            if (
+                not g.alert
+                and g.speaker == e.speaker
+                and g.category == e.category
+                and g.start - 2.0 <= mid <= g.end + 2.0
+            ):
+                return g
+        return None
 
     def judge_window(self, window: WindowInput) -> WindowJudgement:
-        return WindowJudgement(
-            events=[],
-            provisional_decisions=[
-                ProvisionalDecision(event_id=e.event_id, decision="confirm")
-                for e in window.provisional
-            ],
-        )
+        decisions = []
+        for e in window.provisional:
+            g = self._context(e)
+            if g is None:
+                decisions.append(ProvisionalDecision(event_id=e.event_id, decision="confirm"))
+            else:
+                flags = ", ".join(f.value for f in g.context_flags) or "context"
+                decisions.append(
+                    ProvisionalDecision(
+                        event_id=e.event_id, decision="dismiss", reason_bn=f"প্রসঙ্গ: {flags}"
+                    )
+                )
+        return WindowJudgement(events=[], provisional_decisions=decisions)
 
-    def judge_call(self, call_id: str, segments: list[AsrSegment]) -> CallScorecard:
+    def judge_call(
+        self, call_id: str, segments: list[AsrSegment], events: list[FusedEvent]
+    ) -> CallScorecard:
+        live = [e for e in events if e.status != EventStatus.DISMISSED_BY_LLM]
+        agent = [e for e in live if e.speaker == Speaker.AGENT]
+        cust = [e for e in live if e.speaker == Speaker.CUSTOMER]
+        first = min(live, key=lambda e: e.ts_start, default=None)
+        abusive = {
+            Category.SLANG_PROFANITY,
+            Category.INSULT,
+            Category.THREAT,
+            Category.SEXUAL_HARASSMENT,
+            Category.HATE_IDENTITY,
+        }
+        agent_cats = sorted({e.category.value for e in agent})
         return CallScorecard(
             agent=AgentScore(
-                professionalism=4,
-                empathy=3,
-                de_escalation=3,
-                respectful_register_maintained=True,
-                violations=[],
+                professionalism=max(1, 5 - sum(e.severity for e in agent)),
+                empathy=4 if not agent else 2,
+                de_escalation=(4 if cust else 3) if not agent else 2,
+                respectful_register_maintained=not any(
+                    e.category == Category.DISRESPECT_REGISTER for e in agent
+                ),
+                violations=agent_cats,
             ),
-            customer=CustomerScore(hostility=1, abuse_toward_agent=False, main_issue_bn="স্টাব"),
+            customer=CustomerScore(
+                hostility=min(5, 1 + sum(e.severity for e in cust)),
+                abuse_toward_agent=any(e.category in abusive for e in cust),
+                main_issue_bn="স্টাব: গ্রাহকের অভিযোগ",
+            ),
             escalation=Escalation(
-                escalated=False, who_escalated_first="none", turning_point_utterance_id=None
+                escalated=bool(live),
+                who_escalated_first=first.speaker.value if first else "none",
+                turning_point_utterance_id=None,
             ),
-            summary_bn="স্টাব সারাংশ",
-            summary_en="stub summary",
-            coaching_points_bn=[],
+            summary_bn=f"স্টাব সারাংশ: এজেন্টের {len(agent)}টি ও গ্রাহকের {len(cust)}টি ঘটনা।",
+            summary_en=f"Stub summary: {len(agent)} agent and {len(cust)} customer events.",
+            coaching_points_bn=[f"{c}: আচরণ উন্নত করুন" for c in agent_cats][:5],
         )

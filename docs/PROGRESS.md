@@ -3,7 +3,7 @@
 Maintained by Claude Code. Updated at the end of every phase/prompt.
 Legend: `[ ]` todo · `[x]` done · `[~]` in progress · **[HUMAN]** needs people, access or sign-off · 🔒 blocked on a human input.
 
-Last updated: 2026-11-02 (Prompt 2: P0 synthetic fixtures & call simulator)
+Last updated: 2026-11-02 (Prompt 3: P1 offline post-call pipeline)
 
 ---
 
@@ -23,7 +23,7 @@ Exit gate: `make dev-up` runs; CI green. **Met 2026-11-02** (CI run #3 green on 
 - [x] Model interfaces + deterministic stubs (`ASRBackend`, `ShoutDetector`, `SERModel`, `KWSModel`, `AudioToxModel`, `TextClassifier`, `RegisterDetector`, `LLMJudge`), `GALE_MODEL_MODE=stub|real`
 - [x] `configs/`: `thresholds.yaml`, `rules.yaml`, `models.yaml`, `bangla_canonical.yaml`, `lexicon/fake_lexicon.yaml` (`<GALI_1>`..`<GALI_20>`)
 - [x] Docker-free dev stack (ADR-009): `tools/devstack` (up/status/down), fakeredis TCP bus, embedded Postgres via `pg_ctl`; `uv.toml` / `web/pnpm-workspace.yaml` / Makefile put caches and temp under `.gale/`
-- [ ] Local `ObjectStore` backend (moved to P1 Prompt 3, first consumer) and `GALE_AUTH_MODE=dev` JWT issuer (moved to P5 Prompt 12, first consumer); config guard already enforces dev-only
+- [x] Local `ObjectStore` backend (done in Prompt 3) and `GALE_AUTH_MODE=dev` JWT issuer (moved to P5 Prompt 12, first consumer); config guard already enforces dev-only
 - [x] Verified `pgserver` on Windows and fakeredis Streams support; findings in ADR-009 (no `pg_trgm`; no DETACHED_PROCESS)
 - [x] `infra/compose/docker-compose.dev.yml` (postgres, redis, minio, keycloak realm with 5 roles + demo users, services) + `infra/docker/service.Dockerfile`: written, **not run locally** (no Docker)
 - [x] `web/` skeleton: Next.js 15 App Router, TS strict, Tailwind 4, shadcn/ui button, next-intl (bn default, en), TanStack Query, Zustand; Vitest tests check the Category enum and bn/en labels against the backend schema. wavesurfer.js/Recharts are added in P5 with their first screens
@@ -41,16 +41,16 @@ Exit gate: `make dev-up` runs; CI green. **Met 2026-11-02** (CI run #3 green on 
 
 ### P1 — Offline MVP, pretrained + open-data models (weeks 2–5) · Prompts 3, 4b
 Exit gate: report runs on 100 real calls; first baseline numbers.
-- [ ] Post-call pipeline library + CLI (`make report FILE=…`) reusing the worker logic
-- [ ] Silero VAD, per-channel ASR backends (`whisper_ct2`, `indic_conformer`, `qwen3_asr`) behind `ASRBackend`
-- [ ] Text steps: normalise → redact → lexicon (exact, fuzzy, phonetic, Banglish) → register rules → text classifier
-- [ ] Audio steps: DSP shouting features with per-speaker rolling baseline (rule fallback), emotion2vec+ zero-shot SER, audio-tox, KWS
-- [ ] Overtalk/interruption detector from two-channel VAD (see Decision D-05)
-- [ ] LLM judge client (window + call mode), JSON-schema validation, evidence-grounding post-check, zero-shot prompt
-- [ ] Fusion v0: identity calibration, `rules.yaml`, hysteresis, severity
-- [ ] `report.json` + single-file `report.html`
-- [ ] `scripts/download_models.py` (pinned commit hashes) + `ml/MODEL_LICENSES.md`
-- [ ] Stub-mode integration test against all fixtures' `expected_events.json`
+- [x] Post-call pipeline library + CLI (`make report FILE=…`) reusing the worker logic (`packages/gale_postcall`, ADR-011)
+- [~] Silero VAD, ASR backends `whisper_ct2` + `indic_conformer` behind `ASRBackend` (written, not run: no weights/GPU); `qwen3_asr` pinned only
+- [x] Text steps: normalise → redact → lexicon (exact, fuzzy, phonetic, Banglish) → register rules → text classifier (HF backend written, needs the Prompt 4b checkpoint)
+- [x] Audio steps: DSP shouting features with per-speaker rolling baseline (rule fallback, LightGBM hook), emotion2vec+ SER backend (not run); audio-tox and KWS stay stubs until P3
+- [x] Overtalk/interruption detector from two-channel VAD with crosstalk trimming (D-05, ADR-011)
+- [x] LLM judge client (window + call mode), JSON-schema validation, evidence-grounding post-check, circuit breaker, versioned prompts (tested against a mock server, no real vLLM yet)
+- [x] Fusion v0: identity calibration, `rules.yaml` v2 (named rules, params in config), merge, hysteresis/cool-down, escalation, severity, alert policy
+- [x] `report.json` + single-file `report.html` (waveform SVG, events, scorecard, timelines, highlighted redacted transcript); also stored via the local `ObjectStore`
+- [x] `scripts/download_models.py` (pinned commit hashes) + generated `ml/MODEL_LICENSES.md` (drift-tested)
+- [x] Stub-mode integration test against all fixtures' `expected_events.json` (docs/06 matching rule): 10/10 exact, no false positives
 - [ ] Open-data track: `ml/data/DATASETS.md` register with `commercial_ok` gate; loaders for T1–T15, R1–R4, A1–A4
 - [ ] Back-transliteration model (BanglaTLit) for Banglish sets
 - [ ] Harmonise → `unified.jsonl` (masked labels, dedupe/MinHash, split inheritance, re-weighting) + data card
@@ -154,6 +154,7 @@ Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own
 | D-16 | `ml/` is a plain package at the repo root (so `python -m ml.eval.run` works), not a uv workspace member; heavy ML deps arrive as root dependency groups per component. | P0 |
 | D-17 | `normalize()` lower-cases Latin text but keeps placeholder tags (`<PHONE>`, `<GALI_1>`) intact, so tag and lexicon matching survive normalisation. | P0 |
 | D-18 | GAL-E mints its own UUID `call_id` (never a PBX channel name or caller-derived id). The log scrubber keeps `call_id` / `trace_id` unredacted only when the value is a valid UUID; any other value, e.g. `PJSIP/017…`, is still scrubbed. From Q-10, approved 2026-11-02. P4 ingest-gateway mints the UUID when ARI/FreeSWITCH report a new call. | P0 |
+| D-19 | Fusion `rules.yaml` v2: named rules with parameters in YAML; shouted abuse raises the abusive event's severity; event spans come from word/window-precise signals; cool-down suppresses alerts, not events. Register: customer → তুমি fires only with negative context. Overtalk counts turn starts on crosstalk-trimmed VAD. Ground truth follows the same merge/overtalk conventions. Details in ADR-011. | P1 |
 | D-15 | Mono/diarized audio: `Channel.mixed` is allowed only before diarization. Fusion accepts only `agent`/`customer`. Segments that can't be attributed are stored but never alert. | P1 |
 
 ---
@@ -229,6 +230,38 @@ Smaller inconsistencies, resolved in-line without an ADR:
 
 **Needs a human:** ~~answer Q-10~~ (approved → D-18, implemented: UUID exemption in `galecore.logging`, simulator mints UUID call ids). Optional: a local Bangla TTS checkpoint at `GALE_TTS_DIR` for speech-realistic fixtures (licence check first; MMS-TTS is CC-BY-NC-4.0).
 
+## Prompt 3 summary (2026-11-02)
+
+**Built:**
+- `packages/gale_postcall`: pipeline, report and CLI.
+- Worker logic in every service package: ASR step with in-process redaction, DSP shouting, overtalk, lexicon matcher, register rules, text step, LLM windows/grounding/client, fusion v0 (ADR-011).
+- Real backends behind the interfaces (lazy imports, `real` extras).
+- Fixture oracle for stub mode.
+- `galecore.objectstore`.
+- `scripts/download_models.py` + `ml/MODEL_LICENSES.md`.
+- `make report`.
+
+**Verified on this Windows machine:**
+- `make check`: 230 tests at 99.2% coverage, plus ruff, mypy strict (59 files) and the web checks.
+- All 10 fixtures match ground truth exactly in stub mode, including two dismissed context negatives (demo_09).
+- `make report FILE=tests/fixtures/calls/demo_01/call.wav` writes JSON + HTML in about 1.5 s; the HTML was checked in a browser.
+- `make dev-up` / `dev-down` still work.
+
+**Fixed along the way:**
+- Crosstalk from a shouting far end opened the near-end VAD and hid an interruption.
+- Breaths inside a turn counted as interruptions.
+- The logging config captured a stale `sys.stdout`.
+
+**Stubbed / not run:**
+- Every real model (no weights, no GPU here), so there are no real accuracy numbers.
+- KWS and audio-tox (P3).
+- Calibration is the identity; no stacker.
+
+**Needs a human:**
+- A GPU host with `GALE_MODEL_DIR` populated by `scripts/download_models.py` (accept the IndicConformer terms on HF), plus a vLLM server for the judge.
+- Licence review: emotion2vec+ (`verify`), BanglaBERT (`research_only`) (Q-03).
+- 100 real stereo calls for the P1 exit gate.
+
 ## Next step
 
-Run **Prompt 3: P1 offline post-call pipeline** (`make report FILE=tests/fixtures/calls/demo_01/call.wav`). Stub models key off each fixture's `script.json`, and an integration test checks the events against `expected_events.json`. It also brings the local `ObjectStore` backend.
+Run **Prompt 4b: P1 open-data track** (dataset register with licence gate, harmonisation, text classifier on open data). It runs before Prompt 4 because it needs no in-house data (see the Prompt 0 notes). Alternatively, **Prompt 4: P2 data engine**, once recordings are accessible.

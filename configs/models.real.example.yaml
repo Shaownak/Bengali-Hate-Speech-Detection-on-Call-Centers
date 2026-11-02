@@ -1,0 +1,15 @@
+# Example model config for GALE_MODEL_MODE=real (copy to a prod config dir as models.yaml and
+# point GALE_CONFIG_DIR at it). Revisions are HF commit hashes from scripts/download_models.py
+# (CLAUDE.md rule 6). Components left at "stub" keep their stub until their model exists.
+version: 1
+components:
+  asr_realtime: {backend: indic_conformer, version: "600m-multilingual", revision: 2a77d305038dfc502fd9464e7d028b90381976cb}
+  asr_postcall: {backend: whisper_ct2, version: "tugstugi-whisper-medium-ct2", revision: 76cce9a874e8752d561a7aff28f01383df270db4}
+  kws: {backend: stub, version: stub-0.1}            # P3: CTC KWS + dedicated classifier
+  shout: {backend: dsp, version: rule-0.1}            # LightGBM model file optional (P3)
+  ser: {backend: emotion2vec, version: "plus_large-zero-shot", revision: 6c303ba987b86b93193de93e34bb2b077a6bedc4}
+  audio_tox: {backend: stub, version: stub-0.1}       # P3
+  text_clf: {backend: hf, version: "open-data-v0"}    # fine-tuned in Prompt 4b; encoder licence per Q-03
+  register: {backend: rules, version: "0.1"}
+  llm_judge: {backend: openai, version: "qwen3.5-9b", revision: c202236235762e1c871ad0ccb60c8ee5ba337b9a}
+  fusion: {backend: rules_v0, version: "0.1"}

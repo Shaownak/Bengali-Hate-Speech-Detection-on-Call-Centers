@@ -85,6 +85,13 @@ class WindowInput:
     queue: str | None = None
 
 
+class VADModel(ABC):
+    """Voice activity: speech regions (seconds, absolute call time) in one channel."""
+
+    @abstractmethod
+    def speech_regions(self, chunk: AudioChunk) -> list[tuple[float, float]]: ...
+
+
 class ASRBackend(ABC):
     name: str
 
@@ -121,7 +128,8 @@ class RegisterDetector(ABC):
     """Stateful per (call, speaker): tracks আপনি/তুমি/তুই level through the call."""
 
     @abstractmethod
-    def observe(self, segment: AsrSegment) -> list[Signal]: ...
+    def observe(self, segment: AsrSegment, negative_context: bool = False) -> list[Signal]:
+        """``negative_context``: the utterance also carries abuse (lexicon / text-clf)."""
 
 
 class LLMJudge(ABC):
@@ -129,4 +137,6 @@ class LLMJudge(ABC):
     def judge_window(self, window: WindowInput) -> WindowJudgement: ...
 
     @abstractmethod
-    def judge_call(self, call_id: str, segments: list[AsrSegment]) -> CallScorecard: ...
+    def judge_call(
+        self, call_id: str, segments: list[AsrSegment], events: list[FusedEvent]
+    ) -> CallScorecard: ...

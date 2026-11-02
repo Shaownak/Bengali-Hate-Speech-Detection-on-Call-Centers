@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
-from galecore.config import REPO_ROOT, LexiconConfig, LexiconEntry
+from galecore.config import REPO_ROOT, LexiconConfig, LexiconEntry, load_rules, load_thresholds
 from galecore.schemas import Category, Speaker, Target
 from tools.fixtures_gen.models import (
     ExpectedEvent,
@@ -32,6 +32,12 @@ RENDER = {
     "noise_dbfs": -60.0,  # line noise floor per channel
     "bleed_db": -32.0,  # far-end crosstalk into each channel
 }
+
+# ground truth follows the same conventions as fusion (configs/thresholds.yaml, rules.yaml)
+MERGE_GAP_S = load_thresholds(REPO_ROOT / "configs").hysteresis.merge_gap_s
+_OVERTALK = next(r for r in load_rules(REPO_ROOT / "configs").rules if r.name == "overtalk").when
+OVERTALK_MIN = int(_OVERTALK["count_gte"])
+OVERTALK_WINDOW_S = float(_OVERTALK["window_s"])
 
 PRONOUNS: dict[Register, tuple[str, ...]] = {
     "apni": ("আপনি", "আপনার", "আপনাকে", "আপনারা", "আপনাদের", "apni", "apnake", "apnar"),
@@ -89,6 +95,7 @@ def compose(scenario: Scenario, tts: TTSBackend) -> tuple[Script, ExpectedEvents
     turns: list[Turn] = []
     events: list[ExpectedEvent] = []
     baseline: dict[Speaker, Register] = {}
+    interruptions: list[tuple[Speaker, int, float, float, bool]] = []
     cursor = 0.6  # leading silence
 
     for idx, line in enumerate(_expand(scenario, rng)):
@@ -139,7 +146,7 @@ def compose(scenario: Scenario, tts: TTSBackend) -> tuple[Script, ExpectedEvents
             tgt: Target = target,
             _line: Line = line,
             _idx: int = idx,
-            **ev: object,
+            ev: dict[str, object] | None = None,
         ) -> None:
             events.append(
                 ExpectedEvent(
@@ -151,8 +158,8 @@ def compose(scenario: Scenario, tts: TTSBackend) -> tuple[Script, ExpectedEvents
                     severity=sev,
                     turn_idx=_idx,
                     alert=_line.alert,
-                    context_flags=list(_line.flags),  # type: ignore[arg-type]
-                    evidence=dict(ev),
+                    context_flags=list(_line.flags),
+                    evidence=dict(ev or {}),
                 )
             )
 
@@ -166,12 +173,10 @@ def compose(scenario: Scenario, tts: TTSBackend) -> tuple[Script, ExpectedEvents
                     e.severity,
                     w.t_start,
                     w.t_end,
-                    term=w.w,
-                    lexicon_id=e.id,
-                    source="lexicon",
+                    ev={"term": w.w, "lexicon_id": e.id, "source": "lexicon"},
                 )
         for cat, sev in line.extra:
-            add(cat, sev, turn.t_start, turn.t_end, source="annotation")
+            add(cat, sev, turn.t_start, turn.t_end, ev={"source": "annotation"})
         if line.style == "shout":
             add(
                 Category.SHOUTING,
@@ -179,9 +184,11 @@ def compose(scenario: Scenario, tts: TTSBackend) -> tuple[Script, ExpectedEvents
                 turn.t_start,
                 turn.t_end,
                 tgt=_other(line.speaker),
-                gain_db=RENDER["shout_gain_db"],
-                pitch_factor=RENDER["shout_pitch"],
-                source="dsp",
+                ev={
+                    "gain_db": RENDER["shout_gain_db"],
+                    "pitch_factor": RENDER["shout_pitch"],
+                    "source": "dsp",
+                },
             )
         if line.register is not None:
             pron = next((w for w in words if w.w.lower() in PRONOUNS[line.register]), None)
@@ -197,20 +204,16 @@ def compose(scenario: Scenario, tts: TTSBackend) -> tuple[Script, ExpectedEvents
                     pron.t_start,
                     pron.t_end,
                     tgt=_other(line.speaker),
-                    **{"from": base, "to": line.register, "pronoun": pron.w, "source": "register"},
+                    ev={"from": base, "to": line.register, "pronoun": pron.w, "source": "register"},
                 )
         if gap < 0 and prev is not None:
             overlap = round(min(prev.t_end, turn.t_end) - t_start, 3)
-            add(
-                Category.INTERRUPTION_OVERTALK,
-                1 if overlap < 1.5 else 2,
-                t_start,
-                t_start + overlap,
-                tgt=_other(line.speaker),
-                overlap_s=overlap,
-                source="vad_overtalk",
+            interruptions.append(
+                (line.speaker, idx, t_start, round(t_start + overlap, 3), line.alert)
             )
 
+    events += _overtalk_events(interruptions)
+    events = _merge_events(events)
     duration = round(cursor + 0.8, 3)
     script = Script(
         call_id=scenario.call_id,
@@ -222,8 +225,65 @@ def compose(scenario: Scenario, tts: TTSBackend) -> tuple[Script, ExpectedEvents
         voices=voices,
         turns=turns,
     )
-    events.sort(key=lambda e: (e.t_start, e.category.value))
     return script, ExpectedEvents(call_id=scenario.call_id, events=events)
+
+
+def _overtalk_events(
+    interruptions: list[tuple[Speaker, int, float, float, bool]],
+) -> list[ExpectedEvent]:
+    """docs/02 §3.4: overtalk is ≥ OVERTALK_MIN interruptions by one speaker within 60 s.
+
+    A single overlap is not an event. One event spans the first to the last interruption.
+    """
+    out = []
+    for spk in Speaker:
+        mine = [i for i in interruptions if i[0] is spk]
+        k = 0
+        while k < len(mine):
+            group = [m for m in mine[k:] if m[2] - mine[k][2] <= OVERTALK_WINDOW_S]
+            if len(group) >= OVERTALK_MIN:
+                out.append(
+                    ExpectedEvent(
+                        category=Category.INTERRUPTION_OVERTALK,
+                        speaker=spk,
+                        target=_other(spk),
+                        t_start=group[0][2],
+                        t_end=group[-1][3],
+                        severity=1,
+                        turn_idx=group[0][1],
+                        alert=all(g[4] for g in group),
+                        evidence={"interruptions": len(group), "source": "vad_overtalk"},
+                    )
+                )
+                k += len(group)
+            else:
+                k += 1
+    return out
+
+
+def _merge_events(events: list[ExpectedEvent]) -> list[ExpectedEvent]:
+    """Annotation convention = fusion hysteresis: same speaker + category spans closer than
+    ``merge_gap_s`` (configs/thresholds.yaml) are one event, with the higher severity."""
+    events = sorted(events, key=lambda e: (e.speaker.value, e.category.value, e.t_start))
+    out: list[ExpectedEvent] = []
+    for e in events:
+        last = out[-1] if out else None
+        if (
+            last is not None
+            and (last.speaker, last.category, last.alert) == (e.speaker, e.category, e.alert)
+            and e.t_start - last.t_end < MERGE_GAP_S
+        ):
+            out[-1] = last.model_copy(
+                update={
+                    "t_end": max(last.t_end, e.t_end),
+                    "severity": max(last.severity, e.severity),
+                    "context_flags": sorted({*last.context_flags, *e.context_flags}),
+                    "evidence": {**last.evidence, "merged": last.evidence.get("merged", 1) + 1},
+                }
+            )
+        else:
+            out.append(e)
+    return sorted(out, key=lambda e: (e.t_start, e.category.value))
 
 
 def render(script: Script, tts: TTSBackend) -> npt.NDArray[np.int16]:

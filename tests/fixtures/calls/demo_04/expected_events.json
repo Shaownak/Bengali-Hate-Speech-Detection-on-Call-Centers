@@ -8,13 +8,13 @@
       "speaker": "customer",
       "target": "agent",
       "t_start": 77.071,
-      "t_end": 78.271,
+      "t_end": 96.775,
       "severity": 1,
       "turn_idx": 21,
       "alert": true,
       "context_flags": [],
       "evidence": {
-        "overlap_s": 1.2,
+        "interruptions": 3,
         "source": "vad_overtalk"
       }
     },
@@ -32,21 +32,6 @@
         "term": "<GALI_13>",
         "lexicon_id": "gali_13",
         "source": "lexicon"
-      }
-    },
-    {
-      "category": "interruption_overtalk",
-      "speaker": "customer",
-      "target": "agent",
-      "t_start": 87.196,
-      "t_end": 87.996,
-      "severity": 1,
-      "turn_idx": 23,
-      "alert": true,
-      "context_flags": [],
-      "evidence": {
-        "overlap_s": 0.8,
-        "source": "vad_overtalk"
       }
     }
   ]

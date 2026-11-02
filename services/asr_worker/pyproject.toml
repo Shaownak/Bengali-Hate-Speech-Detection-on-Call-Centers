@@ -5,6 +5,10 @@ description = "GAL-E asr-worker"
 requires-python = ">=3.12,<3.13"
 dependencies = ["galecore"]
 
+[project.optional-dependencies]
+# GALE_MODEL_MODE=real on a GPU host (D-12); not in the default environment
+real = ["faster-whisper>=1.1", "silero-vad>=5.1", "onnxruntime>=1.20"]
+
 [project.scripts]
 gale-asr-worker = "gale_asr_worker.__main__:main"
 

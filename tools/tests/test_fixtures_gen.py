@@ -1,3 +1,4 @@
+import itertools
 import json
 import re
 from pathlib import Path
@@ -55,12 +56,29 @@ def test_events_are_consistent_with_turns() -> None:
         script, expected = _load(sc.call_id)
         turns = {t.idx: t for t in script.turns}
         for e in expected.events:
-            t = turns[e.turn_idx]
+            t = turns[e.turn_idx]  # the turn where the event starts
             assert e.speaker == t.speaker
-            assert t.t_start - 1e-6 <= e.t_start < e.t_end <= t.t_end + 1e-6, (sc.call_id, e)
-            assert e.t_end <= script.duration_s
+            assert t.t_start - 1e-6 <= e.t_start < e.t_end <= script.duration_s, (sc.call_id, e)
+            # merged / overtalk events may span turns, but end inside one of the speaker's turns
+            assert any(
+                u.speaker == e.speaker and u.t_start - 1e-6 <= e.t_end <= u.t_end + 1e-6
+                for u in script.turns
+            ), (sc.call_id, e)
             if not e.alert:
                 assert e.context_flags, "non-alerting ground truth must say why"
+
+
+def test_ground_truth_merges_like_fusion() -> None:
+    # same speaker + category closer than merge_gap_s (5 s) is one event (thresholds.yaml)
+    for sc in SCENARIOS:
+        _, expected = _load(sc.call_id)
+        evs = sorted(expected.events, key=lambda e: (e.speaker, e.category, e.t_start))
+        for a, b in itertools.pairwise(evs):
+            if (a.speaker, a.category, a.alert) == (b.speaker, b.category, b.alert):
+                assert b.t_start - a.t_end >= 5.0, (sc.call_id, a, b)
+    shouts = [e for e in _load("demo_05")[1].events if e.category is Category.SHOUTING]
+    assert len(shouts) == 1
+    assert shouts[0].evidence["merged"] == 3
 
 
 def test_category_coverage_and_negative_control() -> None:
@@ -92,15 +110,21 @@ def test_register_drop_events() -> None:
     ]
 
 
-def test_overtalk_overlaps_the_other_speaker() -> None:
-    script, expected = _load("demo_04")
-    turns = {t.idx: t for t in script.turns}
-    ot = [e for e in expected.events if e.category is Category.INTERRUPTION_OVERTALK]
-    assert len(ot) == 2
-    for e in ot:
-        prev = turns[e.turn_idx - 1]
-        assert prev.speaker != e.speaker
-        assert prev.t_start < e.t_start < prev.t_end
+def test_overtalk_needs_three_interruptions_in_a_minute() -> None:
+    for call_id in ("demo_04", "demo_08"):
+        _, expected = _load(call_id)
+        ot = [e for e in expected.events if e.category is Category.INTERRUPTION_OVERTALK]
+        assert len(ot) == 1, call_id
+        assert ot[0].speaker is Speaker.CUSTOMER
+        assert ot[0].evidence["interruptions"] == 3
+        assert ot[0].t_end - ot[0].t_start <= 60
+    # demo_08: the agent interrupts once, which is not an event (docs/02 §3.4)
+    agent_ot = [
+        e
+        for e in _load("demo_08")[1].events
+        if e.category is Category.INTERRUPTION_OVERTALK and e.speaker is Speaker.AGENT
+    ]
+    assert agent_ot == []
 
 
 def test_render_is_deterministic_stereo_with_louder_shouting(tmp_path: Path) -> None:

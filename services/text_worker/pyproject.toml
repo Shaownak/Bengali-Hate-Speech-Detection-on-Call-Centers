@@ -5,6 +5,10 @@ description = "GAL-E text-worker"
 requires-python = ">=3.12,<3.13"
 dependencies = ["galecore"]
 
+[project.optional-dependencies]
+# GALE_MODEL_MODE=real (D-12): fine-tuned BanglaBERT-family classifier
+real = ["transformers>=4.46", "torch>=2.5"]
+
 [project.scripts]
 gale-text-worker = "gale_text_worker.__main__:main"
 

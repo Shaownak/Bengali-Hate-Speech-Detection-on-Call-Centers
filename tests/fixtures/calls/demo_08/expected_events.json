@@ -5,31 +5,16 @@
   "events": [
     {
       "category": "interruption_overtalk",
-      "speaker": "agent",
-      "target": "customer",
-      "t_start": 13.828,
-      "t_end": 14.728,
-      "severity": 1,
-      "turn_idx": 2,
-      "alert": true,
-      "context_flags": [],
-      "evidence": {
-        "overlap_s": 0.9,
-        "source": "vad_overtalk"
-      }
-    },
-    {
-      "category": "interruption_overtalk",
       "speaker": "customer",
       "target": "agent",
       "t_start": 80.757,
-      "t_end": 82.557,
-      "severity": 2,
+      "t_end": 99.81,
+      "severity": 1,
       "turn_idx": 22,
       "alert": true,
       "context_flags": [],
       "evidence": {
-        "overlap_s": 1.8,
+        "interruptions": 3,
         "source": "vad_overtalk"
       }
     },
@@ -38,7 +23,7 @@
       "speaker": "customer",
       "target": "agent",
       "t_start": 80.757,
-      "t_end": 83.527,
+      "t_end": 85.487,
       "severity": 2,
       "turn_idx": 22,
       "alert": true,
@@ -53,8 +38,8 @@
       "category": "shouting",
       "speaker": "agent",
       "target": "customer",
-      "t_start": 84.146,
-      "t_end": 86.116,
+      "t_start": 86.106,
+      "t_end": 90.916,
       "severity": 2,
       "turn_idx": 23,
       "alert": true,

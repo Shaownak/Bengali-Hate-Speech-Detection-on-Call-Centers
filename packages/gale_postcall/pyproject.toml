@@ -1,0 +1,31 @@
+[project]
+name = "gale-postcall"
+version = "0.1.0"
+description = "GAL-E post-call pipeline: library + CLI (make report), built from the worker logic"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "galecore",
+    "gale-asr-worker",
+    "gale-audio-worker",
+    "gale-text-worker",
+    "gale-llm-judge",
+    "gale-fusion-engine",
+]
+
+[project.scripts]
+gale-report = "gale_postcall.__main__:main"
+
+[tool.uv.sources]
+galecore = { workspace = true }
+gale-asr-worker = { workspace = true }
+gale-audio-worker = { workspace = true }
+gale-text-worker = { workspace = true }
+gale-llm-judge = { workspace = true }
+gale-fusion-engine = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gale_postcall"]

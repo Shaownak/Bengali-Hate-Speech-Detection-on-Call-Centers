@@ -67,9 +67,12 @@ def test_stub_shout_silence(models) -> None:  # type: ignore[no-untyped-def]
 
 def test_stub_text_classifier(models) -> None:  # type: ignore[no-untyped-def]
     out = models.text_clf.classify(TextContext("তুই একটা <GALI_3>", Channel.AGENT))
-    assert out.scores[Category.SLANG_PROFANITY] > 0.9
+    assert out.scores[Category.SLANG_PROFANITY] == 0.9
     assert out.scores[Category.DISRESPECT_REGISTER] == 0.6
-    assert out.severity == 2
+    assert out.severity == 1  # <GALI_3> has severity 1 in the fake lexicon
+    insult = models.text_clf.classify(TextContext("আপনি একটা <GALI_13>", Channel.AGENT))
+    assert insult.scores[Category.INSULT] == 0.9  # category comes from the lexicon entry
+    assert insult.scores[Category.SLANG_PROFANITY] < 0.1
     clean = models.text_clf.classify(TextContext("আপনার রিচার্জ হয়েছে", Channel.AGENT))
     assert max(clean.scores.values()) < 0.1
     assert clean.severity == 0
@@ -99,5 +102,5 @@ def test_stub_llm(models) -> None:  # type: ignore[no-untyped-def]
     )  # fmt: skip
     j = models.llm.judge_window(WindowInput("c", [seg("x")], [], [ev]))
     assert [d.decision for d in j.provisional_decisions] == ["confirm"]
-    card = models.llm.judge_call("c", [seg("x")])
+    card = models.llm.judge_call("c", [seg("x")], [])
     assert card.escalation.who_escalated_first == "none"

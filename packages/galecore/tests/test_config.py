@@ -59,7 +59,12 @@ def test_thresholds_missing_category_rejected(tmp_path: Path) -> None:
 
 def test_rules_and_models_load() -> None:
     rules = load_rules(CONFIGS)
-    assert {r.name for r in rules.rules} >= {"slang_fast_path", "sustained_shout", "overtalk"}
+    assert {r.name for r in rules.rules} >= {
+        "lexicon_fast_path",
+        "sustained_shout",
+        "register_drop",
+        "overtalk",
+    }
     models = load_models(CONFIGS)
     assert all(c.backend in ("stub", "rules_v0") for c in models.components.values())
 
