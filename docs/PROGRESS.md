@@ -22,7 +22,9 @@ Exit gate: `make dev-up` runs; CI green.
 - [ ] `galecore.redact` (BD mobile incl. Bangla and spoken digits, NID 10/13/17, email, account numbers): tests first
 - [ ] Model interfaces + deterministic stubs (`ASRBackend`, `ShoutDetector`, `SERModel`, `KWSModel`, `AudioToxModel`, `TextClassifier`, `RegisterDetector`, `LLMJudge`), `GALE_MODEL_MODE=stub|real`
 - [ ] `configs/`: `thresholds.yaml`, `rules.yaml`, `models.yaml`, `lexicon/fake_lexicon.yaml` (`<GALI_1>`..`<GALI_20>`)
-- [ ] `infra/compose/docker-compose.dev.yml`: postgres, redis, minio, keycloak (realm with 5 roles + demo users), all services in stub mode, web
+- [ ] Docker-free dev stack (ADR-009): `tools/devstack` supervisor, fakeredis TCP bus, embedded Postgres (`pgserver`), local `ObjectStore`, `GALE_AUTH_MODE=dev` JWT issuer with 5 roles + demo users; `uv.toml`/`.npmrc`/Makefile put caches and temp under `.gale/` on G:
+- [ ] Verify `pgserver` on Windows and fakeredis Streams support (XADD/XREADGROUP/XACK/XCLAIM); record fallbacks in ADR-009
+- [ ] `infra/compose/docker-compose.dev.yml` (postgres, redis, minio, keycloak realm, services, web): written for later and Linux CI, optional locally
 - [ ] `web/` skeleton: Next.js App Router, TS strict, Tailwind, shadcn/ui, next-intl (bn default, en)
 - [ ] `.gitattributes` (`* text=auto eol=lf`), Windows-safe Makefile (`SHELL := bash`), and a Windows CI job (ADR-008)
 - [ ] Makefile (`setup`, `dev-up`, `dev-down`, `check`, `gen-types`, `simulate`, `report`, `eval`, `e2e`), pre-commit
@@ -127,7 +129,7 @@ Exit gate: pilot exit criteria (`06_EVALUATION.md` §6).
 ## Decisions
 
 Accepted (from spec): ADR-001..007 in `docs/adr/`.
-Accepted 2026-11-02: ADR-008 native Windows development.
+Accepted 2026-11-02: ADR-008 native Windows development; ADR-009 Docker-free local dev (venv + fakeredis + embedded Postgres + local object store + dev auth; all caches on G:).
 
 Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own ADR when the phase that needs it is implemented. The ⚠ marks the item that was a human decision.
 
@@ -187,7 +189,7 @@ Smaller inconsistencies, resolved in-line without an ADR:
 
 1. Windows toolchain (ADR-008), 2026-11-02:
    - [x] uv 0.13.6, GNU Make 4.4.1, pnpm 12.16.1 installed via winget (user scope). Corepack couldn't write to `C:\Program Files\nodejs`, so pnpm is the standalone build.
-   - [ ] **[HUMAN]** `C:\Dev-Cpp\bin` (make 3.80) is on the *machine* PATH, which comes before the user PATH. Either move it after `%LOCALAPPDATA%\Microsoft\WinGet\Links` (admin), or prepend that folder in your shell profiles.
-   - [ ] **[HUMAN]** Install Docker Desktop (`winget install Docker.DockerDesktop`). It needs admin/UAC and acceptance of Docker's subscription terms; the paid licence applies to orgs > 250 staff or > $10M revenue. It uses the WSL2 engine internally, which is already enabled, but you keep working in Windows.
+   - [x] PATH fixed by the user: `make` now resolves to GNU Make 4.4.1.
+   - [x] Docker Desktop **not** installed (user decision, C: has 0.6 GB free). Local dev is Docker-free (ADR-009).
    - Already present: Python 3.12.3, Node 20.12.2, Git Bash 5.2.
 2. Run **Prompt 1: P0 monorepo scaffold & shared core**.

@@ -26,6 +26,7 @@ If the spec is ambiguous, choose the simplest option consistent with it, record 
 - Config via env + YAML in `configs/`; validated by pydantic settings. Thresholds/rules are config, never hard-coded.
 - Every model sits behind an interface (`ASRBackend`, `SERModel`, `KWSModel`, `TextClassifier`, `LLMJudge`, `ShoutDetector`) with a **`stub` implementation** that returns deterministic fake outputs so the whole system runs on a laptop without GPUs or model downloads (`GALE_MODEL_MODE=stub`). Real implementations load weights from a local model dir (`GALE_MODEL_DIR`), never from the internet at runtime.
 - Bangla text: always normalise with `galecore.bangla.normalize()` (NFC + project rules) before matching, training or scoring.
+- Dev host is native Windows with very little space on C: (ADR-008, ADR-009). Keep every cache, temp dir, model dir and data dir under the repo's `.gale/` on G:, never the user profile on C:.
 - Commits: small, conventional commits (`feat:`, `fix:`, `chore:`…). Run `make check` before committing.
 
 ## Hard rules (non-negotiable)
@@ -39,7 +40,8 @@ If the spec is ambiguous, choose the simplest option consistent with it, record 
 ## Common commands (create these in the Makefile during P0)
 ```
 make setup          # uv sync + pnpm install + pre-commit
-make dev-up         # docker compose (postgres, redis, minio, keycloak, all services in stub mode, web)
+make dev-up         # local processes from .venv, no Docker (ADR-009): fakeredis bus, embedded Postgres, local object store, dev auth, all services in stub mode, web
+                    # DEV_STACK=compose → docker compose (postgres, redis, minio, keycloak) once Docker is available
 make dev-down
 make check          # ruff, mypy, pytest, eslint, tsc, vitest
 make gen-types      # pydantic → TS types
