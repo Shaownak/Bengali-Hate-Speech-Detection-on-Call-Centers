@@ -1,0 +1,62 @@
+# CI smoke deploy on a kind cluster (no operators, no GPUs): stub models, dev auth, single-pod
+# Postgres, local object store, images loaded with `kind load docker-image`. Secrets are created by
+# the CI job with kubectl (externalSecrets off). Never use for real data.
+global:
+  env: dev
+  modelMode: stub
+  authMode: dev
+  imageRegistry: gale.local
+  imageTag: smoke
+  imagePullPolicy: Never
+
+postgres:
+  mode: simple
+
+bus:
+  mode: bundled
+  bundled:
+    maxmemory: 256mb
+    storage: { size: 1Gi }
+    resources: { requests: { cpu: 100m, memory: 300Mi }, limits: { memory: 300Mi } }
+
+objectStore:
+  mode: local
+
+externalSecrets:
+  enabled: false
+
+services:
+  ingest_gateway:
+    resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 512Mi } }
+    rtp: { enabled: false, port: 40000, serviceType: ClusterIP }
+  audio_worker: { shards: 2, resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 768Mi } } }
+  asr_worker: { shards: 2, resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 768Mi } } }
+  text_worker: { shards: 1, resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 768Mi } } }
+  llm_judge: { shards: 1, resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 512Mi } } }
+  fusion_engine: { shards: 1, resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 512Mi } } }
+  postcall_worker:
+    replicas: 1
+    keda: { enabled: false }
+    resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 1Gi } }
+  api:
+    replicas: 1
+    hpa: { enabled: false }
+    resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 768Mi } }
+  web:
+    enabled: false
+
+ingress:
+  enabled: false
+
+observability:
+  serviceMonitors: false
+  prometheusRules: false
+  dashboards: false
+  otelCollector: { enabled: false }
+
+networkPolicies:
+  enabled: false   # validated by `helm template` + kubeconform; kind's CNI is not the target
+
+retention:
+  enabled: true
+  execute: false

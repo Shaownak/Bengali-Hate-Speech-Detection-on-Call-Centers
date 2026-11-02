@@ -187,6 +187,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/dsar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dsar
+         * @description Erase a data subject's calls (audio, transcripts, signals, events, reviews, scores).
+         *     Defaults to a dry run; runbook docs/runbooks/dsar-deletion.md.
+         */
+        post: operations["dsar_api_v1_dsar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/ack": {
         parameters: {
             query?: never;
@@ -908,6 +929,38 @@ export interface components {
             agents: components["schemas"]["AgentOut"][];
             /** Teams */
             teams: components["schemas"]["TeamOut"][];
+        };
+        /**
+         * DsarIn
+         * @description Erase every record of a data subject's calls (PDPO 2025). At least one selector.
+         */
+        DsarIn: {
+            /** Call Ids */
+            call_ids?: string[];
+            /** Customer Hash */
+            customer_hash?: string | null;
+            /**
+             * Dry Run
+             * @default true
+             */
+            dry_run: boolean;
+            /** External Call Id */
+            external_call_id?: string | null;
+            /** Reason */
+            reason: string;
+        };
+        /** DsarOut */
+        DsarOut: {
+            /** Calls */
+            calls: string[];
+            /** Dry Run */
+            dry_run: boolean;
+            /** Events */
+            events: number;
+            /** Objects Deleted */
+            objects_deleted: number;
+            /** Segments */
+            segments: number;
         };
         /** Escalation */
         Escalation: {
@@ -1829,6 +1882,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Directory"];
+                };
+            };
+        };
+    };
+    dsar_api_v1_dsar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DsarIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DsarOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

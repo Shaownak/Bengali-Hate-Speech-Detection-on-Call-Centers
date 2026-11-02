@@ -20,8 +20,9 @@ import numpy as np
 
 from gale_asr_worker.steps import to_asr_segment
 from galecore.audio import MODEL_SR, rms_dbfs, s16le_to_float
-from galecore.bus import ASR_SEGMENTS, BusClient, audio_streams
+from galecore.bus import ASR_SEGMENTS, BusClient
 from galecore.config import Settings
+from galecore.metrics import ASR_CONFIDENCE
 from galecore.models import RealModelsUnavailableError, load_models
 from galecore.models.base import ASRBackend, AudioChunk
 from galecore.models.oracle import oracle_for_ref
@@ -66,7 +67,7 @@ class AsrStream(Worker):
         self.silence_s, self.partial_every_s, self.max_utt_s = silence_s, partial_every_s, max_utt_s
         self.state: dict[tuple[str, Channel], ChannelState] = {}
         self._asr: dict[str, ASRBackend] = {}
-        for stream in audio_streams():
+        for stream in self.owned_audio_streams():
             self.subscribe(stream, AudioFrame, self.on_frame)
 
     def asr_for(self, call_id: str) -> ASRBackend:
@@ -131,6 +132,7 @@ class AsrStream(Worker):
                 idem_key=f"{seg.segment_id}:{'f' if final else f'p{utt.partials}'}",
             )
             if final:
+                ASR_CONFIDENCE.observe(seg.avg_conf)
                 self.clock.observe_latency(self.service, "asr_final", call_id, seg.ts_end)
 
     async def on_lifecycle(self, ev: CallLifecycle) -> None:

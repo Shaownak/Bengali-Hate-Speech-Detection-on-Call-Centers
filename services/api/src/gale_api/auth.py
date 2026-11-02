@@ -57,6 +57,7 @@ PERMISSIONS: dict[str, frozenset[Role]] = {
     "models.promote": frozenset({A}),
     "audit.read": frozenset({A, U}),
     "ingest.write": frozenset({A, Q}),
+    "dsar.execute": frozenset({A}),
     "live.read": frozenset({A, Q, S}),
     "live_call.read": frozenset({A, Q, S, G}),
 }

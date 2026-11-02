@@ -43,6 +43,9 @@ def test_s3_store_presigns_offline_and_wraps_client() -> None:
         def get_object(self, bucket: str, key: str) -> FakeResp:
             return FakeResp()
 
+        def remove_object(self, bucket: str, key: str) -> None:
+            del self.objects[key]
+
         def stat_object(self, bucket: str, key: str) -> None:
             from minio.error import S3Error
 
@@ -54,3 +57,5 @@ def test_s3_store_presigns_offline_and_wraps_client() -> None:
     assert fake.exists("a/b.wav")
     assert not fake.exists("a/c.wav")
     assert fake.get("a/b.wav") == b"data"
+    assert fake.delete("a/b.wav") is True
+    assert fake.delete("a/b.wav") is False

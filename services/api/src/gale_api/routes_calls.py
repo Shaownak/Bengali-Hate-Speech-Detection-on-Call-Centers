@@ -42,6 +42,7 @@ from gale_api.db import (
 )
 from gale_api.scope import call_scope, get_call, get_event
 from galecore.bangla import normalize
+from galecore.metrics import REVIEWS
 from galecore.objectstore import LocalObjectStore
 from galecore.schemas import Category, EventStatus
 
@@ -419,6 +420,7 @@ def review_event(
         created_at=now(),
     )
     db.add(rv)
+    REVIEWS.labels(body.kind, body.verdict or "").inc()
     if body.kind == "verdict" and body.verdict:
         ev.status = VERDICT_STATUS[body.verdict].value
         ev.updated_at = now()

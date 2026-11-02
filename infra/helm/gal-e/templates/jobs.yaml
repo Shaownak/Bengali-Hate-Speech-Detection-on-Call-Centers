@@ -1,0 +1,79 @@
+{{- $root := . -}}
+{{- $ns := include "gale.ns" (list . "app") -}}
+{{- define "gale.jobPod" -}}
+{{- $root := index . 0 -}}{{- $args := index . 1 -}}
+securityContext: {{- include "gale.podSecurity" $root.Values.podSecurity.runAsUser | nindent 2 }}
+automountServiceAccountToken: false
+restartPolicy: Never
+{{- with $root.Values.global.imagePullSecrets }}
+imagePullSecrets: {{- toYaml . | nindent 2 }}
+{{- end }}
+containers:
+  - name: job
+    image: {{ include "gale.image" (list $root "api") }}
+    imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
+    args: {{- toYaml $args | nindent 6 }}
+    envFrom: {{- include "gale.envFrom" $root | nindent 6 }}
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { memory: 512Mi }
+    securityContext: {{- include "gale.containerSecurity" . | nindent 6 }}
+    volumeMounts: [{ name: tmp, mountPath: /tmp }]
+volumes:
+  - name: tmp
+    emptyDir: { sizeLimit: 256Mi }
+{{- end -}}
+{{- if .Values.migrations.enabled }}
+---
+# Schema migrations before the new API version takes traffic; the API's /readyz stays red until
+# the database is at the migration head (ADR-018).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: gale-migrate
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-migrate") | nindent 4 }}
+  annotations:
+    helm.sh/hook: post-install,pre-upgrade
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      labels:
+        {{- include "gale.labels" (list . "gale-migrate") | nindent 8 }}
+        gale.io/db-client: "true"
+    spec: {{- include "gale.jobPod" (list . (list "python" "-m" "gale_api" "migrate")) | nindent 6 }}
+{{- end }}
+{{- if .Values.retention.enabled }}
+---
+# Retention (docs/05 §7): dry run until the DPO-approved policy is in configs/retention.yaml and
+# retention.execute=true (ADR-018). Every run writes an audit_log row with the counts.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gale-retention
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-retention") | nindent 4 }}
+spec:
+  schedule: {{ .Values.retention.schedule | quote }}
+  timeZone: Asia/Dhaka
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            {{- include "gale.labels" (list . "gale-retention") | nindent 12 }}
+            gale.io/db-client: "true"
+        spec:
+          {{- $args := list "python" "-m" "gale_api" "retention" }}
+          {{- if .Values.retention.execute }}{{ $args = append $args "--execute" }}{{ end }}
+          {{- include "gale.jobPod" (list . $args) | nindent 10 }}
+{{- end }}

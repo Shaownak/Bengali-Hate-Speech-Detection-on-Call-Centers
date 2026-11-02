@@ -1,0 +1,81 @@
+{{- /* gale-env ConfigMap + secrets in every namespace that runs GAL-E code */ -}}
+{{- $root := . -}}
+{{- $bus := printf "%s://%s:%v/0" (ternary "rediss" "redis" .Values.bus.tls) .Values.bus.host .Values.bus.port -}}
+{{- range $area := list "ingest" "ml" "app" }}
+{{- $ns := include "gale.ns" (list $root $area) }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gale-env
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list $root "config") | nindent 4 }}
+data:
+  GALE_ENV: {{ $root.Values.global.env | quote }}
+  GALE_MODEL_MODE: {{ $root.Values.global.modelMode | quote }}
+  GALE_AUTH_MODE: {{ $root.Values.global.authMode | quote }}
+  GALE_LOG_LEVEL: {{ $root.Values.global.logLevel | quote }}
+  GALE_BUS_BACKEND: redis
+  GALE_OBJECT_STORE: {{ $root.Values.objectStore.mode | quote }}
+  GALE_S3_ENDPOINT: {{ $root.Values.objectStore.endpoint | quote }}
+  GALE_S3_SECURE: {{ $root.Values.objectStore.secure | quote }}
+  GALE_S3_BUCKET: {{ $root.Values.objectStore.bucket | quote }}
+  GALE_S3_REGION: {{ $root.Values.objectStore.region | quote }}
+  GALE_OBJECT_STORE_DIR: /data/objects
+  GALE_MODEL_DIR: {{ $root.Values.models.mountPath | quote }}
+  GALE_LLM_BASE_URL: {{ printf "http://gale-vllm.%s.svc.cluster.local:8000/v1" (include "gale.ns" (list $root "ml")) | quote }}
+  GALE_LLM_MODEL: {{ $root.Values.vllm.servedModelName | quote }}
+  {{- if $root.Values.observability.otelCollector.enabled }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ printf "http://gale-otel-collector.%s.svc.cluster.local:4318" (include "gale.ns" (list $root "obs")) | quote }}
+  {{- end }}
+  HF_HUB_OFFLINE: "1"              # no model downloads at runtime (CLAUDE.md, docs/05 §7)
+  {{- range $k, $v := $root.Values.config }}
+  {{ $k }}: {{ $v | quote }}
+  {{- end }}
+{{- end }}
+
+{{- if .Values.externalSecrets.enabled }}
+{{- $es := .Values.externalSecrets }}
+{{- $items := list
+  (dict "name" .Values.secrets.bus "remote" $es.remote.bus "keys" (list "GALE_BUS_URL" "REDIS_PASSWORD") "areas" (list "ingest" "ml" "app" "data"))
+  (dict "name" .Values.secrets.db "remote" $es.remote.db "keys" (list "GALE_DB_URL") "areas" (list "ml" "app"))
+  (dict "name" .Values.secrets.objectStore "remote" $es.remote.objectStore "keys" (list "GALE_S3_ACCESS_KEY" "GALE_S3_SECRET_KEY") "areas" (list "ingest" "ml" "app"))
+  (dict "name" .Values.secrets.signing "remote" $es.remote.signing "keys" (list "GALE_OBJECT_URL_SECRET") "areas" (list "app"))
+  (dict "name" .Values.secrets.ingestAri "remote" $es.remote.ingestAri "keys" (list "GALE_INGEST_ARI_PASSWORD") "areas" (list "ingest"))
+}}
+{{- if eq .Values.postgres.mode "cnpg" }}
+{{- $items = append $items (dict "name" "gale-pg-owner" "remote" $es.remote.db "keys" (list "username" "password") "areas" (list "data") "type" "kubernetes.io/basic-auth") }}
+{{- if .Values.postgres.cnpg.backup.enabled }}
+{{- $items = append $items (dict "name" .Values.postgres.cnpg.backup.credentialsSecret "remote" $es.remote.pgBackup "keys" (list "ACCESS_KEY_ID" "ACCESS_SECRET_KEY") "areas" (list "data")) }}
+{{- end }}
+{{- end }}
+{{- range $item := $items }}
+{{- range $area := $item.areas }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ $item.name }}
+  namespace: {{ include "gale.ns" (list $root $area) }}
+  labels: {{- include "gale.labels" (list $root "secrets") | nindent 4 }}
+spec:
+  refreshInterval: {{ $es.refreshInterval }}
+  secretStoreRef:
+    kind: {{ $es.storeRef.kind }}
+    name: {{ $es.storeRef.name }}
+  target:
+    name: {{ $item.name }}
+    creationPolicy: Owner
+    {{- with $item.type }}
+    template: { type: {{ . }} }
+    {{- end }}
+  data:
+    {{- range $key := $item.keys }}
+    - secretKey: {{ $key }}
+      remoteRef:
+        key: {{ $item.remote }}
+        property: {{ $key }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

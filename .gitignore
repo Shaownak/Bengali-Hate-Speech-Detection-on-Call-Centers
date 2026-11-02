@@ -35,3 +35,7 @@ tests/fixtures/calls/*/call.wav
 
 # evaluation outputs (results that matter go into ADRs / PROGRESS)
 reports/
+
+# decrypted secrets (infra/secrets/README.md)
+infra/secrets/secrets.yaml
+*.dec.yaml

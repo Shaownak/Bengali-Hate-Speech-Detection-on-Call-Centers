@@ -1,0 +1,261 @@
+# GAL-E chart defaults (docs/05). Environment files layer on top:
+#   values-staging.yaml · values-prod.yaml · values-kind.yaml (CI smoke deploy)
+# Secrets never live in values: they come from Kubernetes Secrets created by External Secrets
+# (default) or by SOPS-decrypted manifests (infra/secrets/README.md).
+
+global:
+  env: staging                     # dev | staging | prod  (GALE_ENV)
+  modelMode: stub                  # stub | real            (GALE_MODEL_MODE)
+  authMode: oidc                   # oidc | dev (dev only allowed with env dev)
+  imageRegistry: registry.gale.internal/gale
+  imageTag: ""                     # default: .Chart.AppVersion; CI deploys the git sha
+  imagePullPolicy: IfNotPresent
+  imagePullSecrets: []
+  logLevel: INFO
+  createNamespaces: true
+  namespaces:
+    ingest: gale-ingest
+    ml: gale-ml
+    app: gale-app
+    data: gale-data
+    obs: gale-obs
+  # namespace of the ingress controller and of Prometheus (NetworkPolicy allow rules)
+  ingressNamespace: ingress-nginx
+  monitoringNamespace: monitoring
+
+# Non-secret settings → ConfigMap `gale-env` in every GAL-E namespace (GALE_* env).
+config:
+  GALE_OIDC_ISSUER: https://sso.gale.internal/realms/gale
+  GALE_OIDC_AUDIENCE: gale-api
+  GALE_DISPLAY_TZ: Asia/Dhaka
+  GALE_SIGNED_URL_TTL_S: "300"
+  GALE_LOG_JSON: "true"
+
+# Secrets (by name). With externalSecrets.enabled the chart renders ExternalSecret objects that
+# create them; otherwise create them yourself (SOPS) before installing.
+secrets:
+  db: gale-db                      # key GALE_DB_URL (gale-app/gale-ml); the same store entry also
+                                   # holds username/password for CNPG's gale-pg-owner (gale-data)
+  bus: gale-bus                    # keys GALE_BUS_URL, REDIS_PASSWORD
+  objectStore: gale-objectstore    # keys GALE_S3_ACCESS_KEY, GALE_S3_SECRET_KEY
+  signing: gale-signing            # key GALE_OBJECT_URL_SECRET
+  ingestAri: gale-ingest-ari       # key GALE_INGEST_ARI_PASSWORD (Asterisk only)
+
+externalSecrets:
+  enabled: true
+  refreshInterval: 1h
+  storeRef:
+    kind: ClusterSecretStore
+    name: gale-vault
+  # remote keys in the secret store (Vault paths / cloud secret names)
+  remote:
+    db: gale/db
+    bus: gale/bus
+    objectStore: gale/objectstore
+    signing: gale/signing
+    ingestAri: gale/ingest-ari
+    pgBackup: gale/pg-backup
+
+# --- data stores --------------------------------------------------------------------------------
+postgres:
+  mode: cnpg                       # cnpg (CloudNativePG Cluster in gale-data) | external | simple (kind only)
+  simple:
+    image: postgres:16.14-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+  externalHost: ""                 # NetworkPolicy egress for mode=external: CIDR of the DB
+  externalCidr: ""
+  cnpg:
+    instances: 3
+    image: ghcr.io/cloudnative-pg/postgresql:16.13@sha256:425e365273a0519c9cc1deb199a69c226734041a9a59a1f8250fecb06f6dcbb5
+    storage: { size: 100Gi, storageClass: "" }
+    walStorage: { size: 20Gi, storageClass: "" }
+    resources: { requests: { cpu: "1", memory: 4Gi }, limits: { memory: 4Gi } }
+    backup:
+      enabled: true
+      destinationPath: s3://gale-pg-backups/
+      endpointURL: https://s3.gale.internal
+      credentialsSecret: gale-pg-backup     # keys ACCESS_KEY_ID, ACCESS_SECRET_KEY
+      retentionPolicy: 30d
+      schedule: "0 0 2 * * *"               # daily base backup 02:00; WAL archived continuously
+    # RPO ≤ 15 min (docs/05 §8): force a WAL switch at least every 15 minutes
+    parameters:
+      archive_timeout: "900"
+      max_connections: "300"
+
+bus:
+  mode: bundled                    # bundled (Valkey StatefulSet in gale-data) | external
+  host: gale-bus.gale-data.svc.cluster.local
+  port: 6379
+  tls: false
+  externalCidr: ""
+  bundled:
+    image: valkey/valkey:8.1.6-alpine@sha256:1cb6b20b70d927560cc4cc5397b5f045e74aa603ff7696274778880bb6fadc75
+    storage: { size: 20Gi, storageClass: "" }
+    # streams must never be evicted; AOF fsync every second (docs/05 §8: maxlen sized for 15 min)
+    maxmemory: 6gb
+    resources: { requests: { cpu: "1", memory: 7Gi }, limits: { memory: 7Gi } }
+
+objectStore:
+  mode: s3                         # s3 (external MinIO/S3 with SSE-KMS) | local (emptyDir; dev/kind only)
+  endpoint: s3.gale.internal:9000
+  secure: true
+  bucket: gale
+  region: us-east-1
+  externalCidr: ""
+
+keycloak:
+  # existing Keycloak (realm "gale", clients gale-api + gale-web); infra/compose/keycloak has a realm export
+  externalCidr: ""
+
+# --- GPU pools (docs/05 §2) ----------------------------------------------------------------------
+gpuPools:
+  l4:
+    nodeSelector: { gale.io/pool: gpu-l4 }
+    tolerations:
+      - { key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }
+  llm:
+    nodeSelector: { gale.io/pool: gpu-llm }
+    tolerations:
+      - { key: nvidia.com/gpu, operator: Exists, effect: NoSchedule }
+
+models:
+  # model weights are pulled into this PVC at build/promotion time; pods never download (no egress)
+  pvcName: gale-models
+  mountPath: /models
+
+priorityClasses:
+  realtime: { name: gale-realtime, value: 100000 }
+  batch: { name: gale-batch, value: 1000 }
+
+podSecurity:
+  runAsUser: 10001
+
+# --- services ------------------------------------------------------------------------------------
+# Real-time workers keep per-call state, so they run as StatefulSets with call-affine sharding
+# (ADR-018): `shards` replicas, replica i owns calls whose audio shard % shards == i (max 8).
+# Change `shards` with `helm upgrade` (runbook bus-lag-high.md); a reshard replays call state.
+# KEDA scales the stateless post-call worker on postcall.jobs backlog.
+services:
+  ingest_gateway:
+    enabled: true
+    namespace: ingest
+    replicas: 1                     # RTP/ARI sessions are in memory: one gateway (ARI app) per PBX
+    priorityClass: realtime
+    resources: { requests: { cpu: "1", memory: 1Gi }, limits: { memory: 1Gi } }
+    env:
+      GALE_INGEST_RTP_PORT: "40000"
+    rtp:
+      enabled: true
+      port: 40000
+      serviceType: LoadBalancer
+      annotations: {}               # e.g. internal-LB annotations of your platform
+      loadBalancerSourceRanges: []  # PBX media addresses only
+    pbxCidrs: []                    # NetworkPolicy: who may send RTP / open WS streams
+  audio_worker:
+    enabled: true
+    namespace: ml
+    shards: 2
+    priorityClass: realtime
+    gpuPool: l4
+    resources: { requests: { cpu: "2", memory: 4Gi }, limits: { memory: 4Gi } }
+  asr_worker:
+    enabled: true
+    namespace: ml
+    shards: 2
+    priorityClass: realtime
+    gpuPool: l4
+    resources: { requests: { cpu: "2", memory: 6Gi }, limits: { memory: 6Gi } }
+  text_worker:
+    enabled: true
+    namespace: ml
+    shards: 2
+    priorityClass: realtime
+    resources: { requests: { cpu: "1", memory: 2Gi }, limits: { memory: 2Gi } }
+  llm_judge:
+    enabled: true
+    namespace: ml
+    shards: 2
+    priorityClass: realtime
+    resources: { requests: { cpu: "500m", memory: 1Gi }, limits: { memory: 1Gi } }
+  fusion_engine:
+    enabled: true
+    namespace: ml
+    shards: 2
+    priorityClass: realtime
+    resources: { requests: { cpu: "500m", memory: 1Gi }, limits: { memory: 1Gi } }
+  postcall_worker:
+    enabled: true
+    namespace: ml
+    replicas: 1
+    priorityClass: batch            # real time pre-empts batch (docs/05 §3)
+    gpuPool: l4
+    command: ["python", "-m", "gale_postcall", "worker"]
+    resources: { requests: { cpu: "2", memory: 6Gi }, limits: { memory: 6Gi } }
+    keda:
+      enabled: true
+      minReplicas: 0
+      maxReplicas: 8
+      pendingEntriesCount: "5"
+      streams: [postcall.jobs]
+  api:
+    enabled: true
+    namespace: app
+    replicas: 2
+    priorityClass: realtime
+    resources: { requests: { cpu: "500m", memory: 1Gi }, limits: { memory: 1Gi } }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 10, cpuUtilization: 70 }
+  web:
+    enabled: true
+    namespace: app
+    replicas: 2
+    port: 3000
+    runAsUser: 1000
+    resources: { requests: { cpu: "200m", memory: 512Mi }, limits: { memory: 512Mi } }
+    hpa: { enabled: true, minReplicas: 2, maxReplicas: 6, cpuUtilization: 70 }
+
+# vLLM serving the fine-tuned judge (modelMode=real only); weights from the models PVC
+vllm:
+  enabled: true
+  image: vllm/vllm-openai:v0.11.0@sha256:014a95f21c9edf6abe0aea6b07353f96baa4ec291c427bb1176dc7c93a85845c
+  replicas: 1
+  model: /models/llm/gale-llm-judge
+  servedModelName: gale-llm-judge
+  extraArgs: ["--max-model-len", "8192", "--gpu-memory-utilization", "0.9"]
+  resources: { requests: { cpu: "4", memory: 32Gi, nvidia.com/gpu: 1 }, limits: { memory: 32Gi, nvidia.com/gpu: 1 } }
+
+ingress:
+  enabled: true
+  # Any Ingress controller works (ingress-nginx was retired upstream in 2026; ADR-018). Put the
+  # controller's annotations here: long WebSocket timeouts (/ws), 200 MB uploads, HSTS.
+  className: nginx
+  annotations: {}
+  clusterIssuer: gale-ca            # cert-manager ClusterIssuer (internal CA or ACME)
+  webHost: gale.gale.internal
+  apiHost: gale-api.gale.internal
+  tlsSecret: gale-tls
+
+migrations:
+  enabled: true                     # Helm hook Job: `python -m gale_api migrate` (post-install, pre-upgrade)
+
+retention:
+  enabled: true
+  schedule: "30 3 * * *"
+  # Deletion is irreversible: the CronJob runs as a dry run until the DPO-approved policy is set
+  # in configs/retention.yaml and `execute: true` is set here (ADR-018).
+  execute: false
+
+observability:
+  serviceMonitors: true
+  prometheusRules: true
+  dashboards: true                  # ConfigMaps for the kube-prometheus-stack Grafana sidecar
+  otelCollector:
+    enabled: true
+    image: otel/opentelemetry-collector-contrib:0.138.0@sha256:4a951ff0a9772f4fa8e9c7a326434370301b98b2b813933468dcb54aa6a6b5e5
+    tracesEndpoint: http://tempo.monitoring.svc.cluster.local:4318
+    logsEndpoint: http://loki-gateway.monitoring.svc.cluster.local/otlp
+
+networkPolicies:
+  enabled: true
+  dnsNamespace: kube-system
+  # API-server endpoint IPs (`kubectl get endpoints kubernetes -n default`): CloudNativePG pods
+  # need them; nothing else in gale-data may leave the namespace except backups.
+  apiServerCidrs: []

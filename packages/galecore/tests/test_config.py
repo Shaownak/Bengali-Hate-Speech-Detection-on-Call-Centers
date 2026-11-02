@@ -86,3 +86,30 @@ def test_fake_lexicon_refused_in_prod(tmp_path: Path) -> None:
 
 def test_canonical_map() -> None:
     assert load_canonical(CONFIGS)["রিচার্য"] == "রিচার্জ"
+
+
+def test_db_url_gets_the_psycopg_driver() -> None:
+    from galecore.config import Settings
+
+    assert Settings(db_url="postgresql://u:p@pg:5432/gale").db_url == (
+        "postgresql+psycopg://u:p@pg:5432/gale"
+    )
+    assert Settings(db_url="postgres://u@pg/gale").db_url == "postgresql+psycopg://u@pg/gale"
+    keep = "postgresql+psycopg://u@pg/gale"
+    assert Settings(db_url=keep).db_url == keep
+
+
+def test_shard_from_hostname(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    import pytest
+
+    from galecore.config import Settings, shard_of
+
+    assert shard_of(Settings()) is None
+    monkeypatch.setenv("HOSTNAME", "gale-asr-worker-3")
+    assert shard_of(Settings(shard_count=4)) == (3, 4)
+    assert shard_of(Settings(shard_count=4, shard_index=1)) == (1, 4)
+    with pytest.raises(ValueError, match="outside"):
+        shard_of(Settings(shard_count=2))
+    monkeypatch.setenv("HOSTNAME", "laptop")
+    with pytest.raises(ValueError, match="StatefulSet"):
+        shard_of(Settings(shard_count=2))

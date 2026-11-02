@@ -1,0 +1,223 @@
+{{- /*
+Default deny everywhere, then the minimum flows (docs/05 §2, §7):
+  PBX → gateway · gateway/ML → bus + object store · ML has NO internet egress · api → db/bus/store/SSO
+  ingress controller → api/web · Prometheus → /metrics · all → OTel collector · data → backup target
+*/ -}}
+{{- if .Values.networkPolicies.enabled }}
+{{- $root := . -}}
+{{- $n := .Values.global.namespaces -}}
+{{- $dns := .Values.networkPolicies.dnsNamespace -}}
+{{- range $area, $ns := $n }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $dns }} } }
+      ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-metrics-scrape
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $root.Values.global.monitoringNamespace }} } }
+{{- if ne $area "obs" }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-otel-export
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $n.obs }} } }
+      ports: [{ port: 4317 }, { port: 4318 }]
+{{- end }}
+{{- end }}
+
+{{- /* bus + object store egress for every namespace that runs GAL-E code */ -}}
+{{- range $area := list "ingest" "ml" "app" }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-bus-and-store
+  namespace: {{ index $n $area }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        {{- if eq $root.Values.bus.mode "bundled" }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $n.data }} } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: gale-bus } }
+        {{- else }}
+        - ipBlock: { cidr: {{ required "bus.externalCidr is required for an external bus" $root.Values.bus.externalCidr }} }
+        {{- end }}
+      ports: [{ port: {{ $root.Values.bus.port }} }]
+    {{- if and (eq $root.Values.objectStore.mode "s3") $root.Values.objectStore.externalCidr }}
+    - to: [{ ipBlock: { cidr: {{ $root.Values.objectStore.externalCidr }} } }]
+      ports: [{ port: 443 }, { port: 9000 }]
+    {{- end }}
+{{- end }}
+---
+# PBX → gateway (RTP + HTTP/WS stream endpoints); gateway → Asterisk ARI
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway-pbx
+  namespace: {{ $n.ingest }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: gale-ingest-gateway } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        {{- range $root.Values.services.ingest_gateway.pbxCidrs }}
+        - ipBlock: { cidr: {{ . }} }
+        {{- else }}
+        - ipBlock: { cidr: 10.0.0.0/8 }   # placeholder: set services.ingest_gateway.pbxCidrs
+        {{- end }}
+      ports: [{ port: 40000, protocol: UDP }, { port: 8000, protocol: TCP }]
+  egress:
+    {{- range $root.Values.services.ingest_gateway.pbxCidrs }}
+    - to: [{ ipBlock: { cidr: {{ . }} } }]
+      ports: [{ port: 8088 }, { port: 8089 }]
+    {{- end }}
+---
+# ML: intra-namespace only (llm_judge → vLLM); no internet egress (docs/05 §7)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ml-internal
+  namespace: {{ $n.ml }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{ podSelector: {} }]
+  egress:
+    - to: [{ podSelector: {} }]
+---
+# app: ingress controller → api/web; api → Postgres, SSO
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: app-ingress
+  namespace: {{ $n.app }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $root.Values.global.ingressNamespace }} } }
+      ports: [{ port: 8000 }, { port: 3000 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: db-clients-egress
+  namespace: {{ $n.app }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  # api pods + the migration / retention jobs
+  podSelector: { matchLabels: { gale.io/db-client: "true" } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        {{- if eq $root.Values.postgres.mode "cnpg" }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $n.data }} } }
+          podSelector: { matchLabels: { cnpg.io/cluster: gale-pg } }
+        {{- else if eq $root.Values.postgres.mode "simple" }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $n.data }} } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: gale-pg } }
+        {{- else }}
+        - ipBlock: { cidr: {{ required "postgres.externalCidr is required for an external DB" $root.Values.postgres.externalCidr }} }
+        {{- end }}
+      ports: [{ port: 5432 }]
+    {{- with $root.Values.keycloak.externalCidr }}
+    - to: [{ ipBlock: { cidr: {{ . }} } }]
+      ports: [{ port: 443 }]
+    {{- end }}
+---
+# ML post-call worker writes nothing to Postgres; the persister lives in the api pods.
+# data: who may reach the stores; backups egress only to the backup target
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: data-ingress
+  namespace: {{ $n.data }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        {{- range $area := list "ingest" "ml" "app" }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ index $n $area }} } }
+        {{- end }}
+        - podSelector: {}           # CNPG replication, operator probes inside gale-data
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: cnpg-system } }
+      ports: [{ port: 8000 }, { port: 5432 }]
+  egress:
+    - to: [{ podSelector: {} }]
+    {{- with $root.Values.objectStore.externalCidr }}
+    - to: [{ ipBlock: { cidr: {{ . }} } }]   # PITR backups / WAL archive
+      ports: [{ port: 443 }, { port: 9000 }]
+    {{- end }}
+    {{- range $root.Values.networkPolicies.apiServerCidrs }}
+    - to: [{ ipBlock: { cidr: {{ . }} } }]    # CNPG instance manager → Kubernetes API server
+      ports: [{ port: 443 }, { port: 6443 }]
+    {{- end }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: obs-collector
+  namespace: {{ $n.obs }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        {{- range $area := list "ingest" "ml" "app" "data" }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ index $n $area }} } }
+        {{- end }}
+      ports: [{ port: 4317 }, { port: 4318 }]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $root.Values.global.monitoringNamespace }} } }
+{{- end }}

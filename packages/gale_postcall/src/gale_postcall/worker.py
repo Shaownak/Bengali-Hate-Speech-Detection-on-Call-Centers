@@ -21,6 +21,7 @@ from fastapi import FastAPI
 from gale_postcall.models import build_models
 from gale_postcall.pipeline import PostCallResult, run_postcall
 from gale_postcall.report import to_html, to_json_text
+from galecore import metrics as m
 from galecore.bus import (
     CALL_SCORES,
     EVENTS_FUSED,
@@ -124,6 +125,10 @@ class PostcallWorker(Worker):
         )
         for e in res.events:
             await self.bus.publish(EVENTS_FUSED, e, idem_key=f"{e.event_id}:postcall")
+            stage = "dismissed" if e.status.value == "dismissed_by_llm" else "confirmed"
+            m.EVENTS.labels(e.category.value, e.speaker.value, stage).inc()
+            if e.alert:
+                m.ALERTS.labels(e.category.value, e.speaker.value).inc()
         if res.scorecard is not None:
             await self.bus.publish(
                 CALL_SCORES,

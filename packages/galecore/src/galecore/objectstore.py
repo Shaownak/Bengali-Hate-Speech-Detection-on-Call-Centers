@@ -36,6 +36,10 @@ class ObjectStore(ABC):
     @abstractmethod
     def signed_url(self, key: str, ttl_s: int = 900) -> str: ...
 
+    @abstractmethod
+    def delete(self, key: str) -> bool:
+        """Remove an object; True if it existed (retention, DSAR)."""
+
 
 def _safe_key(key: str) -> PurePosixPath:
     p = PurePosixPath(key)
@@ -67,6 +71,13 @@ class LocalObjectStore(ObjectStore):
 
     def exists(self, key: str) -> bool:
         return self._path(key).is_file()
+
+    def delete(self, key: str) -> bool:
+        path = self._path(key)
+        if not path.is_file():
+            return False
+        path.unlink()
+        return True
 
     def _sig(self, key: str, expires: int) -> str:
         return hmac.new(self._secret, f"{key}|{expires}".encode(), hashlib.sha256).hexdigest()
@@ -131,6 +142,14 @@ class S3ObjectStore(ObjectStore):
             self.client.stat_object(self.bucket, str(_safe_key(key)))
         except S3Error:
             return False
+        return True
+
+    def delete(self, key: str) -> bool:
+        if not self.exists(key):
+            return False
+        # with bucket versioning on, this adds a delete marker; the lifecycle rule on the bucket
+        # expires non-current versions (runbook dsar-deletion.md)
+        self.client.remove_object(self.bucket, str(_safe_key(key)))
         return True
 
     def signed_url(self, key: str, ttl_s: int = 900) -> str:

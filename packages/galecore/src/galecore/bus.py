@@ -61,9 +61,14 @@ def audio_streams(shards: int = AUDIO_SHARDS) -> list[str]:
     return [AUDIO_FRAMES.format(shard=i) for i in range(shards)]
 
 
+def call_shard(call_id: str, shards: int = AUDIO_SHARDS) -> int:
+    """Stable shard of a call (its audio stream, and its owner among worker replicas)."""
+    return zlib.crc32(call_id.encode()) % shards
+
+
 def audio_stream(call_id: str, shards: int = AUDIO_SHARDS) -> str:
     """Stable shard for a call's audio frames."""
-    return AUDIO_FRAMES.format(shard=zlib.crc32(call_id.encode()) % shards)
+    return AUDIO_FRAMES.format(shard=call_shard(call_id, shards))
 
 
 def encode(msg: GaleModel, idem_key: str | None = None) -> dict[str, bytes]:

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from galecore.schemas import Category, Severity, Speaker
@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://127.0.0.1:8100/v1"
     llm_model: str = "gale-llm-judge"
 
+    # Call-affine sharding of the stateful real-time workers (ADR-018): replica `shard_index` of
+    # `shard_count` handles the calls whose audio shard % shard_count == shard_index. The index
+    # defaults to the StatefulSet ordinal at the end of HOSTNAME (gale-asr-worker-3 → 3).
+    shard_count: int = Field(default=1, ge=1, le=8)
+    shard_index: int | None = None
     workers: bool = True  # run the service's bus consumer (off for API-only test apps)
 
     # S3 / MinIO (object_store="s3"); SSE-KMS is configured on the bucket (docs/05)
@@ -68,6 +73,15 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8000
 
+    @field_validator("db_url")
+    @classmethod
+    def _psycopg_driver(cls, v: str) -> str:
+        """Operators (CloudNativePG) hand out ``postgresql://`` URIs; use the psycopg 3 driver."""
+        for prefix in ("postgresql://", "postgres://"):
+            if v.startswith(prefix):
+                return "postgresql+psycopg://" + v[len(prefix) :]
+        return v
+
     @model_validator(mode="after")
     def _guards(self) -> Settings:
         # ADR-009: the local dev auth issuer must never run outside dev/test.
@@ -76,6 +90,26 @@ class Settings(BaseSettings):
         if self.env == "prod" and self.model_mode == "stub":
             raise ValueError("stub models are not allowed in prod")
         return self
+
+
+def shard_of(settings: Settings) -> tuple[int, int] | None:
+    """(index, count) for this replica, or None when unsharded."""
+    if settings.shard_count <= 1:
+        return None
+    index = settings.shard_index
+    if index is None:
+        import os
+        import re
+
+        m = re.search(r"-(\d+)$", os.environ.get("HOSTNAME", ""))
+        if m is None:
+            raise ValueError(
+                "GALE_SHARD_COUNT > 1 needs GALE_SHARD_INDEX or a StatefulSet hostname"
+            )
+        index = int(m.group(1))
+    if not 0 <= index < settings.shard_count:
+        raise ValueError(f"shard index {index} outside 0..{settings.shard_count - 1}")
+    return index, settings.shard_count
 
 
 @lru_cache(maxsize=1)

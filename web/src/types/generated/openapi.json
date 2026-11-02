@@ -1145,6 +1145,97 @@
         "title": "Directory",
         "type": "object"
       },
+      "DsarIn": {
+        "description": "Erase every record of a data subject's calls (PDPO 2025). At least one selector.",
+        "properties": {
+          "call_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "title": "Call Ids",
+            "type": "array"
+          },
+          "customer_hash": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Hash"
+          },
+          "dry_run": {
+            "default": true,
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "external_call_id": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Call Id"
+          },
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "DsarIn",
+        "type": "object"
+      },
+      "DsarOut": {
+        "properties": {
+          "calls": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Calls",
+            "type": "array"
+          },
+          "dry_run": {
+            "title": "Dry Run",
+            "type": "boolean"
+          },
+          "events": {
+            "title": "Events",
+            "type": "integer"
+          },
+          "objects_deleted": {
+            "title": "Objects Deleted",
+            "type": "integer"
+          },
+          "segments": {
+            "title": "Segments",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "dry_run",
+          "calls",
+          "events",
+          "segments",
+          "objects_deleted"
+        ],
+        "title": "DsarOut",
+        "type": "object"
+      },
       "Escalation": {
         "additionalProperties": false,
         "properties": {
@@ -3725,6 +3816,53 @@
         "summary": "Directory",
         "tags": [
           "me"
+        ]
+      }
+    },
+    "/api/v1/dsar": {
+      "post": {
+        "description": "Erase a data subject's calls (audio, transcripts, signals, events, reviews, scores).\nDefaults to a dry run; runbook docs/runbooks/dsar-deletion.md.",
+        "operationId": "dsar_api_v1_dsar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DsarIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DsarOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Dsar",
+        "tags": [
+          "admin"
         ]
       }
     },

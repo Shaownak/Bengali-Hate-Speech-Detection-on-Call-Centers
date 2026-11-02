@@ -12,7 +12,7 @@ def test_health_ready_metrics(db_url: str) -> None:
         assert health.json()["service"] == "api"
         ready = client.get("/readyz")
         assert ready.status_code == 200
-        assert ready.json()["checks"] == {"bus": True, "db": True}
+        assert ready.json()["checks"] == {"bus": True, "db": True, "schema": True}
         metrics = client.get("/metrics")
         assert metrics.status_code == 200
         assert "# HELP" in metrics.text
@@ -29,3 +29,4 @@ def test_not_ready_without_db() -> None:
         ready = client.get("/readyz")
         assert ready.status_code == 503
         assert ready.json()["checks"]["db"] is False
+        assert ready.json()["checks"]["schema"] is False

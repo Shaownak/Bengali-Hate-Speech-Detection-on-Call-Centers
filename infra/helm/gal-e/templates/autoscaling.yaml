@@ -1,0 +1,80 @@
+{{- /* KEDA on Redis-Streams consumer-group backlog (docs/05 §2); HPA on CPU for api/web. */ -}}
+{{- $root := . -}}
+{{- $areas := dict -}}
+{{- range $key, $svc := .Values.services }}
+{{- if and $svc.enabled $svc.keda $svc.keda.enabled }}{{ $_ := set $areas $svc.namespace true }}{{ end }}
+{{- end }}
+{{- range $area, $_ := $areas }}
+---
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: gale-bus
+  namespace: {{ include "gale.ns" (list $root $area) }}
+  labels: {{- include "gale.labels" (list $root "keda") | nindent 4 }}
+spec:
+  secretTargetRef:
+    - parameter: password
+      name: {{ $root.Values.secrets.bus }}
+      key: REDIS_PASSWORD
+{{- end }}
+{{- range $key, $svc := .Values.services }}
+{{- if and $svc.enabled $svc.keda $svc.keda.enabled }}
+{{- $name := include "gale.svcName" $key }}
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "gale.ns" (list $root $svc.namespace) }}
+  labels: {{- include "gale.labels" (list $root $name) | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ $name }}
+  minReplicaCount: {{ $svc.keda.minReplicas }}
+  maxReplicaCount: {{ $svc.keda.maxReplicas }}
+  pollingInterval: 10
+  cooldownPeriod: 120
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 300
+          policies: [{ type: Percent, value: 25, periodSeconds: 60 }]
+  triggers:
+    {{- range $stream := splitList "," (trimSuffix "," (include "gale.kedaStreams" $svc.keda)) }}
+    - type: redis-streams
+      authenticationRef: { name: gale-bus }
+      metadata:
+        address: {{ printf "%s:%v" $root.Values.bus.host $root.Values.bus.port | quote }}
+        stream: {{ $stream | quote }}
+        consumerGroup: {{ $key | quote }}
+        pendingEntriesCount: {{ $svc.keda.pendingEntriesCount | quote }}
+        enableTLS: {{ $root.Values.bus.tls | quote }}
+    {{- end }}
+    {{- with $svc.keda.cpuUtilization }}
+    - type: cpu
+      metricType: Utilization
+      metadata: { value: {{ . | quote }} }
+    {{- end }}
+{{- end }}
+{{- if and $svc.enabled $svc.hpa $svc.hpa.enabled }}
+{{- $name := include "gale.svcName" $key }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "gale.ns" (list $root $svc.namespace) }}
+  labels: {{- include "gale.labels" (list $root $name) | nindent 4 }}
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: {{ $name }} }
+  minReplicas: {{ $svc.hpa.minReplicas }}
+  maxReplicas: {{ $svc.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: {{ $svc.hpa.cpuUtilization }} }
+{{- end }}
+{{- end }}

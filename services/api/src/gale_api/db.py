@@ -319,6 +319,23 @@ def downgrade(url: str, revision: str = "base") -> None:
     command.downgrade(alembic_config(url), revision)
 
 
+def head_revision() -> str:
+    from alembic.script import ScriptDirectory
+
+    head = ScriptDirectory.from_config(alembic_config("postgresql://unused")).get_current_head()
+    if head is None:  # pragma: no cover - the repo always ships migrations
+        raise RuntimeError("no migrations found")
+    return head
+
+
+def schema_revision(engine: Engine) -> str | None:
+    with engine.connect() as c:
+        try:
+            return c.execute(text("SELECT version_num FROM alembic_version")).scalar()
+        except Exception:
+            return None
+
+
 def month_bounds(d: date) -> tuple[date, date]:
     start = d.replace(day=1)
     nxt = date(start.year + (start.month == 12), start.month % 12 + 1, 1)

@@ -18,7 +18,7 @@ from gale_audio_worker.dsp import WIN_S, Window, f0_track, speech_ratio, window_
 from gale_audio_worker.overtalk import overtalk_signals
 from gale_audio_worker.shout import DSPShoutDetector
 from galecore.audio import MODEL_SR, s16le_to_float
-from galecore.bus import SIGNALS, BusClient, audio_streams
+from galecore.bus import SIGNALS, BusClient
 from galecore.config import Settings
 from galecore.models import ModelSet, RealModelsUnavailableError, load_models
 from galecore.models.base import AudioChunk
@@ -82,7 +82,7 @@ class AudioStream(Worker):
         self.models: dict[str, ModelSet] = {}
         self.last_overtalk: dict[str, float] = {}
         self.onsets: dict[tuple[str, Channel], list[float]] = {}
-        for stream in audio_streams():
+        for stream in self.owned_audio_streams():
             self.subscribe(stream, AudioFrame, self.on_frame)
 
     def models_for(self, call_id: str) -> ModelSet:

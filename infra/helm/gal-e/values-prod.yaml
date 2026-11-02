@@ -1,0 +1,52 @@
+# Production, in-country (docs/05 §1, ADR-003). Real models on GPU pools; external managed data
+# services are allowed (set mode: external and the CIDRs) — the defaults keep everything in-cluster.
+#   helm upgrade --install gale infra/helm/gal-e -f infra/helm/gal-e/values-prod.yaml \
+#     --set global.imageTag=$GIT_SHA --atomic --timeout 20m      # manual approval in CI
+global:
+  env: prod
+  modelMode: real
+  authMode: oidc
+  imageRegistry: registry.gale.internal/gale
+  logLevel: INFO
+
+config:
+  GALE_OIDC_ISSUER: https://sso.gale.internal/realms/gale
+
+postgres:
+  mode: cnpg
+  cnpg:
+    instances: 3
+
+bus:
+  mode: bundled
+  # sized for ≥ 15 min of traffic at peak (docs/05 §8); fill from the capacity report
+  bundled:
+    maxmemory: 12gb
+    storage: { size: 50Gi }
+    resources: { requests: { cpu: "2", memory: 14Gi }, limits: { memory: 14Gi } }
+
+objectStore:
+  mode: s3
+  endpoint: s3.gale.internal:9000
+  secure: true
+  bucket: gale-prod
+  externalCidr: ""            # set: the object store's address range
+
+services:
+  ingest_gateway:
+    pbxCidrs: []              # set: PBX signalling + media addresses (required for traffic)
+    rtp:
+      loadBalancerSourceRanges: []
+  # shards = replicas of each real-time worker; size from the capacity report (≤ 8)
+  audio_worker: { shards: 4 }
+  asr_worker: { shards: 4 }
+  text_worker: { shards: 2 }
+  llm_judge: { shards: 2 }
+  fusion_engine: { shards: 2 }
+
+networkPolicies:
+  apiServerCidrs: []          # set: `kubectl get endpoints kubernetes -n default`
+
+retention:
+  enabled: true
+  execute: false              # true only after the DPO approves configs/retention.yaml

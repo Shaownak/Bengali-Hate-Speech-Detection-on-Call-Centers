@@ -1,0 +1,12 @@
+apiVersion: v2
+name: gal-e
+description: >-
+  GAL-E (Gali & Aggression Listening Engine): ingest, ML workers, fusion, API and dashboard for
+  Bangladeshi call-centre QA (docs/05). Operators are expected in the cluster (CloudNativePG, KEDA,
+  External Secrets, cert-manager, ingress-nginx, kube-prometheus-stack, NVIDIA GPU Operator).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.28.0-0"
+home: https://github.com/Shaownak/Bengali-Hate-Speech-Detection-on-Call-Centers
+keywords: [bangla, call-centre, speech, moderation]

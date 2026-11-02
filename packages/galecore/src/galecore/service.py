@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Awaitable, Callable
 from contextlib import AbstractAsyncContextManager
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from galecore.config import Settings, get_settings
 from galecore.logging import configure_logging
+from galecore.metrics import HTTP_REQUESTS, HTTP_SECONDS
+from galecore.tracing import configure_tracing
 
 ReadyCheck = Callable[[], Awaitable[bool]]
 Lifespan = Callable[[FastAPI], AbstractAsyncContextManager[None]]
@@ -38,8 +41,18 @@ def create_app(
 ) -> FastAPI:
     s = settings or get_settings()
     configure_logging(name, s.log_level, s.log_json)
+    configure_tracing(name)
     app = FastAPI(title=f"gal-e {name}", version=version, lifespan=lifespan)
     checks = ready_checks or {}
+
+    @app.middleware("http")
+    async def http_metrics(request: Request, call_next):  # type: ignore[no-untyped-def]
+        t0 = time.perf_counter()
+        response = await call_next(request)
+        if request.url.path not in ("/metrics", "/healthz", "/readyz"):
+            HTTP_SECONDS.labels(name).observe(time.perf_counter() - t0)
+            HTTP_REQUESTS.labels(name, request.method, f"{response.status_code // 100}xx").inc()
+        return response
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

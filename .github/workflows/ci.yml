@@ -62,15 +62,27 @@ jobs:
     runs-on: ubuntu-latest
     needs: [python]
     strategy:
+      fail-fast: false
       matrix:
-        service: [api, ingest_gateway, audio_worker, asr_worker, text_worker, llm_judge, fusion_engine]
+        include:
+          - { service: api }
+          - { service: ingest_gateway }
+          - { service: audio_worker }
+          - { service: asr_worker }
+          - { service: text_worker }
+          - { service: llm_judge }
+          - { service: fusion_engine }
+          - { service: postcall_worker, args: "--build-arg PACKAGE=gale-postcall --build-arg RUN_CMD='python -m gale_postcall worker'" }
+          - { service: web, dockerfile: infra/docker/web.Dockerfile }
     steps:
       - uses: actions/checkout@v5
       - name: build image
         run: >
-          docker build -f infra/docker/service.Dockerfile
-          --build-arg SERVICE=${{ matrix.service }}
+          docker build -f ${{ matrix.dockerfile || 'infra/docker/service.Dockerfile' }}
+          --build-arg SERVICE=${{ matrix.service }} ${{ matrix.args }}
           -t gale-${{ matrix.service }}:${{ github.sha }} .
+      - name: image runs as non-root
+        run: test "$(docker inspect -f '{{.Config.User}}' gale-${{ matrix.service }}:${{ github.sha }})" != ""
       - name: trivy scan
         # pinned by commit: this action's tags were force-pushed in a 2026 supply-chain attack
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
@@ -79,3 +91,115 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: "1"
+      - name: SBOM (CycloneDX)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          image-ref: gale-${{ matrix.service }}:${{ github.sha }}
+          format: cyclonedx
+          output: sbom-${{ matrix.service }}.cdx.json
+          skip-setup-trivy: true
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sbom-${{ matrix.service }}
+          path: sbom-${{ matrix.service }}.cdx.json
+
+  security:
+    name: security (deps + IaC)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: dependency scan (uv.lock, pnpm-lock.yaml)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: misconfiguration scan (Dockerfiles, Helm chart)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: infra
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          skip-setup-trivy: true
+
+  helm:
+    name: helm template + kubeconform + promtool
+    runs-on: ubuntu-latest
+    env:
+      HELM_VERSION: v3.22.1
+      HELM_SHA256: 896cf63684a42a723d61c980369d6e588330927deb13676ca0d85006dd6da0ea
+      KUBECONFORM_VERSION: v0.8.0
+      KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+    steps:
+      - uses: actions/checkout@v5
+      - name: install helm + kubeconform (pinned, checksum-verified)
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/bin"
+          curl -fsSLo helm.tgz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          echo "${HELM_SHA256}  helm.tgz" | sha256sum -c -
+          tar -xzf helm.tgz -C "$HOME/bin" --strip-components=1 linux-amd64/helm
+          curl -fsSLo kc.tgz "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  kc.tgz" | sha256sum -c -
+          tar -xzf kc.tgz -C "$HOME/bin" kubeconform
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+      - run: make helm-check
+      - name: promtool check rules
+        run: >
+          docker run --rm --entrypoint promtool -v "$PWD:/w:ro"
+          prom/prometheus:v3.9.0@sha256:3ea2ed3b8cdfe3ff78aa05473a7ad36b916bdf2464c83b06bcd37c1a67620233
+          check rules /w/infra/helm/gal-e/files/prometheus-rules.yaml
+
+  kind-smoke:
+    name: kind smoke deploy (stub mode)
+    runs-on: ubuntu-latest
+    needs: [helm]
+    timeout-minutes: 45
+    env:
+      HELM_VERSION: v3.22.1
+      HELM_SHA256: 896cf63684a42a723d61c980369d6e588330927deb13676ca0d85006dd6da0ea
+      KIND_VERSION: v0.33.0
+      KIND_SHA256: aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked
+      - name: install helm + kind (pinned, checksum-verified)
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/bin"
+          curl -fsSLo helm.tgz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          echo "${HELM_SHA256}  helm.tgz" | sha256sum -c -
+          tar -xzf helm.tgz -C "$HOME/bin" --strip-components=1 linux-amd64/helm
+          curl -fsSLo "$HOME/bin/kind" "https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-linux-amd64"
+          echo "${KIND_SHA256}  $HOME/bin/kind" | sha256sum -c -
+          chmod +x "$HOME/bin/kind"
+          echo "$HOME/bin" >> "$GITHUB_PATH"
+      - run: kind create cluster --name gale --wait 120s
+      - name: build + load images
+        run: |
+          set -euo pipefail
+          for svc in api ingest_gateway audio_worker asr_worker text_worker llm_judge fusion_engine; do
+            docker build -q -f infra/docker/service.Dockerfile --build-arg SERVICE=$svc               -t "gale.local/gale-${svc//_/-}:smoke" .
+          done
+          docker build -q -f infra/docker/service.Dockerfile --build-arg SERVICE=postcall_worker             --build-arg PACKAGE=gale-postcall --build-arg RUN_CMD="python -m gale_postcall worker"             -t gale.local/gale-postcall-worker:smoke .
+          kind load docker-image --name gale $(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^gale.local/')
+      - name: namespaces + throwaway secrets (CI only)
+        run: bash infra/kind/secrets.sh
+      - name: helm install
+        run: >
+          helm install gale infra/helm/gal-e -f infra/helm/gal-e/values-kind.yaml
+          --set global.createNamespaces=false --wait --timeout 12m
+      - name: replay a synthetic call through the cluster
+        run: bash infra/kind/smoke.sh
+      - name: diagnostics
+        if: failure()
+        run: |
+          kubectl get pods -A -o wide
+          for ns in gale-ingest gale-ml gale-app gale-data; do kubectl -n $ns describe pods | tail -n 60; kubectl -n $ns logs --all-containers --prefix -l app.kubernetes.io/part-of=gal-e --tail=80 || true; done

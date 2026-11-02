@@ -1,0 +1,39 @@
+{{- if .Values.ingress.enabled }}
+{{- $ns := include "gale.ns" (list . "app") }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gale
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "ingress") | nindent 4 }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer }}
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  tls:
+    - hosts: [{{ .Values.ingress.webHost | quote }}, {{ .Values.ingress.apiHost | quote }}]
+      secretName: {{ .Values.ingress.tlsSecret }}
+  rules:
+    - host: {{ .Values.ingress.webHost | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: gale-web, port: { name: http } } }
+    - host: {{ .Values.ingress.apiHost | quote }}
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: { service: { name: gale-api, port: { name: http } } }
+          - path: /ws
+            pathType: Prefix
+            backend: { service: { name: gale-api, port: { name: http } } }
+          - path: /readyz
+            pathType: Exact
+            backend: { service: { name: gale-api, port: { name: http } } }
+{{- end }}

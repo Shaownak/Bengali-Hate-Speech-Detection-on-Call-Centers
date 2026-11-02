@@ -112,13 +112,13 @@ Exit gate: usability sign-off.
 
 ### P6 — Production hardening (weeks 12–16) · Prompt 14
 Exit gate: load test at 2× peak passes; security findings closed.
-- [ ] Helm chart, KEDA ScaledObjects, NetworkPolicies default-deny, egress deny for ML/data
-- [ ] Prometheus rules, Grafana dashboards (Ops/ML/Business), Loki, Alertmanager rules
-- [ ] Retention jobs, DSAR deletion endpoint
-- [ ] Image hardening (non-root, slim), SBOM (Syft), Trivy
-- [ ] Load tests (25/50/100/200%), chaos tests (no lost events)
-- [ ] Runbooks in `docs/runbooks/` (8 listed in 05 §9); STRIDE threat model
-- [ ] Model promotion flow with second approver
+- [x] Helm chart `infra/helm/gal-e` (staging/prod/kind values), NetworkPolicies default-deny + no internet egress for ML/data, PDBs, GPU pools, priority classes; KEDA for the post-call worker, call-affine sharded StatefulSets for real-time workers (ADR-018). CI-validated only (helm/kubeconform/kind), no cluster yet
+- [x] Prometheus rules + Alertmanager routing values, Grafana dashboards (Ops/ML/Business, generated), OTel collector, Loki/Tempo/DCGM via add-on charts (`infra/observability/README.md`)
+- [x] Retention CronJob (dry run until DPO approval) and DSAR endpoint; CNPG PITR backups; External Secrets (SOPS fallback)
+- [x] Image hardening (non-root, read-only fs, digest-pinned bases), SBOM (CycloneDX via Trivy), Trivy image/fs/IaC scans
+- [~] Load tests: `tools/loadtest` + laptop stub baseline (`docs/capacity/`); the 2× peak gate needs staging GPUs. Chaos (crash/restart, no lost events) covered since Prompt 11
+- [x] Runbooks in `docs/runbooks/` (8 from 05 §9 + disaster-recovery); STRIDE threat model (ADR-019)
+- [x] Model promotion flow with second approver (Prompt 12)
 - [ ] **[HUMAN]** In-country cluster, DNS/TLS, SSO 🔒; pen-test; DPO sign-off 🔒
 
 ### P7 — Pilot & feedback loop (weeks 15–22) · Prompt 15
@@ -164,6 +164,7 @@ Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own
 | D-23 | Streaming services (ADR-015): one `galecore.streaming.Worker` per service; lexicon fast path on ASR partials; latency measured from the word (lexicon) or utterance end (register/classifier); replay-based restart recovery; post-call jobs yield to real-time backlog; provisional alerts can be retracted via `events.fused`. | P4 |
 | D-24 | API & persistence (ADR-016): an `api_persister` consumer writes bus messages to Postgres (idempotent upserts); post-call runs publish `postcall.results`. String pipeline ids; monthly partitions on `call_started_at`; trigram index only where `pg_trgm` exists. Role from the token, scoping from the DB (out of scope = 404). WS auth via first message, 250 ms batches. Two-person model promotion; `research_only` never promotable. Gateway carries optional `agent_id`/`queue`. | P5 |
 | D-25 | Web dashboard (ADR-017): client-rendered screens over the generated API client; sign-in via Keycloak PKCE (`oidc-client-ts`) or the dev issuer, token in sessionStorage; one `LiveSocket` (first-message auth, backoff) + pure Zustand reducers; wavesurfer for stereo/per-channel audio; CSV in the browser, PDF via print. Small API additions (`/me`, `/directory`, `/reviews/agreement`, `/thresholds`, note/flag reviews, heatmap, more call filters). | P5 |
+| D-26 | Production infra (ADR-018): real-time workers scale by call-affine shards (StatefulSets, `GALE_SHARD_COUNT`, own group per replica), KEDA only for the post-call worker; one gateway per PBX; Valkey bus, CNPG Postgres (PITR), external S3; External Secrets/SOPS; digest-pinned non-root images; retention/DSAR gated by DPO approval; trace id = call UUID; ingress controller-agnostic. | P6 |
 | D-15 | Mono/diarized audio: `Channel.mixed` is allowed only before diarization. Fusion accepts only `agent`/`customer`. Segments that can't be attributed are stored but never alert. | P1 |
 
 ---
@@ -404,6 +405,56 @@ Smaller inconsistencies, resolved in-line without an ADR:
 
 **Needs a human:** the UX review with 3 supervisors + 2 QA analysts (P5 exit gate) 🔒; answer Q-05 for the fairness panel.
 
+## Prompt 14 summary (2026-11-02)
+
+**Built:**
+- **Images:** service and web Dockerfiles (multi-stage, non-root, read-only root fs, base images pinned by digest), `.dockerignore`.
+- **Helm chart** `infra/helm/gal-e`:
+  - 5 namespaces with Pod Security Admission `restricted`;
+  - per-service workloads: real-time workers as sharded StatefulSets, GPU pools for real models, priority classes, PDBs, probes;
+  - KEDA (post-call), HPAs (api/web), vLLM;
+  - CloudNativePG cluster + daily backup + WAL archive, Valkey bus, ExternalSecrets, ingress, default-deny NetworkPolicies;
+  - migration hook, retention CronJob, ServiceMonitors, PrometheusRule, dashboard ConfigMaps, OTel collector.
+- **Code changes:**
+  - call-affine sharding in the `Worker` base (`GALE_SHARD_COUNT`; the ordinal comes from the hostname);
+  - new metrics (`galecore.metrics`) and HTTP metrics middleware;
+  - OTel export (trace id = call UUID);
+  - `/readyz` schema check;
+  - CNPG URI handling;
+  - object-store delete;
+  - retention (`python -m gale_api retention`) + `POST /api/v1/dsar`.
+- **Observability:** Prometheus rules for every docs/05 §4 alert; three generated Grafana dashboards; add-on chart versions and values in `infra/observability/README.md`.
+- **Load tests:** `tools/loadtest` (`make loadtest`), capacity report with the docs/05 §3 formula.
+- **Docs:** 9 runbooks, ADR-018 (infra), ADR-019 (STRIDE), `infra/secrets/` (External Secrets + SOPS).
+- **CI:**
+  - image builds for all 9 images + non-root check + Trivy + SBOM;
+  - Trivy fs/secret and IaC scans;
+  - `make helm-check` (helm lint/template × 4 values + kubeconform);
+  - `promtool check rules`;
+  - kind smoke deploy that replays a synthetic call and checks the API persisted events.
+
+**Verified here:**
+- Unit/integration tests for sharding: 2 replicas of every worker give the expected events, and no call is split.
+- Bus-lag metrics, tracing, retention/DSAR (dry run, approval gate, partition drops, hashed audit), loadtest maths.
+- Static infra checks: rules/dashboards only use defined metrics, dashboards match the generator, values parse with no secrets, images pinned by digest, templates balanced.
+- RBAC matrix incl. DSAR.
+
+**Not verified here:** `helm template`, kubeconform, promtool, Docker builds and the kind deploy run in CI only. Local downloads of helm/kubeconform binaries were blocked, so check the Actions run. No real cluster, GPUs, Keycloak, KEDA, CNPG or External Secrets behaviour has been exercised.
+
+**Load-test findings (laptop, stub models, `docs/capacity/2026-11-02-laptop-stub.md`):**
+- No lag, drops or errors at 25–200 % of a 4-call peak in real time.
+- The 4× speed run hit 13.6 s bus lag at 8 calls (≈ 32 real-time calls on single-instance workers).
+- Confirmed-event p95 ≈ 8.4 s once LLM-only categories (sarcasm, dismissive…) appear, above the 6 s budget. Those events go through the 3 s judge debounce and are first published already confirmed.
+- They were also counted under `provisional_event`. Now fixed: a separate `llm_event` stage.
+- The 6 s budget for LLM-only categories needs a decision: shorter debounce, or a separate budget for them.
+
+**Needs a human (P6 exit gate):**
+- an in-country cluster with GPU pools and an internal registry, DNS/TLS (cert-manager issuer), a Keycloak realm;
+- a secret store, a backup bucket, Alertmanager receivers;
+- PBX CIDRs and API-server CIDRs for the NetworkPolicies;
+- a pen-test; DPO sign-off on `configs/retention.yaml` (then `retention.execute=true`);
+- a staging run of `make loadtest` at 2× peak with real models.
+
 ## Next step
 
-Run **Prompt 6: P3a ASR fine-tuning** on the GPU box (🔒 GPU + data). Prompts 6–10 need a GPU and annotated data. Prompt 11 (P4) is built on the simulator; its exit gate waits on a staging PBX. Prompts 12–13 (P5 API + dashboard) are done; the P5 exit gate is a UX review with supervisors and QA. **Prompt 14 (P6 production hardening)** needs a cluster 🔒; locally, the remaining P5 items are visual regression + a Lighthouse/axe accessibility run.
+Run **Prompt 6: P3a ASR fine-tuning** on the GPU box (🔒 GPU + data). Prompts 6–10 need a GPU and annotated data. Prompt 11 (P4) is built on the simulator; its exit gate waits on a staging PBX. Prompts 12–13 (P5 API + dashboard) are done; the P5 exit gate is a UX review with supervisors and QA. Prompt 14 (P6) is built and CI-validated; its exit gate needs the staging cluster and a GPU load test 🔒. **Prompt 15 (P7 pilot tooling & feedback loop)** can be built next.

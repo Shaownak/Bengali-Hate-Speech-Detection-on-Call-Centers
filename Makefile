@@ -33,7 +33,7 @@ PY_PKGS := -p galecore -p gale_postcall -p gale_api -p gale_ingest_gateway -p ga
            -p gale_asr_worker -p gale_text_worker -p gale_llm_judge -p gale_fusion_engine
 
 .PHONY: help setup dev-up dev-down dev-status check check-py check-web lint fmt typecheck test \
-        test-web gen-types gen-types-check simulate fixtures fixtures-wav golden-check report eval bakeoff e2e e2e-install clean-caches
+        test-web gen-types gen-types-check simulate fixtures fixtures-wav golden-check report eval bakeoff e2e e2e-install helm-check dashboards loadtest clean-caches
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  %-16s %s\n",$$1,$$2}'
@@ -129,6 +129,28 @@ eval: ## evaluate a component: make eval COMPONENT=<asr|kws|shout|ser|audiotox|t
 
 bakeoff: ## compare candidates: make bakeoff CANDIDATES=configs/bakeoff/asr.yaml SPLIT=dev [ADR=docs/adr/0NN-x.md]
 	$(PY) -m ml.eval.bakeoff --candidates $(CANDIDATES) --split $(SPLIT) $(if $(ADR),--adr $(ADR),)
+
+HELM ?= helm
+KUBECONFORM ?= kubeconform
+CHART := infra/helm/gal-e
+CRD_SCHEMAS := https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json
+
+helm-check: ## helm lint + template every values file + kubeconform (needs helm, kubeconform on PATH)
+	$(HELM) lint $(CHART) -f $(CHART)/values-prod.yaml
+	@mkdir -p $(GALE)/tmp
+	@for v in "" values-staging.yaml values-prod.yaml values-kind.yaml; do \
+	  echo "== $${v:-values.yaml}"; \
+	  $(HELM) template gale $(CHART) $${v:+-f $(CHART)/$$v} --set global.imageTag=check \
+	    > $(GALE)/tmp/rendered.yaml; \
+	  $(KUBECONFORM) -strict -summary -ignore-missing-schemas -kubernetes-version 1.31.0 \
+	    -schema-location default -schema-location '$(CRD_SCHEMAS)' $(GALE)/tmp/rendered.yaml; \
+	done
+
+dashboards: ## regenerate the Grafana dashboards in the Helm chart
+	$(PY) -m tools.gen_dashboards
+
+loadtest: ## load test at 25/50/100/200% of PEAK concurrent calls against `make dev-up`
+	$(PY) -m tools.loadtest --peak $${PEAK:-4} --levels 25,50,100,200
 
 e2e: ## Playwright against the dev stack + simulator (run `make dev-up` first)
 	cd web && PLAYWRIGHT_BROWSERS_PATH=$(GALE)/ms-playwright $(PNPM) exec playwright test

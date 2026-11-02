@@ -40,6 +40,7 @@ from gale_api.db import (
     SignalRow,
     now,
 )
+from gale_api.retention import DsarIn, DsarOut, run_dsar
 from gale_fusion_engine.rules import parse_rules
 from gale_fusion_engine.simulate import SimulationReport, simulate
 from galecore.bangla import normalize
@@ -426,3 +427,15 @@ async def ingest_recording(
 
 async def _to_thread(fn: Any, *args: Any) -> Any:
     return await asyncio.to_thread(fn, *args)
+
+
+# --- DSAR (docs/05 §7) --------------------------------------------------------------------------
+
+
+@router.post("/dsar", response_model=DsarOut)
+def dsar(
+    body: DsarIn, request: Request, db: DB, p: Annotated[Principal, require("dsar.execute")]
+) -> DsarOut:
+    """Erase a data subject's calls (audio, transcripts, signals, events, reviews, scores).
+    Defaults to a dry run; runbook docs/runbooks/dsar-deletion.md."""
+    return run_dsar(db, request.app.state.store, body, p.user_id)

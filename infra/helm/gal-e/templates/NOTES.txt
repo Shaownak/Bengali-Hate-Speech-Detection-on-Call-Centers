@@ -1,0 +1,13 @@
+GAL-E {{ .Chart.AppVersion }} ({{ .Values.global.env }}, models: {{ .Values.global.modelMode }}) installed.
+
+Namespaces: {{ range $k, $v := .Values.global.namespaces }}{{ $v }} {{ end }}
+
+Check:
+  kubectl -n {{ .Values.global.namespaces.app }} rollout status deploy/gale-api
+  kubectl -n {{ .Values.global.namespaces.app }} port-forward svc/gale-api 8000:8000 && curl localhost:8000/readyz
+    (schema=false until the gale-migrate hook Job has finished)
+
+Runbooks: docs/runbooks/ · Alerts are advisory; no automatic punitive action (CLAUDE.md rule 4).
+{{- if not .Values.retention.execute }}
+Retention runs as a DRY RUN until the DPO-approved policy is set (retention.execute=false).
+{{- end }}

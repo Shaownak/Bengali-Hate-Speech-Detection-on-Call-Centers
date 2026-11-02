@@ -4,7 +4,9 @@ in-process on one fake Redis, stub models keyed to synthetic fixture calls.
 - real-time pacing on a short synthetic call → events within the docs/01 §5 latency budget;
 - unpaced fixtures (two calls at once) → events match ``expected_events.json``;
 - chaos: text-worker and fusion-engine crash mid-call and restart → no event lost;
-- post-call jobs wait while the real-time workers have a backlog.
+- post-call jobs wait while the real-time workers have a backlog;
+- two replicas of every real-time worker (call-affine sharding, ADR-018) → same events, no
+  call split across replicas.
 """
 
 import asyncio
@@ -15,8 +17,8 @@ from typing import Any
 
 import numpy as np
 
-from galecore.bus import POSTCALL_JOBS, audio_stream
-from galecore.schemas import AudioFrame, EventStatus, PostcallJob, Speaker
+from galecore.bus import ASR_SEGMENTS, POSTCALL_JOBS, audio_stream, call_shard
+from galecore.schemas import AsrSegment, AudioFrame, EventStatus, PostcallJob, Speaker
 from tests.integration.streaming_harness import (
     SETTINGS,
     Stack,
@@ -145,6 +147,44 @@ async def test_unpaced_fixtures_match_ground_truth() -> None:
     assert {s.call_id for s in scores} == set(calls.values())
     agent_card = next(s for s in scores if s.call_id == calls["demo_03"]).scorecard
     assert agent_card.agent.respectful_register_maintained is False
+
+
+def _owned_by(replica: int, n: int = 2) -> str:
+    while True:
+        cid = str(uuid.uuid4())
+        if call_shard(cid) % n == replica:
+            return cid
+
+
+async def test_two_replicas_per_worker_shard_calls_without_splitting_them() -> None:
+    st = Stack()
+    for n in WORKERS:
+        for i in range(2):
+            await st.start(n, shard=(i, 2))
+    calls = {"demo_04": _owned_by(0), "demo_09": _owned_by(1), "demo_03": _owned_by(1)}
+    await asyncio.gather(
+        *(
+            play_call(st, ensure_wav(CALLS_DIR / n), cid, f"fixture:{n}", speed=0)
+            for n, cid in calls.items()
+        )
+    )
+    await wait_quiet(st, 120, settle=5.0)
+    events = await st.events()
+    segments = await st.read(ASR_SEGMENTS, AsrSegment)
+    scores = await st.scores()
+    seen = {k: set(w.clock.started) for k, w in st.workers.items() if k.startswith("asr#")}
+    await st.shutdown()
+    for name, cid in calls.items():
+        mine = [e for e in events.values() if e.call_id == cid]
+        for g in gold(CALLS_DIR / name):
+            assert any(matches(e, g) for e in mine), (name, g)
+        finals = [g.segment_id for g in segments if g.call_id == cid and g.is_final]
+        assert finals
+        assert len(finals) == len(set(finals)), "a call's ASR ran on two replicas"
+    assert {s.call_id for s in scores} == set(calls.values())
+    # each replica tracked exactly the calls it owns
+    assert seen["asr#0"] == {calls["demo_04"]}
+    assert seen["asr#1"] == {calls["demo_09"], calls["demo_03"]}
 
 
 async def test_chaos_workers_crash_mid_call_lose_no_events() -> None:

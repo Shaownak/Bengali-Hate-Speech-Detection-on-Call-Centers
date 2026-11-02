@@ -12,7 +12,7 @@ from fastapi import FastAPI
 from gale_fusion_engine import SERVICE_NAME
 from gale_fusion_engine.stream import FusionStream
 from galecore.bus import BusClient
-from galecore.config import Settings, get_settings
+from galecore.config import Settings, get_settings, shard_of
 from galecore.service import create_app
 
 
@@ -23,7 +23,11 @@ def build_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-        task = asyncio.create_task(FusionStream(bus, s).run(stop)) if s.workers else None
+        task = (
+            asyncio.create_task(FusionStream(bus, s, shard=shard_of(s)).run(stop))
+            if s.workers
+            else None
+        )
         try:
             yield
         finally:

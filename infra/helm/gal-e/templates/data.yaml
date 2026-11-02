@@ -1,0 +1,214 @@
+{{- $root := . -}}
+{{- $ns := include "gale.ns" (list . "data") -}}
+{{- if eq .Values.postgres.mode "cnpg" }}
+{{- $pg := .Values.postgres.cnpg }}
+---
+# PostgreSQL via CloudNativePG (docs/05 §2): 3 instances, PITR to S3 (RPO ≤ 15 min, docs/05 §8).
+# The owner credentials come from the secret store (secret `gale-pg-owner` here, and the same
+# values as GALE_DB_URL in gale-app: secrets cannot be referenced across namespaces).
+# pg_trgm is created by the superuser at bootstrap (the app user can't).
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: gale-pg
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-pg") | nindent 4 }}
+spec:
+  instances: {{ $pg.instances }}
+  imageName: {{ $pg.image }}
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: {{ $pg.storage.size }}
+    {{- with $pg.storage.storageClass }}
+    storageClass: {{ . }}
+    {{- end }}
+  walStorage:
+    size: {{ $pg.walStorage.size }}
+    {{- with $pg.walStorage.storageClass }}
+    storageClass: {{ . }}
+    {{- end }}
+  resources: {{- toYaml $pg.resources | nindent 4 }}
+  postgresql:
+    parameters: {{- toYaml $pg.parameters | nindent 6 }}
+  bootstrap:
+    initdb:
+      database: gale
+      owner: gale
+      secret: { name: gale-pg-owner }
+      dataChecksums: true
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS pg_trgm
+  monitoring:
+    enablePodMonitor: {{ .Values.observability.serviceMonitors }}
+  {{- if $pg.backup.enabled }}
+  backup:
+    retentionPolicy: {{ $pg.backup.retentionPolicy | quote }}
+    barmanObjectStore:
+      destinationPath: {{ $pg.backup.destinationPath }}
+      endpointURL: {{ $pg.backup.endpointURL }}
+      s3Credentials:
+        accessKeyId: { name: {{ $pg.backup.credentialsSecret }}, key: ACCESS_KEY_ID }
+        secretAccessKey: { name: {{ $pg.backup.credentialsSecret }}, key: ACCESS_SECRET_KEY }
+      wal: { compression: gzip, maxParallel: 4 }
+      data: { compression: gzip }
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: gale-pg-daily
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-pg") | nindent 4 }}
+spec:
+  schedule: {{ $pg.backup.schedule | quote }}
+  backupOwnerReference: self
+  cluster: { name: gale-pg }
+  {{- end }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gale-pg-replicas
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-pg") | nindent 4 }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: { cnpg.io/cluster: gale-pg, cnpg.io/instanceRole: replica }
+{{- end }}
+
+{{- if eq .Values.postgres.mode "simple" }}
+---
+# Single-pod Postgres for kind / throwaway environments only (no HA, no PITR).
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gale-pg
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-pg") | nindent 4 }}
+spec:
+  replicas: 1
+  serviceName: gale-pg
+  selector:
+    matchLabels: {{- include "gale.selector" "gale-pg" | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "gale.labels" (list . "gale-pg") | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {{- include "gale.podSecurity" 70 | nindent 8 }}
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.simple.image }}
+          env:
+            - { name: POSTGRES_DB, value: gale }
+            - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: gale-pg-owner, key: username } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: gale-pg-owner, key: password } }
+          ports: [{ name: postgres, containerPort: 5432 }]
+          readinessProbe: { exec: { command: ["pg_isready", "-U", "gale"] }, periodSeconds: 5 }
+          securityContext: {{- include "gale.containerSecurity" . | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: run, mountPath: /var/run/postgresql }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: run
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: { requests: { storage: 2Gi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gale-pg-rw
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-pg") | nindent 4 }}
+spec:
+  selector: {{- include "gale.selector" "gale-pg" | nindent 4 }}
+  ports: [{ name: postgres, port: 5432, targetPort: postgres }]
+{{- end }}
+
+{{- if eq .Values.bus.mode "bundled" }}
+{{- $b := .Values.bus.bundled }}
+---
+# Bus: Valkey (BSD-3, Redis-protocol compatible; ADR-018) with AOF fsync every second and no
+# eviction — streams are trimmed by MAXLEN in BusClient, never evicted.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gale-bus
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-bus") | nindent 4 }}
+data:
+  valkey.conf: |
+    appendonly yes
+    appendfsync everysec
+    save ""
+    maxmemory {{ $b.maxmemory }}
+    maxmemory-policy noeviction
+    protected-mode no
+    dir /data
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gale-bus
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-bus") | nindent 4 }}
+spec:
+  replicas: 1
+  serviceName: gale-bus
+  selector:
+    matchLabels: {{- include "gale.selector" "gale-bus" | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "gale.labels" (list . "gale-bus") | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      priorityClassName: {{ .Values.priorityClasses.realtime.name }}
+      securityContext: {{- include "gale.podSecurity" 999 | nindent 8 }}
+      containers:
+        - name: valkey
+          image: {{ $b.image }}
+          command: ["sh", "-c", "exec valkey-server /etc/valkey/valkey.conf --requirepass \"$REDIS_PASSWORD\""]
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.secrets.bus }}, key: REDIS_PASSWORD } }
+          ports: [{ name: redis, containerPort: 6379 }]
+          readinessProbe:
+            exec: { command: ["sh", "-c", "valkey-cli -a \"$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"] }
+            periodSeconds: 5
+          resources: {{- toYaml $b.resources | nindent 12 }}
+          securityContext: {{- include "gale.containerSecurity" . | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /data }
+            - { name: conf, mountPath: /etc/valkey }
+      volumes:
+        - name: conf
+          configMap: { name: gale-bus }
+  volumeClaimTemplates:
+    - metadata: { name: data }
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: { requests: { storage: {{ $b.storage.size }} } }
+        {{- with $b.storage.storageClass }}
+        storageClassName: {{ . }}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gale-bus
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-bus") | nindent 4 }}
+spec:
+  selector: {{- include "gale.selector" "gale-bus" | nindent 4 }}
+  ports: [{ name: redis, port: 6379, targetPort: redis }]
+{{- end }}

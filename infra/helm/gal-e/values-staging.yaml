@@ -1,0 +1,49 @@
+# Staging (docs/05 §1): 1–2 GPU nodes, synthetic + consented data only, shadow models.
+#   helm upgrade --install gale infra/helm/gal-e -f infra/helm/gal-e/values-staging.yaml \
+#     --set global.imageTag=$GIT_SHA --atomic --timeout 15m
+global:
+  env: staging
+  modelMode: stub            # switch to real once weights are in the models PVC (P3)
+  imageRegistry: registry.gale.internal/gale
+
+config:
+  GALE_OIDC_ISSUER: https://sso-staging.gale.internal/realms/gale
+
+postgres:
+  cnpg:
+    instances: 2
+    storage: { size: 50Gi }
+    walStorage: { size: 10Gi }
+    backup:
+      destinationPath: s3://gale-staging-pg-backups/
+      retentionPolicy: 14d
+
+bus:
+  bundled:
+    storage: { size: 10Gi }
+    maxmemory: 2gb
+    resources: { requests: { cpu: 500m, memory: 3Gi }, limits: { memory: 3Gi } }
+
+objectStore:
+  endpoint: s3-staging.gale.internal:9000
+  bucket: gale-staging
+
+services:
+  audio_worker: { shards: 1 }
+  asr_worker: { shards: 1 }
+  text_worker: { shards: 1 }
+  llm_judge: { shards: 1 }
+  fusion_engine: { shards: 1 }
+  postcall_worker:
+    keda: { enabled: true, minReplicas: 0, maxReplicas: 2, pendingEntriesCount: "5", streams: [postcall.jobs] }
+  api:
+    hpa: { enabled: true, minReplicas: 1, maxReplicas: 3, cpuUtilization: 70 }
+  web:
+    hpa: { enabled: true, minReplicas: 1, maxReplicas: 2, cpuUtilization: 70 }
+
+ingress:
+  webHost: gale-staging.gale.internal
+  apiHost: gale-api-staging.gale.internal
+
+retention:
+  execute: false

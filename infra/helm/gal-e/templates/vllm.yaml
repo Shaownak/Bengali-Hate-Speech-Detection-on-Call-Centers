@@ -1,0 +1,68 @@
+{{- if and .Values.vllm.enabled (eq .Values.global.modelMode "real") }}
+{{- $ns := include "gale.ns" (list . "ml") }}
+{{- $pool := .Values.gpuPools.llm }}
+---
+# Self-hosted LLM judge (ADR-003): OpenAI-compatible vLLM on the gpu-llm pool, weights from the
+# internal models PVC, no internet (HF_HUB_OFFLINE, ml namespace egress deny).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gale-vllm
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-vllm") | nindent 4 }}
+spec:
+  replicas: {{ .Values.vllm.replicas }}
+  selector:
+    matchLabels: {{- include "gale.selector" "gale-vllm" | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "gale.labels" (list . "gale-vllm") | nindent 8 }}
+    spec:
+      automountServiceAccountToken: false
+      priorityClassName: {{ .Values.priorityClasses.realtime.name }}
+      securityContext: {{- include "gale.podSecurity" .Values.podSecurity.runAsUser | nindent 8 }}
+      nodeSelector: {{- toYaml $pool.nodeSelector | nindent 8 }}
+      tolerations: {{- toYaml $pool.tolerations | nindent 8 }}
+      containers:
+        - name: vllm
+          image: {{ .Values.vllm.image }}
+          args:
+            - --model={{ .Values.vllm.model }}
+            - --served-model-name={{ .Values.vllm.servedModelName }}
+            - --port=8000
+            {{- range .Values.vllm.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          env:
+            - { name: HF_HUB_OFFLINE, value: "1" }
+            - { name: VLLM_NO_USAGE_STATS, value: "1" }
+            - { name: HOME, value: /tmp }
+          ports: [{ name: http, containerPort: 8000 }]
+          readinessProbe: { httpGet: { path: /health, port: http }, periodSeconds: 10, failureThreshold: 30 }
+          resources: {{- toYaml .Values.vllm.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false   # vLLM compiles kernels into its cache at start
+            capabilities: { drop: ["ALL"] }
+          volumeMounts:
+            - { name: models, mountPath: {{ .Values.models.mountPath }}, readOnly: true }
+            - { name: shm, mountPath: /dev/shm }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: models
+          persistentVolumeClaim: { claimName: {{ .Values.models.pvcName }}, readOnly: true }
+        - name: shm
+          emptyDir: { medium: Memory, sizeLimit: 8Gi }
+        - name: tmp
+          emptyDir: { sizeLimit: 20Gi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gale-vllm
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-vllm") | nindent 4 }}
+spec:
+  selector: {{- include "gale.selector" "gale-vllm" | nindent 4 }}
+  ports: [{ name: http, port: 8000, targetPort: http }]
+{{- end }}

@@ -40,7 +40,7 @@ class Stack:
     def bus(self) -> BusClient:
         return BusClient(FakeAsyncRedis(server=self.server))
 
-    def make(self, name: str) -> Worker:
+    def make(self, name: str, shard: tuple[int, int] | None = None) -> Worker:
         kinds: dict[str, Any] = {
             "asr": AsrStream,
             "audio": AudioStream,
@@ -48,17 +48,18 @@ class Stack:
             "llm": LlmStream,
             "fusion": FusionStream,
         }
-        kw: dict[str, Any] = {"min_idle_ms": self.min_idle_ms}
+        kw: dict[str, Any] = {"min_idle_ms": self.min_idle_ms, "shard": shard}
         if name == "llm":
             kw["debounce_s"] = 3.0
         return kinds[name](self.bus(), SETTINGS, **kw)  # type: ignore[no-any-return]
 
-    async def start(self, name: str) -> Worker:
-        w = self.make(name)
+    async def start(self, name: str, shard: tuple[int, int] | None = None) -> Worker:
+        w = self.make(name, shard)
         stop = asyncio.Event()
-        self.workers[name] = w
-        self.tasks[name] = asyncio.create_task(w.run(stop))
-        self.tasks[name].stop_event = stop  # type: ignore[attr-defined]
+        key = f"{name}#{shard[0]}" if shard else name
+        self.workers[key] = w
+        self.tasks[key] = asyncio.create_task(w.run(stop))
+        self.tasks[key].stop_event = stop  # type: ignore[attr-defined]
         await asyncio.sleep(0)
         return w
 

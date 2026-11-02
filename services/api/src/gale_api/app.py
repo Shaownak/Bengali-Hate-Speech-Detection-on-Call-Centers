@@ -20,7 +20,7 @@ from sqlalchemy.engine import Engine
 from gale_api import SERVICE_NAME
 from gale_api.audit import AuditMiddleware
 from gale_api.auth import TokenVerifier
-from gale_api.db import make_engine, make_sessionmaker, migrate
+from gale_api.db import head_revision, make_engine, make_sessionmaker, migrate, schema_revision
 from gale_api.persist import Persister
 from gale_api.routes_admin import router as admin_router
 from gale_api.routes_analytics import router as analytics_router
@@ -74,9 +74,18 @@ def build_app(
         except Exception:
             return False
 
+    head = head_revision()
+
+    async def schema_ok() -> bool:
+        """Ready only once `alembic upgrade head` has run (the chart's migration Job)."""
+        try:
+            return await asyncio.to_thread(schema_revision, engine) == head
+        except Exception:
+            return False
+
     app = create_app(
         SERVICE_NAME,
-        ready_checks={"bus": bus.ping, "db": db_ok},
+        ready_checks={"bus": bus.ping, "db": db_ok, "schema": schema_ok},
         settings=s,
         lifespan=lifespan,
     )

@@ -1,0 +1,32 @@
+{{- if .Values.global.createNamespaces }}
+{{- range $area, $ns := .Values.global.namespaces }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    {{- include "gale.labels" (list $ "namespace") | nindent 4 }}
+    gale.io/area: {{ $area }}
+    # Pod Security Admission: every GAL-E pod runs non-root with a read-only root fs
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+{{- end }}
+{{- end }}
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: {{ .Values.priorityClasses.realtime.name }}
+  labels: {{- include "gale.labels" (list . "priority") | nindent 4 }}
+value: {{ .Values.priorityClasses.realtime.value }}
+description: Real-time pipeline; pre-empts post-call batch work (docs/05 §3).
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: {{ .Values.priorityClasses.batch.name }}
+  labels: {{- include "gale.labels" (list . "priority") | nindent 4 }}
+value: {{ .Values.priorityClasses.batch.value }}
+preemptionPolicy: Never
+description: Post-call batch jobs; yield to real time.

@@ -39,6 +39,7 @@ from galecore.bus import (
     decode,
 )
 from galecore.logging import get_logger
+from galecore.metrics import WS_CONNECTIONS
 from galecore.schemas import (
     AsrSegment,
     CallLifecycle,
@@ -196,6 +197,8 @@ async def _auth(ws: WebSocket) -> Principal | None:
 async def _pump(ws: WebSocket, hub: LiveHub, sub: Subscriber, snapshot: dict[str, Any]) -> None:
     await ws.send_json({"type": "snapshot", **snapshot})
     hub.subs.add(sub)
+    endpoint = "call" if sub.call_id else "live"
+    WS_CONNECTIONS.labels(endpoint).inc()
 
     async def drain_client() -> None:  # detect disconnects; clients send nothing else
         while True:
@@ -214,6 +217,7 @@ async def _pump(ws: WebSocket, hub: LiveHub, sub: Subscriber, snapshot: dict[str
         pass
     finally:
         hub.subs.discard(sub)
+        WS_CONNECTIONS.labels(endpoint).dec()
         reader.cancel()
         with contextlib.suppress(asyncio.CancelledError, WebSocketDisconnect, RuntimeError):
             await reader

@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 
 from gale_fusion_engine.fusion import FusionEngine
 from gale_fusion_engine.rules import parse_rules
+from galecore import metrics as m
 from galecore.bus import ALERTS, EVENTS_FUSED, LLM_DECISIONS, SIGNALS, BusClient
 from galecore.config import Settings, load_rules, load_thresholds
 from galecore.schemas import (
@@ -42,6 +43,7 @@ class CallState:
     published: dict[str, tuple[object, ...]] = field(default_factory=dict)
     alerted: set[str] = field(default_factory=set)
     confirmed: set[str] = field(default_factory=set)
+    dismissed: set[str] = field(default_factory=set)
     dirty_since: float | None = None
     ended_at: float | None = None
 
@@ -78,6 +80,8 @@ class FusionStream(Worker):
         return st
 
     async def on_signal(self, sig: Signal) -> None:
+        m.SIGNALS.labels(sig.source.value, sig.category.value).inc()
+        m.SIGNAL_SCORE.labels(sig.source.value).observe(sig.score)
         st = await self._state(sig.call_id, sig.ts_end)
         st.signals[sig.signal_id] = sig
         st.dirty_since = st.dirty_since or time.monotonic()
@@ -125,13 +129,23 @@ class FusionStream(Worker):
             st.published[e.event_id] = key
             state = hashlib.sha1(repr(key).encode(), usedforsecurity=False).hexdigest()[:12]
             await self.bus.publish(EVENTS_FUSED, e, idem_key=f"{e.event_id}:{state}")
+            labels = (e.category.value, e.speaker.value)
             if first:
-                self._lat(call_id, e, "provisional_event")
+                m.EVENTS.labels(*labels, "provisional").inc()
+                # events only the LLM window finds have no fast path: keep them out of the
+                # provisional (≤ 2 s) budget and measure them on their own
+                llm_only = e.status == EventStatus.CONFIRMED
+                self._lat(call_id, e, "llm_event" if llm_only else "provisional_event")
             if e.status == EventStatus.CONFIRMED and e.event_id not in st.confirmed:
                 st.confirmed.add(e.event_id)
+                m.EVENTS.labels(*labels, "confirmed").inc()
                 self._lat(call_id, e, "confirmed_event")
+            if e.status == EventStatus.DISMISSED_BY_LLM and e.event_id not in st.dismissed:
+                st.dismissed.add(e.event_id)
+                m.EVENTS.labels(*labels, "dismissed").inc()
             if e.alert and e.event_id not in st.alerted:
                 st.alerted.add(e.event_id)
+                m.ALERTS.labels(*labels).inc()
                 await self.bus.publish(ALERTS, e, idem_key=e.event_id)
                 self._lat(call_id, e, "alert")
 

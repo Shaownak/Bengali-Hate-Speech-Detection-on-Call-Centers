@@ -1,0 +1,147 @@
+# GAL-E Prometheus rules (docs/05 §4 alerting, §8 SLOs). Rendered into a PrometheusRule by the
+# chart; `make obs-check` / CI run `promtool check rules` on this file, and a unit test checks
+# every gale_* series used here is defined in galecore.metrics or a service.
+groups:
+  - name: gale.recording
+    interval: 1m
+    rules:
+      - record: gale:alerts:rate1h
+        expr: sum(rate(gale_alerts_total[1h]))
+      - record: gale:alert_latency:p95_10m
+        expr: histogram_quantile(0.95, sum by (le) (rate(gale_stage_latency_seconds_bucket{stage="alert"}[10m])))
+      - record: gale:confirmed_latency:p95_10m
+        expr: histogram_quantile(0.95, sum by (le) (rate(gale_stage_latency_seconds_bucket{stage="confirmed_event"}[10m])))
+      - record: gale:asr_confidence:avg1h
+        expr: sum(rate(gale_asr_confidence_sum[1h])) / sum(rate(gale_asr_confidence_count[1h]))
+      - record: gale:review_fp_ratio:24h
+        expr: |
+          sum(increase(gale_reviews_total{kind="verdict",verdict="false_positive"}[24h]))
+            / sum(increase(gale_reviews_total{kind="verdict"}[24h]))
+
+  - name: gale.pipeline
+    rules:
+      - alert: GaleBusLagHigh
+        expr: max by (stream, group) (gale_bus_lag_seconds) > 10
+        for: 2m
+        labels: { severity: critical, team: gale-ops }
+        annotations:
+          summary: "Bus lag {{ $value | humanizeDuration }} on {{ $labels.stream }} / {{ $labels.group }}"
+          runbook_url: docs/runbooks/bus-lag-high.md
+      - alert: GaleDeadLetters
+        expr: sum by (stream, group) (increase(gale_bus_dead_lettered_total[15m])) > 0
+        labels: { severity: warning, team: gale-ops }
+        annotations:
+          summary: "Messages dead-lettered on {{ $labels.stream }} ({{ $labels.group }})"
+          runbook_url: docs/runbooks/bus-lag-high.md
+      - alert: GaleAlertLatencyHigh
+        expr: gale:alert_latency:p95_10m > 8
+        for: 10m
+        labels: { severity: critical, team: gale-ops }
+        annotations:
+          summary: "p95 alert latency {{ $value | humanize }} s (> 8 s)"
+          runbook_url: docs/runbooks/llm-latency.md
+      - alert: GaleConfirmedLatencySLO
+        expr: gale:confirmed_latency:p95_10m > 6
+        for: 30m
+        labels: { severity: warning, team: gale-ops }
+        annotations:
+          summary: "Confirmed-alert p95 {{ $value | humanize }} s breaches the 6 s SLO"
+          runbook_url: docs/runbooks/llm-latency.md
+      - alert: GaleLLMOffline
+        expr: |
+          sum(rate(gale_llm_judge_calls_total{outcome=~"error|circuit_open"}[10m]))
+            / clamp_min(sum(rate(gale_llm_judge_calls_total[10m])), 1e-9) > 0.5
+        for: 10m
+        labels: { severity: warning, team: gale-ml }
+        annotations:
+          summary: "LLM judge failing: alerts stay provisional (fast path only)"
+          runbook_url: docs/runbooks/llm-latency.md
+      - alert: GaleErrorRateHigh
+        expr: |
+          sum by (service) (rate(gale_http_requests_total{code_class="5xx"}[5m]))
+            / clamp_min(sum by (service) (rate(gale_http_requests_total[5m])), 1e-9) > 0.01
+        for: 10m
+        labels: { severity: warning, team: gale-ops }
+        annotations:
+          summary: "{{ $labels.service }} 5xx rate {{ $value | humanizePercentage }}"
+      - alert: GaleHandlerFailuresHigh
+        expr: |
+          sum by (group) (rate(gale_bus_failed_total[5m]))
+            / clamp_min(sum by (group) (rate(gale_bus_consumed_total[5m])), 1e-9) > 0.01
+        for: 10m
+        labels: { severity: warning, team: gale-ops }
+        annotations:
+          summary: "{{ $labels.group }} fails {{ $value | humanizePercentage }} of messages"
+      - alert: GaleIngestPacketLoss
+        expr: |
+          sum(rate(gale_ingest_rtp_lost_total[5m]))
+            / clamp_min(sum(rate(gale_ingest_rtp_packets_total[5m])), 1e-9) > 0.02
+        for: 5m
+        labels: { severity: warning, team: gale-ops }
+        annotations:
+          summary: "RTP loss {{ $value | humanizePercentage }} from the PBX"
+          runbook_url: docs/runbooks/pbx-stream-drop.md
+      - alert: GaleIngestFramesDropped
+        expr: increase(gale_ingest_frames_dropped_total[5m]) > 0
+        labels: { severity: critical, team: gale-ops }
+        annotations:
+          summary: "Gateway dropped audio frames (bus queue full)"
+          runbook_url: docs/runbooks/bus-lag-high.md
+      - alert: GalePBXStreamsStopped
+        expr: |
+          sum(rate(gale_ingest_frames_total[5m])) == 0
+            and on() (hour() + 6) % 24 >= 9 and on() (hour() + 6) % 24 < 21
+        for: 10m
+        labels: { severity: critical, team: gale-ops }
+        annotations:
+          summary: "No audio from the PBX during business hours (Asia/Dhaka)"
+          runbook_url: docs/runbooks/pbx-stream-drop.md
+
+  - name: gale.gpu
+    rules:
+      - alert: GaleGpuOOM
+        expr: |
+          sum by (namespace, pod) (
+            kube_pod_container_status_last_terminated_reason{namespace="gale-ml", reason="OOMKilled"}
+          ) > 0
+          and on (namespace, pod) increase(kube_pod_container_status_restarts_total{namespace="gale-ml"}[10m]) > 0
+        labels: { severity: critical, team: gale-ml }
+        annotations:
+          summary: "{{ $labels.pod }} was OOM-killed"
+          runbook_url: docs/runbooks/gpu-oom.md
+      - alert: GaleGpuMemoryNearFull
+        expr: DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE) > 0.95
+        for: 5m
+        labels: { severity: warning, team: gale-ml }
+        annotations:
+          summary: "GPU {{ $labels.gpu }} on {{ $labels.Hostname }} at {{ $value | humanizePercentage }} memory"
+          runbook_url: docs/runbooks/gpu-oom.md
+
+  - name: gale.ml
+    rules:
+      - alert: GaleAlertVolumeAnomaly
+        expr: |
+          abs(gale:alerts:rate1h - avg_over_time(gale:alerts:rate1h[7d]))
+            > 3 * stddev_over_time(gale:alerts:rate1h[7d])
+          and stddev_over_time(gale:alerts:rate1h[7d]) > 0
+        for: 30m
+        labels: { severity: warning, team: gale-ml }
+        annotations:
+          summary: "Alert volume outside ±3σ of the last 7 days"
+          runbook_url: docs/runbooks/false-alarm-spike.md
+      - alert: GaleFalsePositiveRateHigh
+        expr: |
+          gale:review_fp_ratio:24h > 0.3
+          and sum(increase(gale_reviews_total{kind="verdict"}[24h])) >= 20
+        for: 1h
+        labels: { severity: warning, team: gale-ml }
+        annotations:
+          summary: "{{ $value | humanizePercentage }} of reviewed alerts were false positives (24 h)"
+          runbook_url: docs/runbooks/false-alarm-spike.md
+      - alert: GaleAsrConfidenceDrop
+        expr: gale:asr_confidence:avg1h < 0.9 * avg_over_time(gale:asr_confidence:avg1h[7d])
+        for: 1h
+        labels: { severity: warning, team: gale-ml }
+        annotations:
+          summary: "ASR confidence dropped > 10 % vs the 7-day average (drift?)"
+          runbook_url: docs/runbooks/model-rollback.md

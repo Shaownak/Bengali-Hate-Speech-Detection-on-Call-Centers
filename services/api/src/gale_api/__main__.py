@@ -1,4 +1,5 @@
-"""Run the API: ``python -m gale_api`` | ``migrate`` | ``downgrade [rev]`` | ``seed-dev``."""
+"""Run the API: ``python -m gale_api`` | ``migrate`` | ``downgrade [rev]`` | ``seed-dev`` |
+``retention [--execute]``."""
 
 from __future__ import annotations
 
@@ -20,6 +21,16 @@ def main(argv: list[str] | None = None) -> None:
         from gale_api.db import downgrade
 
         downgrade(s.db_url, args[1] if len(args) > 1 else "base")
+    elif args and args[0] == "retention":
+        from gale_api.db import make_engine, make_sessionmaker, session_scope
+        from gale_api.retention import load_policy, run_retention
+        from galecore.objectstore import store_from_settings
+
+        policy = load_policy(s.config_dir)
+        with session_scope(make_sessionmaker(make_engine(s.db_url))) as db:
+            rep = run_retention(db, store_from_settings(s), policy, execute="--execute" in args)
+        # counts only: no call ids or content (CLAUDE.md rule 1)
+        print(rep)
     elif args and args[0] == "seed-dev":
         from gale_api.db import make_engine, make_sessionmaker, migrate, session_scope
         from gale_api.seed import seed_dev

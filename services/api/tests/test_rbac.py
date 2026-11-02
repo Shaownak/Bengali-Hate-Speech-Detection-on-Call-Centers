@@ -267,6 +267,14 @@ CASES = [
         expect(403, admin=200, qa=200, aud=200),
         route="/api/v1/thresholds",
     ),
+    Case(
+        "dsar",
+        "POST",
+        lambda w, c: "/api/v1/dsar",
+        expect(403, admin=200),
+        body=lambda w, c: {"external_call_id": "nobody", "reason": "rbac matrix"},
+        route="/api/v1/dsar",
+    ),
     Case("me", "GET", lambda w, c: "/api/v1/me", expect(200), route="/api/v1/me"),
     Case(
         "directory",

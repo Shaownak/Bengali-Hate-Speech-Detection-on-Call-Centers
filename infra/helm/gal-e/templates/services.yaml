@@ -1,0 +1,192 @@
+{{- $root := . -}}
+{{- $real := eq .Values.global.modelMode "real" -}}
+{{- range $key, $svc := .Values.services }}
+{{- if $svc.enabled }}
+{{- $name := include "gale.svcName" $key }}
+{{- $ns := include "gale.ns" (list $root $svc.namespace) }}
+{{- $port := default 8000 $svc.port }}
+{{- $uid := default $root.Values.podSecurity.runAsUser $svc.runAsUser }}
+{{- $gpu := and $real $svc.gpuPool }}
+{{- $sharded := gt (int (default 0 $svc.shards)) 0 }}
+{{- if gt (int (default 0 $svc.shards)) 8 }}{{ fail (printf "%s: shards must be ≤ 8 (audio shard count)" $key) }}{{ end }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list $root $name) | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: {{ ternary "StatefulSet" "Deployment" $sharded }}
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list $root $name) | nindent 4 }}
+spec:
+  {{- if $sharded }}
+  # call-affine shards (ADR-018): pod ordinal = shard index, GALE_SHARD_COUNT = replicas
+  replicas: {{ $svc.shards }}
+  serviceName: {{ $name }}
+  podManagementPolicy: Parallel
+  updateStrategy: { type: RollingUpdate }
+  {{- else }}
+  {{- if not (or (and $svc.keda $svc.keda.enabled) (and $svc.hpa $svc.hpa.enabled)) }}
+  replicas: {{ $svc.replicas }}
+  {{- end }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: {{ ternary 1 0 (eq (int (default 1 $svc.replicas)) 1) }}, maxSurge: {{ ternary 0 1 (eq $key "ingest_gateway") }} }
+  {{- end }}
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels: {{- include "gale.selector" $name | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "gale.labels" (list $root $name) | nindent 8 }}
+        {{- if eq $key "api" }}
+        gale.io/db-client: "true"
+        {{- end }}
+      annotations:
+        checksum/config: {{ include (print $root.Template.BasePath "/config.yaml") $root | sha256sum | trunc 16 }}
+    spec:
+      serviceAccountName: {{ $name }}
+      automountServiceAccountToken: false
+      priorityClassName: {{ index $root.Values.priorityClasses (default "realtime" $svc.priorityClass) "name" }}
+      securityContext: {{- include "gale.podSecurity" $uid | nindent 8 }}
+      {{- with $root.Values.global.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if $gpu }}
+      {{- $pool := index $root.Values.gpuPools $svc.gpuPool }}
+      nodeSelector: {{- toYaml $pool.nodeSelector | nindent 8 }}
+      tolerations: {{- toYaml $pool.tolerations | nindent 8 }}
+      {{- end }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: {{- include "gale.selector" $name | nindent 14 }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: {{ replace "_" "-" $key }}
+          image: {{ include "gale.image" (list $root $key) }}
+          imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
+          {{- with $svc.command }}
+          command: {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - { name: http, containerPort: {{ $port }}, protocol: TCP }
+            {{- if and $svc.rtp $svc.rtp.enabled }}
+            - { name: rtp, containerPort: {{ $svc.rtp.port }}, protocol: UDP }
+            {{- end }}
+          {{- if ne $key "web" }}
+          envFrom: {{- include "gale.envFrom" $root | nindent 12 }}
+          {{- end }}
+          env:
+            - { name: GALE_PORT, value: {{ $port | quote }} }
+            {{- if $sharded }}
+            - { name: GALE_SHARD_COUNT, value: {{ $svc.shards | quote }} }
+            {{- end }}
+            {{- if eq $key "api" }}
+            - name: GALE_OBJECT_URL_SECRET
+              valueFrom: { secretKeyRef: { name: {{ $root.Values.secrets.signing }}, key: GALE_OBJECT_URL_SECRET } }
+            {{- end }}
+            {{- if eq $key "ingest_gateway" }}
+            - name: GALE_INGEST_ARI_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ $root.Values.secrets.ingestAri }}, key: GALE_INGEST_ARI_PASSWORD, optional: true } }
+            {{- end }}
+            {{- range $k, $v := $svc.env }}
+            - { name: {{ $k }}, value: {{ $v | quote }} }
+            {{- end }}
+          readinessProbe:
+            httpGet: { path: {{ ternary "/" "/readyz" (eq $key "web") }}, port: http }
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: {{ ternary "/" "/healthz" (eq $key "web") }}, port: http }
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 6
+          resources:
+            {{- $res := deepCopy $svc.resources }}
+            {{- if $gpu }}
+            {{- $_ := set $res.requests "nvidia.com/gpu" 1 }}
+            {{- $_ := set $res.limits "nvidia.com/gpu" 1 }}
+            {{- end }}
+            {{- toYaml $res | nindent 12 }}
+          securityContext: {{- include "gale.containerSecurity" . | nindent 12 }}
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            {{- if eq $key "web" }}
+            - { name: next-cache, mountPath: /web/.next/cache }
+            {{- else if eq $root.Values.objectStore.mode "local" }}
+            - { name: objects, mountPath: /data/objects }
+            {{- end }}
+            {{- if and $real (eq $svc.namespace "ml") }}
+            - { name: models, mountPath: {{ $root.Values.models.mountPath }}, readOnly: true }
+            {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 1Gi }
+        {{- if eq $key "web" }}
+        - name: next-cache
+          emptyDir: { sizeLimit: 512Mi }
+        {{- else if eq $root.Values.objectStore.mode "local" }}
+        - name: objects
+          emptyDir: { sizeLimit: 2Gi }
+        {{- end }}
+        {{- if and $real (eq $svc.namespace "ml") }}
+        - name: models
+          persistentVolumeClaim: { claimName: {{ $root.Values.models.pvcName }}, readOnly: true }
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list $root $name) | nindent 4 }}
+spec:
+  selector: {{- include "gale.selector" $name | nindent 4 }}
+  ports:
+    - { name: http, port: {{ $port }}, targetPort: http, protocol: TCP }
+{{- if and $svc.rtp $svc.rtp.enabled }}
+---
+# RTP media from the PBX (Asterisk ExternalMedia), UDP; restrict to PBX addresses
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-rtp
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list $root $name) | nindent 4 }}
+  {{- with $svc.rtp.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $svc.rtp.serviceType }}
+  externalTrafficPolicy: {{ ternary "Local" "Cluster" (eq $svc.rtp.serviceType "LoadBalancer") }}
+  {{- with $svc.rtp.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges: {{- toYaml . | nindent 4 }}
+  {{- end }}
+  selector: {{- include "gale.selector" $name | nindent 4 }}
+  ports:
+    - { name: rtp, port: {{ $svc.rtp.port }}, targetPort: rtp, protocol: UDP }
+{{- end }}
+{{- if gt (int (default (default $svc.replicas $svc.shards) (and $svc.keda $svc.keda.minReplicas))) 1 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list $root $name) | nindent 4 }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels: {{- include "gale.selector" $name | nindent 6 }}
+{{- end }}
+{{- end }}
+{{- end }}

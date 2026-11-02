@@ -96,3 +96,44 @@ async def test_worker_runs_retries_and_restores_unknown_calls() -> None:
     old = await w.replay(SIGNALS, "c1", Signal, before_ts=2.5)
     assert [s.ts_start for s in old] == [1.0, 2.0]
     assert await w.replay(SIGNALS, "other", Signal) == []
+
+
+async def test_bus_lag_metrics() -> None:
+    from galecore.metrics import BUS_LAG_SECONDS, BUS_PENDING
+
+    redis = FakeAsyncRedis()
+    bus = BusClient(redis)
+    w = Collector(BusClient(redis))
+    await w.setup()
+    await bus.publish(SIGNALS, sig("c9", 1.0))
+    await asyncio.sleep(0.05)
+    await w.measure_lag()
+    assert BUS_LAG_SECONDS.labels(SIGNALS, "collector")._value.get() > 0  # not yet received
+    await w.poll()  # consumes it (and the lag probe is rate-limited)
+    await w.measure_lag()
+    assert BUS_LAG_SECONDS.labels(SIGNALS, "collector")._value.get() == 0
+    assert BUS_PENDING.labels(SIGNALS, "collector")._value.get() == 0
+
+
+def test_spans_share_the_call_trace_and_export_is_opt_in(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+    from galecore import streaming
+    from galecore.tracing import configure_tracing
+
+    monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+    assert configure_tracing("x") is False
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    monkeypatch.setattr(streaming, "_tracer", provider.get_tracer("t"))
+    call = str(uuid.uuid4())
+    with span("a", call), span("b", call):
+        pass
+    with span("c", call):
+        pass
+    spans = exporter.get_finished_spans()
+    assert {s.context.trace_id for s in spans} == {trace_id_for(call)}
+    assert {s.name for s in spans} == {"a", "b", "c"}

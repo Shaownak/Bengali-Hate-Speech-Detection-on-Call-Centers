@@ -1,0 +1,9 @@
+# Retention policy (docs/05 §7, PDPO 2025). The numbers below are PLACEHOLDERS until the DPO
+# approves them (ADR-018). Until `approved: true` here AND `retention.execute: true` in the Helm
+# values, the retention job only reports what it would delete.
+version: 1
+approved: false
+raw_audio_days: 30          # call audio (gateway-retained live audio, uploaded recordings, reports)
+transcripts_months: 6       # redacted segments + signals (monthly partitions are dropped whole)
+events_months: 24           # events, reviews, scorecards and the call rows themselves
+audit_log_months: 36        # audit trail outlives the data it describes

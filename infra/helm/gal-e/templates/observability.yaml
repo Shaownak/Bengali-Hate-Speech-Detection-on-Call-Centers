@@ -1,0 +1,116 @@
+{{- $root := . -}}
+{{- $obs := .Values.observability -}}
+{{- $obsNs := include "gale.ns" (list . "obs") -}}
+{{- if $obs.serviceMonitors }}
+{{- range $area := list "ingest" "ml" "app" "data" }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: gale
+  namespace: {{ include "gale.ns" (list $root $area) }}
+  labels:
+    {{- include "gale.labels" (list $root "monitoring") | nindent 4 }}
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels: { app.kubernetes.io/part-of: gal-e }
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+{{- end }}
+{{- end }}
+{{- if $obs.prometheusRules }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: gale
+  namespace: {{ $obsNs }}
+  labels:
+    {{- include "gale.labels" (list . "monitoring") | nindent 4 }}
+    release: kube-prometheus-stack
+spec:
+  {{- /* the file holds alert templates ({{ $value }}): inserted verbatim, never through tpl */}}
+  {{- .Files.Get "files/prometheus-rules.yaml" | nindent 2 }}
+{{- end }}
+{{- if $obs.dashboards }}
+{{- range $path, $_ := .Files.Glob "files/dashboards/*.json" }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ base $path | trimSuffix ".json" }}-dashboard
+  namespace: {{ $obsNs }}
+  labels:
+    {{- include "gale.labels" (list $root "monitoring") | nindent 4 }}
+    grafana_dashboard: "1"
+data:
+  {{ base $path }}: |-
+    {{- $root.Files.Get $path | nindent 4 }}
+{{- end }}
+{{- end }}
+{{- if $obs.otelCollector.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gale-otel-collector
+  namespace: {{ $obsNs }}
+  labels: {{- include "gale.labels" (list . "gale-otel-collector") | nindent 4 }}
+data:
+  config.yaml: |-
+    {{- .Files.Get "files/otel-collector.yaml" | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gale-otel-collector
+  namespace: {{ $obsNs }}
+  labels: {{- include "gale.labels" (list . "gale-otel-collector") | nindent 4 }}
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {{- include "gale.selector" "gale-otel-collector" | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "gale.labels" (list . "gale-otel-collector") | nindent 8 }}
+      annotations:
+        checksum/config: {{ .Files.Get "files/otel-collector.yaml" | sha256sum | trunc 16 }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {{- include "gale.podSecurity" 10001 | nindent 8 }}
+      containers:
+        - name: otelcol
+          image: {{ $obs.otelCollector.image }}
+          args: ["--config=/conf/config.yaml"]
+          env:
+            - { name: TRACES_ENDPOINT, value: {{ $obs.otelCollector.tracesEndpoint | quote }} }
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+            - { name: metrics, containerPort: 8888 }
+          readinessProbe: { httpGet: { path: /, port: 13133 } }
+          resources:
+            requests: { cpu: 200m, memory: 256Mi }
+            limits: { memory: 512Mi }
+          securityContext: {{- include "gale.containerSecurity" . | nindent 12 }}
+          volumeMounts: [{ name: conf, mountPath: /conf }]
+      volumes:
+        - name: conf
+          configMap: { name: gale-otel-collector }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gale-otel-collector
+  namespace: {{ $obsNs }}
+  labels: {{- include "gale.labels" (list . "gale-otel-collector") | nindent 4 }}
+spec:
+  selector: {{- include "gale.selector" "gale-otel-collector" | nindent 4 }}
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: otlp-grpc }
+    - { name: otlp-http, port: 4318, targetPort: otlp-http }
+    - { name: http, port: 8888, targetPort: metrics }
+{{- end }}
