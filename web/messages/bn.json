@@ -1,0 +1,22 @@
+{
+  "home": {
+    "title": "GAL-E — গালি ও আগ্রাসন শনাক্তকরণ",
+    "subtitle": "কল-সেন্টারের কথোপকথনে গালি, অপমান, হুমকি, অসম্মানজনক সম্বোধন, রূঢ় কণ্ঠস্বর ও চিৎকার শনাক্ত করে।",
+    "categoriesHeading": "শ্রেণিসমূহ",
+    "switchLanguage": "English",
+    "stubNotice": "স্টাব মোড: কোনো আসল মডেল বা কল ডেটা ব্যবহার হচ্ছে না।"
+  },
+  "categories": {
+    "slang_profanity": "গালি/অশ্লীল ভাষা",
+    "insult": "অপমান",
+    "threat": "হুমকি",
+    "sexual_harassment": "যৌন হয়রানি",
+    "hate_identity": "বিদ্বেষমূলক মন্তব্য",
+    "disrespect_register": "অসম্মানজনক সম্বোধন",
+    "harsh_tone": "রূঢ় কণ্ঠস্বর",
+    "shouting": "চিৎকার",
+    "sarcasm_mockery": "ব্যঙ্গ/উপহাস",
+    "dismissive_rude": "অভদ্র আচরণ",
+    "interruption_overtalk": "কথার মাঝে বাধা"
+  }
+}

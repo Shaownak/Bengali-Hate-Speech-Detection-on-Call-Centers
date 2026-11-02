@@ -1,0 +1,165 @@
+# FAKE lexicon for tests and stub mode. Placeholders only, no real slurs (CLAUDE.md rule 2).
+# The real lexicon is loaded from GALE_LEXICON_PATH (secure store) and imported into Postgres (D-10).
+version: 1
+fake: true
+entries:
+  - id: gali_01
+    term: "<GALI_1>"
+    variants: ["<GALI_1_V>"]
+    romanized: ["gali1"]
+    category: slang_profanity
+    severity: 3
+    context_sensitive: false
+    dialect: standard
+  - id: gali_02
+    term: "<GALI_2>"
+    variants: ["<GALI_2_V>"]
+    romanized: ["gali2"]
+    category: slang_profanity
+    severity: 3
+    context_sensitive: false
+    dialect: standard
+  - id: gali_03
+    term: "<GALI_3>"
+    variants: ["<GALI_3_V>"]
+    romanized: ["gali3"]
+    category: slang_profanity
+    severity: 1
+    context_sensitive: false
+    dialect: standard
+  - id: gali_04
+    term: "<GALI_4>"
+    variants: ["<GALI_4_V>"]
+    romanized: ["gali4"]
+    category: slang_profanity
+    severity: 2
+    context_sensitive: false
+    dialect: standard
+  - id: gali_05
+    term: "<GALI_5>"
+    variants: ["<GALI_5_V>"]
+    romanized: ["gali5"]
+    category: slang_profanity
+    severity: 2
+    context_sensitive: true
+    dialect: standard
+  - id: gali_06
+    term: "<GALI_6>"
+    variants: ["<GALI_6_V>"]
+    romanized: ["gali6"]
+    category: slang_profanity
+    severity: 1
+    context_sensitive: false
+    dialect: standard
+  - id: gali_07
+    term: "<GALI_7>"
+    variants: ["<GALI_7_V>"]
+    romanized: ["gali7"]
+    category: slang_profanity
+    severity: 2
+    context_sensitive: false
+    dialect: standard
+  - id: gali_08
+    term: "<GALI_8>"
+    variants: ["<GALI_8_V>"]
+    romanized: ["gali8"]
+    category: slang_profanity
+    severity: 2
+    context_sensitive: false
+    dialect: standard
+  - id: gali_09
+    term: "<GALI_9>"
+    variants: ["<GALI_9_V>"]
+    romanized: ["gali9"]
+    category: slang_profanity
+    severity: 1
+    context_sensitive: false
+    dialect: standard
+  - id: gali_10
+    term: "<GALI_10>"
+    variants: ["<GALI_10_V>"]
+    romanized: ["gali10"]
+    category: slang_profanity
+    severity: 2
+    context_sensitive: true
+    dialect: standard
+  - id: gali_11
+    term: "<GALI_11>"
+    variants: ["<GALI_11_V>"]
+    romanized: ["gali11"]
+    category: slang_profanity
+    severity: 2
+    context_sensitive: false
+    dialect: standard
+  - id: gali_12
+    term: "<GALI_12>"
+    variants: ["<GALI_12_V>"]
+    romanized: ["gali12"]
+    category: slang_profanity
+    severity: 1
+    context_sensitive: false
+    dialect: standard
+  - id: gali_13
+    term: "<GALI_13>"
+    variants: ["<GALI_13_V>"]
+    romanized: ["gali13"]
+    category: insult
+    severity: 2
+    context_sensitive: false
+    dialect: standard
+  - id: gali_14
+    term: "<GALI_14>"
+    variants: ["<GALI_14_V>"]
+    romanized: ["gali14"]
+    category: insult
+    severity: 2
+    context_sensitive: false
+    dialect: standard
+  - id: gali_15
+    term: "<GALI_15>"
+    variants: ["<GALI_15_V>"]
+    romanized: ["gali15"]
+    category: insult
+    severity: 1
+    context_sensitive: true
+    dialect: standard
+  - id: gali_16
+    term: "<GALI_16>"
+    variants: ["<GALI_16_V>"]
+    romanized: ["gali16"]
+    category: insult
+    severity: 2
+    context_sensitive: false
+    dialect: standard
+  - id: gali_17
+    term: "<GALI_17>"
+    variants: ["<GALI_17_V>"]
+    romanized: ["gali17"]
+    category: threat
+    severity: 3
+    context_sensitive: false
+    dialect: standard
+  - id: gali_18
+    term: "<GALI_18>"
+    variants: ["<GALI_18_V>"]
+    romanized: ["gali18"]
+    category: threat
+    severity: 1
+    context_sensitive: false
+    dialect: standard
+  - id: gali_19
+    term: "<GALI_19>"
+    variants: ["<GALI_19_V>"]
+    romanized: ["gali19"]
+    category: sexual_harassment
+    severity: 3
+    context_sensitive: false
+    dialect: standard
+  - id: gali_20
+    term: "<GALI_20>"
+    variants: ["<GALI_20_V>"]
+    romanized: ["gali20"]
+    category: sexual_harassment
+    severity: 3
+    context_sensitive: true
+    dialect: standard

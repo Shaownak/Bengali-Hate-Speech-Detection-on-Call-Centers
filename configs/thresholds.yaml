@@ -1,0 +1,53 @@
+# Per-category thresholds (docs/03 §8.4-8.5). Initial placeholders: tune on dev_v1 only,
+# never on golden_* (CLAUDE.md hard rule 3). Alert thresholds are high-precision.
+version: 1
+hysteresis:
+  cooldown_s: 20
+  merge_gap_s: 5
+  escalate_repeats: 3
+  escalate_window_s: 120
+categories:
+  slang_profanity:
+    log: 0.5
+    alert_realtime: {agent: 0.85, customer: 0.9}
+    alert_postcall: {agent: 0.75, customer: 0.8}
+  insult:
+    log: 0.5
+    alert_realtime: {agent: 0.9, customer: 0.95}
+    alert_postcall: {agent: 0.8, customer: 0.85}
+  threat:
+    log: 0.5
+    alert_realtime: {agent: 0.85, customer: 0.9}
+    alert_postcall: {agent: 0.75, customer: 0.8}
+  sexual_harassment:
+    log: 0.5
+    alert_realtime: {agent: 0.85, customer: 0.9}
+    alert_postcall: {agent: 0.75, customer: 0.8}
+  hate_identity:
+    log: 0.5
+    alert_realtime: {agent: 0.9, customer: 0.95}
+    alert_postcall: {agent: 0.8, customer: 0.85}
+  disrespect_register:
+    log: 0.5
+    alert_realtime: {agent: 0.9, customer: 0.95}
+    alert_postcall: {agent: 0.8, customer: 0.85}
+  harsh_tone:
+    log: 0.5
+    alert_realtime: {agent: 0.9, customer: 0.95}
+    alert_postcall: {agent: 0.8, customer: 0.85}
+  shouting:
+    log: 0.5
+    alert_realtime: {agent: 0.9, customer: 0.95}
+    alert_postcall: {agent: 0.8, customer: 0.85}
+  sarcasm_mockery:
+    log: 0.5
+    alert_realtime: {agent: 0.9, customer: 0.95}
+    alert_postcall: {agent: 0.8, customer: 0.85}
+  dismissive_rude:
+    log: 0.5
+    alert_realtime: {agent: 0.9, customer: 0.95}
+    alert_postcall: {agent: 0.8, customer: 0.85}
+  interruption_overtalk:
+    log: 0.5
+    alert_realtime: {agent: 0.9, customer: 0.95}
+    alert_postcall: {agent: 0.8, customer: 0.85}

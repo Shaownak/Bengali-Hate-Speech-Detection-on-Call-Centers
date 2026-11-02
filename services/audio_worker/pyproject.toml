@@ -1,0 +1,19 @@
+[project]
+name = "gale-audio-worker"
+version = "0.1.0"
+description = "GAL-E audio-worker"
+requires-python = ">=3.12,<3.13"
+dependencies = ["galecore"]
+
+[project.scripts]
+gale-audio-worker = "gale_audio_worker.__main__:main"
+
+[tool.uv.sources]
+galecore = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gale_audio_worker"]

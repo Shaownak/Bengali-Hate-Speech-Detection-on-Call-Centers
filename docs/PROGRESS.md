@@ -3,7 +3,7 @@
 Maintained by Claude Code. Updated at the end of every phase/prompt.
 Legend: `[ ]` todo · `[x]` done · `[~]` in progress · **[HUMAN]** needs people, access or sign-off · 🔒 blocked on a human input.
 
-Last updated: 2026-11-02 (Prompt 0: kickoff and spec review)
+Last updated: 2026-11-02 (Prompt 1: P0 monorepo scaffold & shared core)
 
 ---
 
@@ -12,24 +12,25 @@ Last updated: 2026-11-02 (Prompt 0: kickoff and spec review)
 ### P0 — Foundations (weeks 1–2) · Prompts 1–2
 Exit gate: `make dev-up` runs; CI green.
 - [x] Spec review, PROGRESS.md, ADR template and ADR-001..007 (Prompt 0)
-- [ ] uv workspace: `packages/galecore`, `services/*` skeletons with `/healthz` `/readyz` `/metrics`, `ml/*` empty modules
-- [ ] `galecore.schemas`: Channel, Category, Target enums; AudioFrame, Word, AsrSegment, Evidence, Signal, FusedEvent, CallLifecycle, Review (+ contract tests)
-- [ ] `galecore.config` (pydantic-settings, env + `configs/*.yaml`)
-- [ ] `galecore.logging` (structlog JSON + PII scrubber) and PII-in-logs lint
-- [ ] `galecore.bus` (BusClient over Redis Streams: publish, consumer groups, ack, retry, dead-letter, idempotency)
-- [ ] `galecore.audio` (µ-law/A-law decode, soxr 8k→16k, stereo split, 200 ms framing)
-- [ ] `galecore.bangla` (`normalize()`, `phonetic_key()`, tokenizer): tests first
-- [ ] `galecore.redact` (BD mobile incl. Bangla and spoken digits, NID 10/13/17, email, account numbers): tests first
-- [ ] Model interfaces + deterministic stubs (`ASRBackend`, `ShoutDetector`, `SERModel`, `KWSModel`, `AudioToxModel`, `TextClassifier`, `RegisterDetector`, `LLMJudge`), `GALE_MODEL_MODE=stub|real`
-- [ ] `configs/`: `thresholds.yaml`, `rules.yaml`, `models.yaml`, `lexicon/fake_lexicon.yaml` (`<GALI_1>`..`<GALI_20>`)
-- [ ] Docker-free dev stack (ADR-009): `tools/devstack` supervisor, fakeredis TCP bus, embedded Postgres (`pgserver`), local `ObjectStore`, `GALE_AUTH_MODE=dev` JWT issuer with 5 roles + demo users; `uv.toml`/`.npmrc`/Makefile put caches and temp under `.gale/` on G:
-- [ ] Verify `pgserver` on Windows and fakeredis Streams support (XADD/XREADGROUP/XACK/XCLAIM); record fallbacks in ADR-009
-- [ ] `infra/compose/docker-compose.dev.yml` (postgres, redis, minio, keycloak realm, services, web): written for later and Linux CI, optional locally
-- [ ] `web/` skeleton: Next.js App Router, TS strict, Tailwind, shadcn/ui, next-intl (bn default, en)
-- [ ] `.gitattributes` (`* text=auto eol=lf`), Windows-safe Makefile (`SHELL := bash`), and a Windows CI job (ADR-008)
-- [ ] Makefile (`setup`, `dev-up`, `dev-down`, `check`, `gen-types`, `simulate`, `report`, `eval`, `e2e`), pre-commit
-- [ ] `make gen-types`: pydantic → JSON Schema → `web/src/types/generated` + drift check
-- [ ] GitHub Actions CI: ruff, mypy --strict, pytest + coverage ≥ 80%, eslint, tsc, vitest, docker build, Trivy
+- [x] uv workspace: `packages/galecore`, 7 `services/*` skeletons with `/healthz` `/readyz` `/metrics`, `ml/*` empty modules (ml is a plain package, not a workspace member: D-16)
+- [x] `galecore.schemas`: enums (Channel, Speaker, Category, Target, ContextFlag, SignalSource, EventStatus) + AudioFrame, Word, AsrSegment, Evidence, Signal, FusedEvent, CallLifecycle, Review, WindowJudgement, CallScorecard; tests check Category against docs/02 and docs/08
+- [x] `galecore.config` (pydantic-settings `GALE_*`, validated YAML loaders, dev-auth/stub-in-prod guards)
+- [x] `galecore.logging` (structlog JSON + PII scrubber) and `tools/lint_pii_logs.py` (AST lint, in `make lint` + pre-commit)
+- [x] `galecore.bus` (BusClient: publish, consumer groups, ack, XAUTOCLAIM retry, `.dlq` dead-letter, idempotency keys, Prometheus counters; binary PCM fields per D-02)
+- [x] `galecore.audio` (G.711 µ-law/A-law encode+decode bit-exact vs CCITT reference, soxr resample, stereo split, 200 ms framing, dBFS)
+- [x] `galecore.bangla` (`normalize()`, `phonetic_key()`, offset tokenizer; placeholder tags keep case)
+- [x] `galecore.redact` (BD mobile incl. Bangla/spoken digits and ডাবল/ট্রিপল, NID 10/13/17, email, ≥7-digit accounts, pluggable NER hook)
+- [x] Model interfaces + deterministic stubs (`ASRBackend`, `ShoutDetector`, `SERModel`, `KWSModel`, `AudioToxModel`, `TextClassifier`, `RegisterDetector`, `LLMJudge`), `GALE_MODEL_MODE=stub|real`
+- [x] `configs/`: `thresholds.yaml`, `rules.yaml`, `models.yaml`, `bangla_canonical.yaml`, `lexicon/fake_lexicon.yaml` (`<GALI_1>`..`<GALI_20>`)
+- [x] Docker-free dev stack (ADR-009): `tools/devstack` (up/status/down), fakeredis TCP bus, embedded Postgres via `pg_ctl`; `uv.toml` / `web/pnpm-workspace.yaml` / Makefile put caches and temp under `.gale/`
+- [ ] Local `ObjectStore` backend (moved to P1 Prompt 3, first consumer) and `GALE_AUTH_MODE=dev` JWT issuer (moved to P5 Prompt 12, first consumer); config guard already enforces dev-only
+- [x] Verified `pgserver` on Windows and fakeredis Streams support; findings in ADR-009 (no `pg_trgm`; no DETACHED_PROCESS)
+- [x] `infra/compose/docker-compose.dev.yml` (postgres, redis, minio, keycloak realm with 5 roles + demo users, services) + `infra/docker/service.Dockerfile`: written, **not run locally** (no Docker)
+- [x] `web/` skeleton: Next.js 15 App Router, TS strict, Tailwind 4, shadcn/ui button, next-intl (bn default, en), TanStack Query, Zustand; Vitest tests check the Category enum and bn/en labels against the backend schema. wavesurfer.js/Recharts are added in P5 with their first screens
+- [x] `.gitattributes` (`* text=auto eol=lf`), Windows-safe Makefile (`SHELL := bash`), and a Windows CI job (ADR-008)
+- [x] Makefile (`setup`, `dev-up`, `dev-down`, `dev-status`, `check`, `gen-types`, later-phase targets print where they arrive), pre-commit (local hooks only)
+- [x] `make gen-types`: pydantic → JSON Schema (`tools/gen_types.py`) → TypeScript (`web/scripts/gen-types.mjs`) + `make gen-types-check` drift check
+- [x] GitHub Actions CI written: ruff, mypy --strict, pytest + coverage ≥ 80% (Linux + Windows), eslint, tsc, vitest, types drift, docker build, Trivy. **Not yet run on GitHub** (nothing pushed)
 - [ ] `tools/fixtures_gen`: 10 synthetic stereo 8 kHz calls with `script.json` + `expected_events.json` (placeholders only)
 - [ ] `tools/simulator`: RTP (G.711 µ-law), WebSocket PCM, file-drop modes; `--speed`; round-trip decode test
 - [ ] **[HUMAN]** Legal basis and DPIA started (PDPO 2025) 🔒
@@ -149,6 +150,8 @@ Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own
 | D-12 | Dependency isolation: the uv workspace holds light deps. Heavy GPU stacks (NeMo, FunASR, Unsloth) are per-package optional extras declared as uv `conflicts`. vLLM runs as its own container from the official image, outside the workspace lock. | P0 |
 | D-13 | Calibration falls back to Platt/beta when a (source, category) pair has < 200 dev positives. Isotonic is used only above that. All golden metrics are reported with bootstrap 95% CIs. | P3 |
 | D-14 | The rules "simulate on last N calls" feature (04 §2.8) and any threshold tooling exclude golden-set call ids at the query level. | P5 |
+| D-16 | `ml/` is a plain package at the repo root (so `python -m ml.eval.run` works), not a uv workspace member; heavy ML deps arrive as root dependency groups per component. | P0 |
+| D-17 | `normalize()` lower-cases Latin text but keeps placeholder tags (`<PHONE>`, `<GALI_1>`) intact, so tag and lexicon matching survive normalisation. | P0 |
 | D-15 | Mono/diarized audio: `Channel.mixed` is allowed only before diarization. Fusion accepts only `agent`/`customer`. Segments that can't be attributed are stored but never alert. | P1 |
 
 ---
@@ -185,11 +188,20 @@ Smaller inconsistencies, resolved in-line without an ADR:
 
 ---
 
+## Prompt 1 summary (2026-11-02)
+
+**Built:** uv workspace (galecore + 7 services), shared core (schemas, config, logging + scrubber, bus, audio, Bangla normaliser, redaction, model interfaces + stubs), configs, Docker-free devstack, Next.js skeleton, codegen, Makefile, pre-commit, CI, compose/Dockerfile.
+
+**Verified on this Windows machine:** `make check` passes: ruff, format, PII-in-logs lint, mypy --strict, 135 pytest tests at 99.5% coverage, eslint, tsc, 6 vitest tests, types regenerate. `make dev-up` brings up bus, embedded Postgres, 7 services (all `/readyz` ready) and the web app (Bangla page renders). `make dev-down` stops everything cleanly.
+
+**Stubbed:** every model (`GALE_MODEL_MODE=stub`); real backends raise `RealModelsUnavailableError` until P1.
+
+**Not verified:** GitHub Actions (nothing pushed), Docker image build, compose stack and Trivy (no Docker locally).
+
+**Needs a human:** delete the leftover `G:\.pnpm-store` folder (a broken partial pnpm store from this session; the tool wasn't allowed to remove a drive-root folder). Optionally delete `%LOCALAPPDATA%\pnpm-cache` (~40 MB on C:, pnpm metadata from the first install).
+
+**Incident (2026-11-02):** pnpm 12's global virtual store keeps a junction from `<store>/projects/<hash>` to `web/`. Moving the store followed it and moved web config files into the store. Files were restored from there, nothing was lost, and `enableGlobalVirtualStore: false` now prevents it (ADR-009).
+
 ## Next step
 
-1. Windows toolchain (ADR-008), 2026-11-02:
-   - [x] uv 0.13.6, GNU Make 4.4.1, pnpm 12.16.1 installed via winget (user scope). Corepack couldn't write to `C:\Program Files\nodejs`, so pnpm is the standalone build.
-   - [x] PATH fixed by the user: `make` now resolves to GNU Make 4.4.1.
-   - [x] Docker Desktop **not** installed (user decision, C: has 0.6 GB free). Local dev is Docker-free (ADR-009).
-   - Already present: Python 3.12.3, Node 20.12.2, Git Bash 5.2.
-2. Run **Prompt 1: P0 monorepo scaffold & shared core**.
+Run **Prompt 2: P0 synthetic fixtures & call simulator** (`tools/fixtures_gen`, `tools/simulator`, `make simulate`).

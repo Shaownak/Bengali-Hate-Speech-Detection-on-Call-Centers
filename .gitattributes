@@ -1,0 +1,7 @@
+# ADR-008: LF everywhere so scripts/YAML behave the same on Windows, CI and containers
+* text=auto eol=lf
+*.wav binary
+*.png binary
+*.ico binary
+*.bat text eol=crlf
+*.ps1 text eol=crlf

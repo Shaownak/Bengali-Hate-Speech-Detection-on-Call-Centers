@@ -1,0 +1,31 @@
+# local caches, temp, data, models (ADR-009: everything under .gale/ on the repo drive)
+.gale/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# web
+web/node_modules/
+web/.next/
+web/out/
+web/coverage/
+web/test-results/
+web/playwright-report/
+web/next-env.d.ts
+*.tsbuildinfo
+
+# secrets & real data (CLAUDE.md hard rule 2)
+.env
+.env.*
+!.env.example
+configs/lexicon/*.real.*
+*.enc

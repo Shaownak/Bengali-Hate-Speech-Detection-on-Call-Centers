@@ -1,0 +1,14 @@
+# Active model versions per component (docs/03 §9). Stub defaults for local dev.
+# Real entries must pin revision = HF commit hash (CLAUDE.md hard rule 6).
+version: 1
+components:
+  asr_realtime: {backend: stub, version: stub-0.1}
+  asr_postcall: {backend: stub, version: stub-0.1}
+  kws: {backend: stub, version: stub-0.1}
+  shout: {backend: stub, version: stub-0.1}
+  ser: {backend: stub, version: stub-0.1}
+  audio_tox: {backend: stub, version: stub-0.1}
+  text_clf: {backend: stub, version: stub-0.1}
+  register: {backend: stub, version: stub-0.1}
+  llm_judge: {backend: stub, version: stub-0.1}
+  fusion: {backend: rules_v0, version: "0.1"}

@@ -1,0 +1,77 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUTF8: "1"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  python:
+    name: python (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]  # Windows job keeps native-Windows dev working (ADR-008)
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --locked
+      - run: make lint typecheck test UV=uv
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: uv sync --locked
+      - run: cd web && pnpm install --frozen-lockfile
+      - run: make check-web
+      - name: generated types are up to date
+        run: make gen-types-check
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: [python]
+    strategy:
+      matrix:
+        service: [api, ingest_gateway, audio_worker, asr_worker, text_worker, llm_judge, fusion_engine]
+    steps:
+      - uses: actions/checkout@v4
+      - name: build image
+        run: >
+          docker build -f infra/docker/service.Dockerfile
+          --build-arg SERVICE=${{ matrix.service }}
+          -t gale-${{ matrix.service }}:${{ github.sha }} .
+      - name: trivy scan
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: gale-${{ matrix.service }}:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"

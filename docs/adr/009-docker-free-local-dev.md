@@ -31,3 +31,10 @@ The local dev stack runs from the uv-managed virtualenv (`.venv` in the repo on 
 - Positive: no Docker and no C: usage. `make dev-up` works on this laptop. Code paths are the same, only backends differ by config.
 - Negative: fakeredis and embedded Postgres differ from production servers in edge cases (performance, persistence, some commands). The Linux CI compose job is the parity check. Real GPU models still can't run locally (ADR-008).
 - Follow-ups: in Prompt 1, verify that `pgserver` runs on Windows and that fakeredis supports XADD/XREADGROUP/XACK/XCLAIM. If either fails, record the replacement here.
+
+## Verification (2026-11-02, Prompt 1)
+- **fakeredis 2.40.0**: XADD, XGROUP CREATE, XREADGROUP, XPENDING (range), XAUTOCLAIM and XACK all behave as the bus needs. `TcpFakeServer` serves redis-py over TCP on port 6380. ✅
+- **pgserver 0.1.4**: PostgreSQL 16.2 (MinGW build) runs on Windows. ✅ Two findings:
+  - `pg_trgm` is **not bundled**. Free-text transcript search (docs/04 §2.3) needs it. Migrations must create it conditionally, and dev falls back to `ILIKE` (P5).
+  - Postgres child processes crash with `0xC0000142` (DLL init failure) when their ancestor was started with `DETACHED_PROCESS`. devstack therefore spawns with `CREATE_NO_WINDOW`, starts Postgres via `pg_ctl` (it daemonises), and stops it with `pg_ctl stop -m fast`, never a force-kill.
+- **pnpm 12** ignores `store-dir` / `onlyBuiltDependencies` in `.npmrc`. The store/cache dirs and the build-script allowlist (`allowBuilds`) live in `web/pnpm-workspace.yaml`. Its global virtual store links `<store>/projects/<hash>` back to `web/` with a junction, so it is **disabled** (`enableGlobalVirtualStore: false`). Never move or delete the store with tools that follow junctions.

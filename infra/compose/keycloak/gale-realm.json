@@ -1,0 +1,136 @@
+{
+  "realm": "gale",
+  "enabled": true,
+  "displayName": "GAL-E (local dev only)",
+  "_comment": "Local-dev realm. Demo users/passwords are placeholders; never import into staging/prod.",
+  "roles": {
+    "realm": [
+      {
+        "name": "admin"
+      },
+      {
+        "name": "qa_analyst"
+      },
+      {
+        "name": "supervisor"
+      },
+      {
+        "name": "agent"
+      },
+      {
+        "name": "auditor"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "gale-web",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://127.0.0.1:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+      ]
+    },
+    {
+      "clientId": "gale-api",
+      "bearerOnly": true
+    }
+  ],
+  "users": [
+    {
+      "username": "demo-admin",
+      "enabled": true,
+      "email": "demo-admin@gale.test",
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-dev-only",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ]
+    },
+    {
+      "username": "demo-qa-analyst",
+      "enabled": true,
+      "email": "demo-qa-analyst@gale.test",
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "qa_analyst",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-dev-only",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "qa_analyst"
+      ]
+    },
+    {
+      "username": "demo-supervisor",
+      "enabled": true,
+      "email": "demo-supervisor@gale.test",
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "supervisor",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-dev-only",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "supervisor"
+      ]
+    },
+    {
+      "username": "demo-agent",
+      "enabled": true,
+      "email": "demo-agent@gale.test",
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "agent",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-dev-only",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "agent"
+      ]
+    },
+    {
+      "username": "demo-auditor",
+      "enabled": true,
+      "email": "demo-auditor@gale.test",
+      "emailVerified": true,
+      "firstName": "Demo",
+      "lastName": "auditor",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo-dev-only",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "auditor"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "home": {
+    "title": "GAL-E — Gali & Aggression Listening Engine",
+    "subtitle": "Detects slang, insults, threats, disrespectful register, harsh tone and shouting in call-centre conversations.",
+    "categoriesHeading": "Categories",
+    "switchLanguage": "বাংলা",
+    "stubNotice": "Stub mode: no real models or call data in use."
+  },
+  "categories": {
+    "slang_profanity": "Slang / profanity",
+    "insult": "Insult",
+    "threat": "Threat",
+    "sexual_harassment": "Sexual harassment",
+    "hate_identity": "Hate (identity)",
+    "disrespect_register": "Disrespectful register",
+    "harsh_tone": "Harsh tone",
+    "shouting": "Shouting",
+    "sarcasm_mockery": "Sarcasm / mockery",
+    "dismissive_rude": "Dismissive / rude",
+    "interruption_overtalk": "Interruption / overtalk"
+  }
+}

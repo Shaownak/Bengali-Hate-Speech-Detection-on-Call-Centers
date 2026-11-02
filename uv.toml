@@ -1,0 +1,3 @@
+# ADR-009: keep uv's cache on the repo drive, never on C:
+cache-dir = ".gale/uv-cache"
+python-preference = "only-system"

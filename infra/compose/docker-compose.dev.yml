@@ -1,0 +1,82 @@
+# Containerised dev stack (optional locally per ADR-009; used by Linux CI / once Docker exists).
+#   make dev-up DEV_STACK=compose
+# All services run in stub mode. Credentials below are local-dev placeholders only.
+name: gale-dev
+
+x-service: &service
+  build:
+    context: ../..
+    dockerfile: infra/docker/service.Dockerfile
+  environment: &service-env
+    GALE_ENV: dev
+    GALE_MODEL_MODE: stub
+    GALE_AUTH_MODE: dev
+    GALE_BUS_URL: redis://redis:6379/0
+    GALE_DB_URL: postgresql+psycopg://gale:gale-dev@postgres:5432/gale
+    GALE_OBJECT_STORE: s3
+  depends_on:
+    redis: { condition: service_healthy }
+    postgres: { condition: service_healthy }
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16.6-alpine
+    environment: { POSTGRES_USER: gale, POSTGRES_PASSWORD: gale-dev, POSTGRES_DB: gale }
+    ports: ["5433:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD", "pg_isready", "-U", "gale"], interval: 5s, retries: 10 }
+
+  redis:
+    image: redis:7.4-alpine
+    # D-01: no AOF for the dev bus; prod persistence settings are decided per stream in P6
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    ports: ["6380:6379"]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 5s, retries: 10 }
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment: { MINIO_ROOT_USER: gale-dev, MINIO_ROOT_PASSWORD: gale-dev-secret }
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    command: ["start-dev", "--import-realm"]
+    environment: { KC_BOOTSTRAP_ADMIN_USERNAME: admin, KC_BOOTSTRAP_ADMIN_PASSWORD: admin-dev }
+    ports: ["8080:8080"]
+    volumes: ["./keycloak/gale-realm.json:/opt/keycloak/data/import/gale-realm.json:ro"]
+
+  api:
+    <<: *service
+    build: { context: ../.., dockerfile: infra/docker/service.Dockerfile, args: { SERVICE: api } }
+    ports: ["8000:8000"]
+  ingest_gateway:
+    <<: *service
+    build: { context: ../.., dockerfile: infra/docker/service.Dockerfile, args: { SERVICE: ingest_gateway } }
+    ports: ["8001:8000"]
+  audio_worker:
+    <<: *service
+    build: { context: ../.., dockerfile: infra/docker/service.Dockerfile, args: { SERVICE: audio_worker } }
+    ports: ["8002:8000"]
+  asr_worker:
+    <<: *service
+    build: { context: ../.., dockerfile: infra/docker/service.Dockerfile, args: { SERVICE: asr_worker } }
+    ports: ["8003:8000"]
+  text_worker:
+    <<: *service
+    build: { context: ../.., dockerfile: infra/docker/service.Dockerfile, args: { SERVICE: text_worker } }
+    ports: ["8004:8000"]
+  llm_judge:
+    <<: *service
+    build: { context: ../.., dockerfile: infra/docker/service.Dockerfile, args: { SERVICE: llm_judge } }
+    ports: ["8005:8000"]
+  fusion_engine:
+    <<: *service
+    build: { context: ../.., dockerfile: infra/docker/service.Dockerfile, args: { SERVICE: fusion_engine } }
+    ports: ["8006:8000"]
+
+volumes:
+  pgdata:
+  miniodata:

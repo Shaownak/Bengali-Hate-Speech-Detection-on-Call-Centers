@@ -1,0 +1,18 @@
+packages: ["."]
+
+# ADR-009: keep pnpm's store and caches on the repo drive, never on C:
+# (pnpm >= 11 reads these from here, not from .npmrc)
+storeDir: ../.gale/pnpm-store
+cacheDir: ../.gale/pnpm-cache
+# Keep node_modules local. The global virtual store links the store back to the project
+# (a junction), and moving or cleaning the store then follows it into web/ (happened 2026-11-02).
+enableGlobalVirtualStore: false
+
+# pnpm >= 10 blocks dependency build scripts unless explicitly allowed
+allowBuilds:
+  "@parcel/watcher": true
+  "@swc/core": true
+  "@tailwindcss/oxide": true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true

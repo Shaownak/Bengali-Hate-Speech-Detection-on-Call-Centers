@@ -1,0 +1,9 @@
+# Loanword spelling variants → canonical form (docs/02 §2.5). Applied after normalize().
+version: 1
+canonical:
+  রিচার্য: রিচার্জ
+  রিসার্জ: রিচার্জ
+  ওটিপী: ওটিপি
+  ব্যালান্স: ব্যালেন্স
+  ব্যালেঞ্চ: ব্যালেন্স
+  সীম: সিম
