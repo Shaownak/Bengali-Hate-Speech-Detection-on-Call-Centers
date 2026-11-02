@@ -85,6 +85,7 @@ export interface GaleSchemas {
   JudgedEvent?: JudgedEvent;
   LlmDecision?: LlmDecision;
   PostcallJob?: PostcallJob;
+  PostcallResult?: PostcallResult;
   ProvisionalDecision?: ProvisionalDecision;
   Review?: Review;
   Signal?: Signal;
@@ -315,19 +316,23 @@ export interface PostcallJob {
   uri: string;
 }
 /**
- * Human verdict on an event, or an agent dispute (D-08).
+ * A finished post-call run (stream ``postcall.results``), for persistence by the API.
+ *
+ * Carries the redacted final segments and the signals; events and the scorecard travel on
+ * ``events.fused`` / ``call.scores`` as in real-time mode.
  *
  * This interface was referenced by `GaleSchemas`'s JSON-Schema
- * via the `definition` "Review".
+ * via the `definition` "PostcallResult".
  */
-export interface Review {
-  comment?: string | null;
-  corrected_category?: Category | null;
-  corrected_severity?: (1 | 2 | 3) | null;
-  event_id: string;
-  kind?: "verdict" | "dispute";
-  reviewer_user_id: string;
-  verdict?: ("correct" | "wrong_category" | "false_positive" | "wrong_severity") | null;
+export interface PostcallResult {
+  call_id: string;
+  channel_layout?: "stereo_agent_left" | "stereo_agent_right" | "mono";
+  duration_s: number;
+  external_ref?: string | null;
+  queue?: string | null;
+  recording_uri?: string | null;
+  segments?: AsrSegment[];
+  signals?: Signal[];
 }
 /**
  * This interface was referenced by `GaleSchemas`'s JSON-Schema
@@ -345,6 +350,21 @@ export interface Signal {
   source: SignalSource;
   ts_end: number;
   ts_start: number;
+}
+/**
+ * Human verdict on an event, or an agent dispute (D-08).
+ *
+ * This interface was referenced by `GaleSchemas`'s JSON-Schema
+ * via the `definition` "Review".
+ */
+export interface Review {
+  comment?: string | null;
+  corrected_category?: Category | null;
+  corrected_severity?: (1 | 2 | 3) | null;
+  event_id: string;
+  kind?: "verdict" | "dispute";
+  reviewer_user_id: string;
+  verdict?: ("correct" | "wrong_category" | "false_positive" | "wrong_severity") | null;
 }
 /**
  * This interface was referenced by `GaleSchemas`'s JSON-Schema

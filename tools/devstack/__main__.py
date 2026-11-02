@@ -14,6 +14,7 @@ import argparse
 import contextlib
 import json
 import os
+import secrets
 import shutil
 import signal
 import subprocess
@@ -190,7 +191,10 @@ def up(web: bool) -> None:
         "GALE_DB_URL": db_url,
         "GALE_OBJECT_STORE": "local",
         "GALE_INGEST_DROP_DIR": str(ROOT / ".gale" / "drop" / "incoming"),  # post-call file mode
+        "GALE_OBJECT_URL_SECRET": secrets.token_hex(32),  # signed audio links (API)
     }
+    # schema + dev users/teams before the API starts (P5); idempotent
+    subprocess.run([py, "-m", "gale_api", "seed-dev"], env=env, check=True, cwd=ROOT)
     for name, port in SERVICES.items():
         if name not in state:
             args = COMMANDS.get(name, ["-m", f"gale_{name}"])

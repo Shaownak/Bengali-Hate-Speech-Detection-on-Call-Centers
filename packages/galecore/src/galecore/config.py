@@ -40,7 +40,26 @@ class Settings(BaseSettings):
 
     workers: bool = True  # run the service's bus consumer (off for API-only test apps)
 
+    # S3 / MinIO (object_store="s3"); SSE-KMS is configured on the bucket (docs/05)
+    s3_endpoint: str = "127.0.0.1:9000"
+    s3_secure: bool = False
+    s3_bucket: str = "gale"
+    s3_region: str = "us-east-1"
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
+    # HMAC key for local signed URLs; random per process if unset (then only that process verifies)
+    object_url_secret: str = ""
+    signed_url_ttl_s: int = 300
+
     auth_mode: Literal["oidc", "dev"] = "oidc"
+    # OIDC (Keycloak): issuer = https://kc/realms/<realm>; JWKS defaults to the realm certs URL
+    oidc_issuer: str = "http://127.0.0.1:8080/realms/gale"
+    oidc_audience: str = "gale-api"
+    oidc_jwks_url: str | None = None
+    oidc_role_claim: str = "realm_access.roles"
+    dev_jwt_secret: str = "gale-dev-only-secret-not-for-prod-0000"  # noqa: S105 (dev/test only)
+    cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    db_auto_migrate: bool = False  # api runs `alembic upgrade head` at startup (dev stack)
     log_level: str = "INFO"
     log_json: bool = True
 

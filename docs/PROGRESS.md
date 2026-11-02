@@ -100,8 +100,9 @@ Exit gate: simulator + staging PBX: p95 confirmed alert ≤ 6 s.
 
 ### P5 — API & GUI (weeks 9–14) · Prompts 12–13
 Exit gate: usability sign-off.
-- [ ] FastAPI REST + WS per `04_GUI_SPEC.md` §3, OIDC (Keycloak), RBAC, audit log on every audio/transcript view, signed audio URLs
-- [ ] Alembic migrations for the `01_ARCHITECTURE.md` §4 schema (+ D-08 additions), monthly partitions
+- [x] FastAPI REST + WS per `04_GUI_SPEC.md` §3, OIDC (Keycloak), RBAC, audit log on every audio/transcript view, signed audio URLs (Prompt 12, ADR-016; OIDC verified against the dev issuer only)
+- [x] Alembic migrations for the `01_ARCHITECTURE.md` §4 schema (+ D-08 additions), monthly partitions
+- [x] OpenAPI → TS types (`web/src/types/generated/api.ts`) + typed `openapi-fetch` client
 - [ ] Web: `/live`, `/live/[callId]`, `/calls`, `/calls/[callId]`, `/review`, `/analytics`, `/me`, `/admin/{lexicon,rules,models,health,audit}`
 - [ ] bn/en i18n, dark/light, WCAG 2.1 AA, wallboard 1,000 calls at 2 updates/s
 - [ ] Vitest, Playwright e2e against simulator stack, visual regression, Lighthouse a11y ≥ 90
@@ -159,6 +160,7 @@ Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own
 | D-21 | Data engine (ADR-013): uuid5 call ids, salted HMAC customer hashes (salt only from a secret), per-channel quality filters, speaker-connected-component splits, golden lock + converter refusal, LS templates generated from enums, annotator text re-redacted on export. | P2 |
 | D-22 | Evaluation definitions (ADR-014): gold with context flags must end dismissed/absent; per-slice FPR = false alerts per 100 calls; call-level 'needs QA review' = alert-worthy agent event or T3 professionalism ≤ 2; bootstrap resamples without events are skipped; golden loads only with a matching lock. | P2 |
 | D-23 | Streaming services (ADR-015): one `galecore.streaming.Worker` per service; lexicon fast path on ASR partials; latency measured from the word (lexicon) or utterance end (register/classifier); replay-based restart recovery; post-call jobs yield to real-time backlog; provisional alerts can be retracted via `events.fused`. | P4 |
+| D-24 | API & persistence (ADR-016): an `api_persister` consumer writes bus messages to Postgres (idempotent upserts); post-call runs publish `postcall.results`. String pipeline ids; monthly partitions on `call_started_at`; trigram index only where `pg_trgm` exists. Role from the token, scoping from the DB (out of scope = 404). WS auth via first message, 250 ms batches. Two-person model promotion; `research_only` never promotable. Gateway carries optional `agent_id`/`queue`. | P5 |
 | D-15 | Mono/diarized audio: `Channel.mixed` is allowed only before diarization. Fusion accepts only `agent`/`customer`. Segments that can't be attributed are stored but never alert. | P1 |
 
 ---
@@ -349,6 +351,31 @@ Smaller inconsistencies, resolved in-line without an ADR:
 
 **Needs a human:** the PBX team configures the media fork in staging (runbook checklist) 🔒; p95 on a staging PBX for the P4 exit gate.
 
+## Prompt 12 summary (2026-11-02)
+
+**Built:** `services/api`:
+- SQLAlchemy 2 models and Alembic migration 0001 for the full docs/01 §4 schema (+ D-24 additions). Monthly partitions for segments/signals, created on demand. Trigram index on normalised redacted text.
+- Bus → DB persister (`api_persister` group); post-call results via the new `postcall.results` stream.
+- Auth: OIDC JWT (Keycloak JWKS) or the dev issuer. RBAC permission table + row scoping (supervisor teams, agent's own calls). Audit middleware.
+- Every docs/04 §3 endpoint: calls (filters, transcript search), segments, events (with top signals), timelines, signed audio URLs, reviews/disputes, acks, review queue, agent/team/queue analytics, lexicon CRUD (QA proposes, admin activates, soft delete), rules (versioned) + `rules/simulate` (new `gale_fusion_engine.simulate`), models + two-person promotion, audit, recording upload.
+- WebSockets `/ws/live` and `/ws/calls/{id}`, role/team-filtered, batched every 250 ms.
+- `S3ObjectStore` (MinIO pre-signed URLs).
+- Gateway, simulator and Asterisk/FreeSWITCH metadata carry `agent_id`/`queue`.
+- Dev seed (`python -m gale_api seed-dev`: 2 teams, 3 agents, one user per role, model versions), run by `make dev-up`.
+- `make gen-types` now also emits OpenAPI → `api.ts`; `web/src/lib/api.ts` is the typed client.
+
+**Verified:**
+- RBAC matrix: 27 endpoint cases × 7 roles + anonymous, with a test that fails if an endpoint has no case.
+- Scoping, reviews, acks, promotion (self-approval refused, research_only refused), rules validation + simulation diff, audit rows, signed-URL download (+ tampered link refused), upload → `postcall.jobs`.
+- Persister idempotency; WS close codes, team filtering and coalescing.
+- Migration up/down/up with ORM == schema.
+- Post-call worker on an object-store key.
+- Tests run on a real Postgres (embedded pgserver; `GALE_TEST_PG_URL` for an external one).
+
+**Stubbed / limits:** Keycloak not exercised (dev issuer only); workers don't hot-reload rules/lexicon edits yet (P6); the embedded Postgres has no `pg_trgm`, so dev search is unindexed.
+
+**Needs a human:** a Keycloak realm `gale` with client `gale-api` and the five realm roles, for staging.
+
 ## Next step
 
-Run **Prompt 6: P3a ASR fine-tuning** on the GPU box (🔒 GPU + data). Prompts 6–10 need a GPU and annotated data. Prompt 11 (P4) is built on the simulator; its exit gate waits on a staging PBX. **Prompt 12 (P5 API & GUI)** can be built now.
+Run **Prompt 6: P3a ASR fine-tuning** on the GPU box (🔒 GPU + data). Prompts 6–10 need a GPU and annotated data. Prompt 11 (P4) is built on the simulator; its exit gate waits on a staging PBX. Prompt 12 (P5 API) is done. **Prompt 13 (P5 web dashboard)** can be built now against the API and the generated client.

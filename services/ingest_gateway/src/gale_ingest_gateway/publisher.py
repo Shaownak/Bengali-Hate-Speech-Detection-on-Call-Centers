@@ -53,7 +53,15 @@ class BusPublisher:
             audio_stream(frame.call_id), frame, f"{frame.call_id}:{frame.channel.value}:{frame.seq}"
         )
 
-    def started(self, call_id: str, external_ref: str | None, layout: str | None) -> None:
+    def started(
+        self,
+        call_id: str,
+        external_ref: str | None,
+        layout: str | None,
+        *,
+        agent_id: str | None = None,
+        queue: str | None = None,
+    ) -> None:
         self.wall_start[call_id] = time.time()
         self._put(
             CALL_LIFECYCLE,
@@ -64,6 +72,8 @@ class BusPublisher:
                 mode="realtime",
                 external_ref=external_ref,
                 channel_layout=layout,
+                agent_id=agent_id,
+                queue=queue,
                 wall_clock=self.wall_start[call_id],
             ),
             f"{call_id}:started",

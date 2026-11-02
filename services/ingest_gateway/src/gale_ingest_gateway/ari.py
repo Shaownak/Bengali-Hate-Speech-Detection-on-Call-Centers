@@ -31,6 +31,8 @@ from galecore.schemas import Channel
 
 log = get_logger(__name__)
 ROLE_VAR = "GALE_ROLE"
+AGENT_VAR = "GALE_AGENT_ID"  # employee code, for supervisor scoping (optional)
+QUEUE_VAR = "GALE_QUEUE"
 
 
 @dataclass
@@ -72,9 +74,12 @@ class AriApp:
         r.raise_for_status()
         return r.json() if r.content else {}
 
+    async def _var(self, channel_id: str, name: str) -> str | None:
+        r = await self.http.get(f"/channels/{channel_id}/variable", params={"variable": name})
+        return (r.json().get("value") or None) if r.status_code == 200 else None
+
     async def _role(self, channel_id: str) -> str | None:
-        r = await self.http.get(f"/channels/{channel_id}/variable", params={"variable": ROLE_VAR})
-        return r.json().get("value") if r.status_code == 200 else None
+        return await self._var(channel_id, ROLE_VAR)
 
     async def on_event(self, evt: dict[str, Any]) -> None:
         kind = evt.get("type")
@@ -137,6 +142,8 @@ class AriApp:
                     codec="pcmu" if self.fmt == "ulaw" else "pcma",
                     remote=remotes,
                     external_ref=ref,
+                    agent_id=await self._var(cid, AGENT_VAR),
+                    queue=await self._var(cid, QUEUE_VAR),
                 )
             )
             log.info("ari_monitor_started", call_id=mon.call_id)

@@ -35,6 +35,8 @@ class Call:
     external_ref: str | None = (
         None  # "fixture:<dir>" for synthetic fixtures (stub models key off it)
     )
+    agent_id: str | None = None  # employee code the gateway reports (supervisor scoping)
+    queue: str | None = None
 
     @property
     def duration_s(self) -> float:
@@ -158,6 +160,8 @@ async def send_ws(
                     "encoding": "pcm_s16le",
                     "layout": "stereo_agent_left",
                     "external_ref": call.external_ref,
+                    "agent_id": call.agent_id,
+                    "queue": call.queue,
                 }
             )
         )
@@ -211,6 +215,8 @@ async def run_rtp(
             "codec": codec,
             "ssrc": ssrc,
             "external_ref": call.external_ref,
+            "agent_id": call.agent_id,
+            "queue": call.queue,
         },
     )
     r.raise_for_status()

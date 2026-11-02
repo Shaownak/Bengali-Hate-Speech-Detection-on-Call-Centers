@@ -337,6 +337,23 @@ class PostcallJob(GaleModel):
     queue: str | None = None
 
 
+class PostcallResult(GaleModel):
+    """A finished post-call run (stream ``postcall.results``), for persistence by the API.
+
+    Carries the redacted final segments and the signals; events and the scorecard travel on
+    ``events.fused`` / ``call.scores`` as in real-time mode.
+    """
+
+    call_id: str
+    duration_s: float = Field(ge=0)
+    channel_layout: Literal["stereo_agent_left", "stereo_agent_right", "mono"] = "stereo_agent_left"
+    external_ref: str | None = None
+    queue: str | None = None
+    recording_uri: str | None = None
+    segments: list[AsrSegment] = Field(default_factory=list)
+    signals: list[Signal] = Field(default_factory=list)
+
+
 # Models exported to JSON Schema / TypeScript by `make gen-types`.
 EXPORTED_MODELS: tuple[type[GaleModel], ...] = (
     AudioFrame,
@@ -354,6 +371,7 @@ EXPORTED_MODELS: tuple[type[GaleModel], ...] = (
     LlmDecision,
     CallScoreMessage,
     PostcallJob,
+    PostcallResult,
 )
 
 

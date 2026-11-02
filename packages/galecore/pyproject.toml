@@ -16,6 +16,7 @@ dependencies = [
     "uvicorn>=0.32",
     "prometheus-client>=0.21",
     "opentelemetry-api>=1.28",
+    "minio>=7.2",  # S3/MinIO object store (presigned URLs)
 ]
 
 [build-system]

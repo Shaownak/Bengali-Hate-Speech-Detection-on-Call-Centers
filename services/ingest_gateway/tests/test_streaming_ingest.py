@@ -26,7 +26,9 @@ class Events:
     def __init__(self) -> None:
         self.log: list[tuple[str, str]] = []
 
-    def started(self, call_id: str, external_ref: str | None, layout: str | None) -> None:
+    def started(
+        self, call_id: str, external_ref: str | None, layout: str | None, **kw: str | None
+    ) -> None:
         self.log.append(("started", f"{call_id}|{external_ref}|{layout}"))
 
     def ended(self, call_id: str, duration_s: float) -> None:
@@ -154,9 +156,9 @@ async def test_ari_app_snoops_and_registers() -> None:
         calls.append((req.method, req.url.path, params))
         path = req.url.path.removeprefix("/ari")
         if path.endswith("/variable"):
-            return httpx.Response(
-                200, json={"value": "agent" if path.startswith("/channels/agent-1") else ""}
-            )
+            agent_leg = path.startswith("/channels/agent-1")
+            value = {"GALE_ROLE": "agent", "GALE_AGENT_ID": "AG-007"}.get(params["variable"], "")
+            return httpx.Response(200, json={"value": value if agent_leg else ""})
         if path.endswith("/snoop"):
             return httpx.Response(200, json={"id": params["snoopId"]})
         if path == "/channels/externalMedia":

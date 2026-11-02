@@ -125,6 +125,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--spawn", choices=["auto", "never", "always"], default="auto")
     ap.add_argument("--call-id", help="default: a new UUID (D-18)")
     ap.add_argument("--drop-dir", type=Path, default=REPO_ROOT / ".gale" / "drop")
+    ap.add_argument("--agent", default="AG-001", help="agent employee code (dev seed: AG-001..3)")
+    ap.add_argument("--queue", default="support")
     a = ap.parse_args(argv)
 
     if a.call.is_dir() and not (a.call / "call.wav").exists():
@@ -133,6 +135,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"rendering {a.call / 'call.wav'} from script.json …")
         ensure_wav(a.call)
     call = load_call(a.call, a.call_id)
+    call.agent_id, call.queue = a.agent, a.queue
     print(
         f"simulating {call.path} as call {call.call_id}: {call.duration_s:.1f} s, "
         f"mode={a.mode}, speed={a.speed:g}"

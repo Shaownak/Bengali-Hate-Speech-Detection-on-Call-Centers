@@ -20,6 +20,7 @@
     "lucide-react": "^0.540.0",
     "next": "^15.5.0",
     "next-intl": "^4.3.4",
+    "openapi-fetch": "0.14.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "tailwind-merge": "^3.3.1",
@@ -38,6 +39,7 @@
     "eslint-config-next": "^15.5.0",
     "jsdom": "^26.1.0",
     "json-schema-to-typescript": "^15.0.4",
+    "openapi-typescript": "7.9.1",
     "tailwindcss": "^4.1.12",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"

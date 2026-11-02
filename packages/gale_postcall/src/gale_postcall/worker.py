@@ -12,6 +12,7 @@ thread so a long call never stalls the event loop.
 from __future__ import annotations
 
 import asyncio
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -20,12 +21,19 @@ from fastapi import FastAPI
 from gale_postcall.models import build_models
 from gale_postcall.pipeline import PostCallResult, run_postcall
 from gale_postcall.report import to_html, to_json_text
-from galecore.bus import CALL_SCORES, EVENTS_FUSED, POSTCALL_JOBS, BusClient, audio_streams
+from galecore.bus import (
+    CALL_SCORES,
+    EVENTS_FUSED,
+    POSTCALL_JOBS,
+    POSTCALL_RESULTS,
+    BusClient,
+    audio_streams,
+)
 from galecore.config import Settings
 from galecore.logging import get_logger
 from galecore.models.oracle import oracle_for_ref
-from galecore.objectstore import LocalObjectStore, ObjectStore
-from galecore.schemas import CallScoreMessage, PostcallJob
+from galecore.objectstore import ObjectStore, store_from_settings
+from galecore.schemas import CallScoreMessage, PostcallJob, PostcallResult
 from galecore.streaming import Worker, span
 
 log = get_logger(__name__)
@@ -46,11 +54,7 @@ class PostcallWorker(Worker):
     ) -> None:
         super().__init__(bus, **kw)  # type: ignore[arg-type]
         self.settings, self.backlog_limit = settings, backlog_limit
-        self.store = store or (
-            LocalObjectStore(settings.object_store_dir)
-            if settings.object_store == "local"
-            else None
-        )
+        self.store = store or store_from_settings(settings)
         self.yielded = 0
         self.done: list[str] = []
         self.batch = 1  # one call at a time
@@ -74,18 +78,50 @@ class PostcallWorker(Worker):
             return 0  # real time first: leave batch jobs queued
         return await super().poll()
 
+    def fetch(self, uri: str) -> tuple[Path, bool]:
+        """A local path as is (drop folder); an object-store key (API upload) via a temp copy."""
+        path = Path(uri)
+        if path.is_file():
+            return path, False
+        if self.store is None or not self.store.exists(uri):
+            raise FileNotFoundError(f"recording not found: {uri}")
+        tmp_dir = self.settings.data_dir / "tmp"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(suffix=".wav", dir=tmp_dir, delete=False) as f:
+            f.write(self.store.get(uri))
+        return Path(f.name), True
+
     async def on_job(self, job: PostcallJob) -> None:
         oracle = oracle_for_ref(job.external_ref) if self.settings.model_mode == "stub" else None
-        with span("postcall.job", job.call_id):
-            res: PostCallResult = await asyncio.to_thread(
-                run_postcall,
-                Path(job.uri),
-                self.settings,
+        wav, tmp = await asyncio.to_thread(self.fetch, job.uri)
+        try:
+            with span("postcall.job", job.call_id):
+                res: PostCallResult = await asyncio.to_thread(
+                    run_postcall,
+                    wav,
+                    self.settings,
+                    call_id=job.call_id,
+                    layout=job.channel_layout,
+                    models=build_models(self.settings, oracle),
+                    queue=job.queue,
+                )
+        finally:
+            if tmp:
+                wav.unlink(missing_ok=True)
+        await self.bus.publish(
+            POSTCALL_RESULTS,
+            PostcallResult(
                 call_id=job.call_id,
-                layout=job.channel_layout,
-                models=build_models(self.settings, oracle),
+                duration_s=res.duration_s,
+                channel_layout=job.channel_layout,
+                external_ref=job.external_ref,
                 queue=job.queue,
-            )
+                recording_uri=job.uri,
+                segments=[g for g in res.segments if g.is_final],
+                signals=res.signals,
+            ),
+            idem_key=f"{job.call_id}:result",
+        )
         for e in res.events:
             await self.bus.publish(EVENTS_FUSED, e, idem_key=f"{e.event_id}:postcall")
         if res.scorecard is not None:

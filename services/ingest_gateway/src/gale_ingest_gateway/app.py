@@ -194,6 +194,8 @@ def build_app(
                 if meta.get("agent_channel") == "right"
                 else ("mono" if int(meta.get("channels", 2)) == 1 else "stereo_agent_left"),
                 external_ref=meta.get("external_ref") or meta.get("fs_uuid"),
+                agent_id=meta.get("agent_id"),
+                queue=meta.get("queue"),
             )
             call_id = str(meta.get("call_id") or uuid.uuid4())
             session = registry.open_ws(call_id, start)

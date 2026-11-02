@@ -1178,6 +1178,377 @@
       "title": "PostcallJob",
       "type": "object"
     },
+    "PostcallResult": {
+      "$defs": {
+        "AsrSegment": {
+          "additionalProperties": false,
+          "description": "ASR output as published on the bus.\n\nD-01: asr-worker redacts in-process before publishing, so this model has no raw-text\nfield at all. Un-redacted text never leaves the asr-worker process.",
+          "properties": {
+            "avg_conf": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Avg Conf",
+              "type": "number"
+            },
+            "call_id": {
+              "title": "Call Id",
+              "type": "string"
+            },
+            "channel": {
+              "$ref": "#/$defs/Channel"
+            },
+            "is_final": {
+              "title": "Is Final",
+              "type": "boolean"
+            },
+            "model_version": {
+              "title": "Model Version",
+              "type": "string"
+            },
+            "segment_id": {
+              "title": "Segment Id",
+              "type": "string"
+            },
+            "text_redacted": {
+              "title": "Text Redacted",
+              "type": "string"
+            },
+            "ts_end": {
+              "minimum": 0,
+              "title": "Ts End",
+              "type": "number"
+            },
+            "ts_start": {
+              "minimum": 0,
+              "title": "Ts Start",
+              "type": "number"
+            },
+            "words": {
+              "items": {
+                "$ref": "#/$defs/Word"
+              },
+              "title": "Words",
+              "type": "array"
+            }
+          },
+          "required": [
+            "call_id",
+            "channel",
+            "segment_id",
+            "ts_start",
+            "ts_end",
+            "text_redacted",
+            "is_final",
+            "avg_conf",
+            "model_version"
+          ],
+          "title": "AsrSegment",
+          "type": "object"
+        },
+        "Category": {
+          "description": "Annotation/alert taxonomy. Must match docs/02_DATA_PLAN.md §3.4.",
+          "enum": [
+            "slang_profanity",
+            "insult",
+            "threat",
+            "sexual_harassment",
+            "hate_identity",
+            "disrespect_register",
+            "harsh_tone",
+            "shouting",
+            "sarcasm_mockery",
+            "dismissive_rude",
+            "interruption_overtalk"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "Channel": {
+          "enum": [
+            "agent",
+            "customer",
+            "mixed"
+          ],
+          "title": "Channel",
+          "type": "string"
+        },
+        "Evidence": {
+          "additionalProperties": false,
+          "description": "Why a signal fired. Text is always redacted; features are numeric only.",
+          "properties": {
+            "char_end": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Char End"
+            },
+            "char_start": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Char Start"
+            },
+            "features": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "title": "Features",
+              "type": "object"
+            },
+            "segment_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Segment Id"
+            },
+            "term_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Term Id"
+            },
+            "text_span": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Text Span"
+            },
+            "word_ids": {
+              "items": {
+                "type": "integer"
+              },
+              "title": "Word Ids",
+              "type": "array"
+            }
+          },
+          "title": "Evidence",
+          "type": "object"
+        },
+        "Signal": {
+          "additionalProperties": false,
+          "properties": {
+            "call_id": {
+              "title": "Call Id",
+              "type": "string"
+            },
+            "category": {
+              "$ref": "#/$defs/Category"
+            },
+            "channel": {
+              "$ref": "#/$defs/Channel"
+            },
+            "evidence": {
+              "$ref": "#/$defs/Evidence"
+            },
+            "model_version": {
+              "title": "Model Version",
+              "type": "string"
+            },
+            "score": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Score",
+              "type": "number"
+            },
+            "shadow": {
+              "default": false,
+              "title": "Shadow",
+              "type": "boolean"
+            },
+            "signal_id": {
+              "title": "Signal Id",
+              "type": "string"
+            },
+            "source": {
+              "$ref": "#/$defs/SignalSource"
+            },
+            "ts_end": {
+              "minimum": 0,
+              "title": "Ts End",
+              "type": "number"
+            },
+            "ts_start": {
+              "minimum": 0,
+              "title": "Ts Start",
+              "type": "number"
+            }
+          },
+          "required": [
+            "call_id",
+            "channel",
+            "signal_id",
+            "source",
+            "category",
+            "score",
+            "ts_start",
+            "ts_end",
+            "model_version"
+          ],
+          "title": "Signal",
+          "type": "object"
+        },
+        "SignalSource": {
+          "enum": [
+            "dsp_shout",
+            "ser",
+            "audio_tox",
+            "kws",
+            "lexicon",
+            "register",
+            "text_clf",
+            "llm_window",
+            "llm_call",
+            "vad_overtalk",
+            "call_event"
+          ],
+          "title": "SignalSource",
+          "type": "string"
+        },
+        "Word": {
+          "additionalProperties": false,
+          "description": "One recognised word. ``word`` is already redacted (PII words replaced by tags).",
+          "properties": {
+            "conf": {
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Conf",
+              "type": "number"
+            },
+            "end": {
+              "minimum": 0,
+              "title": "End",
+              "type": "number"
+            },
+            "start": {
+              "minimum": 0,
+              "title": "Start",
+              "type": "number"
+            },
+            "word": {
+              "title": "Word",
+              "type": "string"
+            }
+          },
+          "required": [
+            "word",
+            "start",
+            "end",
+            "conf"
+          ],
+          "title": "Word",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "A finished post-call run (stream ``postcall.results``), for persistence by the API.\n\nCarries the redacted final segments and the signals; events and the scorecard travel on\n``events.fused`` / ``call.scores`` as in real-time mode.",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "channel_layout": {
+          "default": "stereo_agent_left",
+          "enum": [
+            "stereo_agent_left",
+            "stereo_agent_right",
+            "mono"
+          ],
+          "title": "Channel Layout",
+          "type": "string"
+        },
+        "duration_s": {
+          "minimum": 0,
+          "title": "Duration S",
+          "type": "number"
+        },
+        "external_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "External Ref"
+        },
+        "queue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Queue"
+        },
+        "recording_uri": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Recording Uri"
+        },
+        "segments": {
+          "items": {
+            "$ref": "#/$defs/AsrSegment"
+          },
+          "title": "Segments",
+          "type": "array"
+        },
+        "signals": {
+          "items": {
+            "$ref": "#/$defs/Signal"
+          },
+          "title": "Signals",
+          "type": "array"
+        }
+      },
+      "required": [
+        "call_id",
+        "duration_s"
+      ],
+      "title": "PostcallResult",
+      "type": "object"
+    },
     "ProvisionalDecision": {
       "$defs": {
         "Category": {

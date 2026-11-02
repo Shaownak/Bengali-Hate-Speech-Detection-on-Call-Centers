@@ -1,0 +1,4048 @@
+{
+  "components": {
+    "schemas": {
+      "AckOut": {
+        "properties": {
+          "acked_at": {
+            "format": "date-time",
+            "title": "Acked At",
+            "type": "string"
+          },
+          "acked_by": {
+            "format": "uuid",
+            "title": "Acked By",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "event_id",
+          "acked_by",
+          "acked_at"
+        ],
+        "title": "AckOut",
+        "type": "object"
+      },
+      "AgentAnalytics": {
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "alerts": {
+            "title": "Alerts",
+            "type": "integer"
+          },
+          "avg_professionalism": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Professionalism"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "disputes": {
+            "title": "Disputes",
+            "type": "integer"
+          },
+          "employee_code": {
+            "title": "Employee Code",
+            "type": "string"
+          },
+          "events_by_category": {
+            "items": {
+              "$ref": "#/components/schemas/CategoryCount"
+            },
+            "title": "Events By Category",
+            "type": "array"
+          },
+          "talk_minutes": {
+            "title": "Talk Minutes",
+            "type": "number"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "trend": {
+            "items": {
+              "$ref": "#/components/schemas/DayPoint"
+            },
+            "title": "Trend",
+            "type": "array"
+          }
+        },
+        "required": [
+          "agent_id",
+          "employee_code",
+          "team_id",
+          "calls",
+          "talk_minutes",
+          "alerts",
+          "events_by_category",
+          "avg_professionalism",
+          "disputes",
+          "trend"
+        ],
+        "title": "AgentAnalytics",
+        "type": "object"
+      },
+      "AgentRow": {
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "alerts": {
+            "title": "Alerts",
+            "type": "integer"
+          },
+          "avg_professionalism": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Professionalism"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "employee_code": {
+            "title": "Employee Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_id",
+          "employee_code",
+          "calls",
+          "alerts",
+          "avg_professionalism"
+        ],
+        "title": "AgentRow",
+        "type": "object"
+      },
+      "AgentScore": {
+        "additionalProperties": false,
+        "properties": {
+          "de_escalation": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "De Escalation",
+            "type": "integer"
+          },
+          "empathy": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Empathy",
+            "type": "integer"
+          },
+          "professionalism": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Professionalism",
+            "type": "integer"
+          },
+          "respectful_register_maintained": {
+            "title": "Respectful Register Maintained",
+            "type": "boolean"
+          },
+          "violations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "professionalism",
+          "empathy",
+          "de_escalation",
+          "respectful_register_maintained",
+          "violations"
+        ],
+        "title": "AgentScore",
+        "type": "object"
+      },
+      "AlertKey": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "integer"
+          },
+          "speaker": {
+            "title": "Speaker",
+            "type": "string"
+          },
+          "ts_start": {
+            "title": "Ts Start",
+            "type": "number"
+          }
+        },
+        "required": [
+          "speaker",
+          "category",
+          "ts_start",
+          "severity"
+        ],
+        "title": "AlertKey",
+        "type": "object"
+      },
+      "AuditOut": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "details": {
+            "additionalProperties": true,
+            "title": "Details",
+            "type": "object"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip"
+          },
+          "object_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Object Id"
+          },
+          "object_type": {
+            "title": "Object Type",
+            "type": "string"
+          },
+          "ts": {
+            "format": "date-time",
+            "title": "Ts",
+            "type": "string"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          }
+        },
+        "required": [
+          "id",
+          "user_id",
+          "action",
+          "object_type",
+          "object_id",
+          "ip",
+          "ts",
+          "details"
+        ],
+        "title": "AuditOut",
+        "type": "object"
+      },
+      "Body_ingest_recording_api_v1_ingest_recordings_post": {
+        "properties": {
+          "channel_layout": {
+            "default": "stereo_agent_left",
+            "enum": [
+              "stereo_agent_left",
+              "stereo_agent_right",
+              "mono"
+            ],
+            "title": "Channel Layout",
+            "type": "string"
+          },
+          "external_ref": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Ref"
+          },
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "stereo WAV (agent left by default)",
+            "title": "File",
+            "type": "string"
+          },
+          "queue": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_ingest_recording_api_v1_ingest_recordings_post",
+        "type": "object"
+      },
+      "CallDetail": {
+        "properties": {
+          "agent_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Code"
+          },
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "alert_count": {
+            "default": 0,
+            "title": "Alert Count",
+            "type": "integer"
+          },
+          "channel_layout": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel Layout"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "event_count": {
+            "default": 0,
+            "title": "Event Count",
+            "type": "integer"
+          },
+          "external_call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Call Id"
+          },
+          "has_recording": {
+            "title": "Has Recording",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "language_detected": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language Detected"
+          },
+          "max_severity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Severity"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "queue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue"
+          },
+          "scores": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CallScoreOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          }
+        },
+        "required": [
+          "id",
+          "external_call_id",
+          "started_at",
+          "ended_at",
+          "duration_s",
+          "queue",
+          "direction",
+          "agent_id",
+          "mode",
+          "status",
+          "channel_layout",
+          "language_detected",
+          "has_recording"
+        ],
+        "title": "CallDetail",
+        "type": "object"
+      },
+      "CallDiff": {
+        "properties": {
+          "added_alerts": {
+            "items": {
+              "$ref": "#/components/schemas/AlertKey"
+            },
+            "title": "Added Alerts",
+            "type": "array"
+          },
+          "baseline_alerts": {
+            "title": "Baseline Alerts",
+            "type": "integer"
+          },
+          "baseline_events": {
+            "title": "Baseline Events",
+            "type": "integer"
+          },
+          "call_id": {
+            "title": "Call Id",
+            "type": "string"
+          },
+          "candidate_alerts": {
+            "title": "Candidate Alerts",
+            "type": "integer"
+          },
+          "candidate_events": {
+            "title": "Candidate Events",
+            "type": "integer"
+          },
+          "removed_alerts": {
+            "items": {
+              "$ref": "#/components/schemas/AlertKey"
+            },
+            "title": "Removed Alerts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "call_id",
+          "baseline_events",
+          "candidate_events",
+          "baseline_alerts",
+          "candidate_alerts"
+        ],
+        "title": "CallDiff",
+        "type": "object"
+      },
+      "CallPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CallSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "CallPage",
+        "type": "object"
+      },
+      "CallScoreOut": {
+        "properties": {
+          "agent_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Score"
+          },
+          "customer_hostility": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Hostility"
+          },
+          "escalation_curve": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "title": "Escalation Curve",
+            "type": "array"
+          },
+          "model_version": {
+            "title": "Model Version",
+            "type": "string"
+          },
+          "scorecard": {
+            "$ref": "#/components/schemas/CallScorecard"
+          }
+        },
+        "required": [
+          "agent_score",
+          "customer_hostility",
+          "escalation_curve",
+          "scorecard",
+          "model_version"
+        ],
+        "title": "CallScoreOut",
+        "type": "object"
+      },
+      "CallScorecard": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "$ref": "#/components/schemas/AgentScore"
+          },
+          "coaching_points_bn": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "title": "Coaching Points Bn",
+            "type": "array"
+          },
+          "customer": {
+            "$ref": "#/components/schemas/CustomerScore"
+          },
+          "escalation": {
+            "$ref": "#/components/schemas/Escalation"
+          },
+          "summary_bn": {
+            "maxLength": 600,
+            "title": "Summary Bn",
+            "type": "string"
+          },
+          "summary_en": {
+            "maxLength": 600,
+            "title": "Summary En",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent",
+          "customer",
+          "escalation",
+          "summary_bn",
+          "summary_en",
+          "coaching_points_bn"
+        ],
+        "title": "CallScorecard",
+        "type": "object"
+      },
+      "CallSummary": {
+        "properties": {
+          "agent_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Code"
+          },
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "alert_count": {
+            "default": 0,
+            "title": "Alert Count",
+            "type": "integer"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "event_count": {
+            "default": 0,
+            "title": "Event Count",
+            "type": "integer"
+          },
+          "external_call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Call Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "max_severity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Severity"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "queue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          }
+        },
+        "required": [
+          "id",
+          "external_call_id",
+          "started_at",
+          "ended_at",
+          "duration_s",
+          "queue",
+          "direction",
+          "agent_id",
+          "mode",
+          "status"
+        ],
+        "title": "CallSummary",
+        "type": "object"
+      },
+      "Category": {
+        "description": "Annotation/alert taxonomy. Must match docs/02_DATA_PLAN.md §3.4.",
+        "enum": [
+          "slang_profanity",
+          "insult",
+          "threat",
+          "sexual_harassment",
+          "hate_identity",
+          "disrespect_register",
+          "harsh_tone",
+          "shouting",
+          "sarcasm_mockery",
+          "dismissive_rude",
+          "interruption_overtalk"
+        ],
+        "title": "Category",
+        "type": "string"
+      },
+      "CategoryCount": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "speaker": {
+            "title": "Speaker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "speaker",
+          "count"
+        ],
+        "title": "CategoryCount",
+        "type": "object"
+      },
+      "CustomerScore": {
+        "additionalProperties": false,
+        "properties": {
+          "abuse_toward_agent": {
+            "title": "Abuse Toward Agent",
+            "type": "boolean"
+          },
+          "hostility": {
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Hostility",
+            "type": "integer"
+          },
+          "main_issue_bn": {
+            "title": "Main Issue Bn",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hostility",
+          "abuse_toward_agent",
+          "main_issue_bn"
+        ],
+        "title": "CustomerScore",
+        "type": "object"
+      },
+      "DayPoint": {
+        "properties": {
+          "alerts": {
+            "title": "Alerts",
+            "type": "integer"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "day": {
+            "title": "Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "day",
+          "calls",
+          "alerts"
+        ],
+        "title": "DayPoint",
+        "type": "object"
+      },
+      "Escalation": {
+        "additionalProperties": false,
+        "properties": {
+          "escalated": {
+            "title": "Escalated",
+            "type": "boolean"
+          },
+          "turning_point_utterance_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turning Point Utterance Id"
+          },
+          "who_escalated_first": {
+            "enum": [
+              "agent",
+              "customer",
+              "none",
+              "unclear"
+            ],
+            "title": "Who Escalated First",
+            "type": "string"
+          }
+        },
+        "required": [
+          "escalated",
+          "who_escalated_first",
+          "turning_point_utterance_id"
+        ],
+        "title": "Escalation",
+        "type": "object"
+      },
+      "EventOut": {
+        "additionalProperties": false,
+        "properties": {
+          "acked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acked At"
+          },
+          "acked_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acked By"
+          },
+          "alert": {
+            "default": false,
+            "title": "Alert",
+            "type": "boolean"
+          },
+          "call_id": {
+            "title": "Call Id",
+            "type": "string"
+          },
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "contributing_signals": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Contributing Signals",
+            "type": "array"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "explanation_bn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation Bn"
+          },
+          "explanation_en": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation En"
+          },
+          "latest_verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Verdict"
+          },
+          "probability": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Probability",
+            "type": "number"
+          },
+          "review_count": {
+            "default": 0,
+            "title": "Review Count",
+            "type": "integer"
+          },
+          "severity": {
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "title": "Severity",
+            "type": "integer"
+          },
+          "shadow": {
+            "default": false,
+            "title": "Shadow",
+            "type": "boolean"
+          },
+          "speaker": {
+            "$ref": "#/components/schemas/Speaker"
+          },
+          "status": {
+            "$ref": "#/components/schemas/EventStatus",
+            "default": "provisional"
+          },
+          "top_signals": {
+            "items": {
+              "$ref": "#/components/schemas/SignalBrief"
+            },
+            "title": "Top Signals",
+            "type": "array"
+          },
+          "ts_end": {
+            "minimum": 0.0,
+            "title": "Ts End",
+            "type": "number"
+          },
+          "ts_start": {
+            "minimum": 0.0,
+            "title": "Ts Start",
+            "type": "number"
+          }
+        },
+        "required": [
+          "event_id",
+          "call_id",
+          "speaker",
+          "category",
+          "severity",
+          "probability",
+          "ts_start",
+          "ts_end"
+        ],
+        "title": "EventOut",
+        "type": "object"
+      },
+      "EventStatus": {
+        "enum": [
+          "provisional",
+          "confirmed",
+          "dismissed_by_llm",
+          "reviewed_true",
+          "reviewed_false"
+        ],
+        "title": "EventStatus",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IngestOut": {
+        "properties": {
+          "call_id": {
+            "format": "uuid",
+            "title": "Call Id",
+            "type": "string"
+          },
+          "queued": {
+            "title": "Queued",
+            "type": "boolean"
+          },
+          "uri": {
+            "title": "Uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "call_id",
+          "uri",
+          "queued"
+        ],
+        "title": "IngestOut",
+        "type": "object"
+      },
+      "LexiconIn": {
+        "properties": {
+          "active": {
+            "default": true,
+            "title": "Active",
+            "type": "boolean"
+          },
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "context_sensitive": {
+            "default": false,
+            "title": "Context Sensitive",
+            "type": "boolean"
+          },
+          "dialect": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dialect"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "romanized": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Romanized",
+            "type": "array"
+          },
+          "severity": {
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "title": "Severity",
+            "type": "integer"
+          },
+          "term": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Term",
+            "type": "string"
+          },
+          "variants": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Variants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "term",
+          "category",
+          "severity"
+        ],
+        "title": "LexiconIn",
+        "type": "object"
+      },
+      "LexiconOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "context_sensitive": {
+            "title": "Context Sensitive",
+            "type": "boolean"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "dialect": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dialect"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "normalized": {
+            "title": "Normalized",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "romanized": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Romanized",
+            "type": "array"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "integer"
+          },
+          "term": {
+            "title": "Term",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "variants": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Variants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "term",
+          "normalized",
+          "variants",
+          "romanized",
+          "category",
+          "severity",
+          "context_sensitive",
+          "dialect",
+          "notes",
+          "created_by",
+          "updated_at",
+          "active"
+        ],
+        "title": "LexiconOut",
+        "type": "object"
+      },
+      "ModelVersionOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "component": {
+            "title": "Component",
+            "type": "string"
+          },
+          "deployed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployed At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "title": "Metrics",
+            "type": "object"
+          },
+          "mlflow_run_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mlflow Run Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "research_only": {
+            "title": "Research Only",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "component",
+          "name",
+          "version",
+          "mlflow_run_id",
+          "metrics",
+          "deployed_at",
+          "active",
+          "research_only"
+        ],
+        "title": "ModelVersionOut",
+        "type": "object"
+      },
+      "PromoteIn": {
+        "properties": {
+          "model_version_id": {
+            "format": "uuid",
+            "title": "Model Version Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "model_version_id"
+        ],
+        "title": "PromoteIn",
+        "type": "object"
+      },
+      "PromotionOut": {
+        "properties": {
+          "approved_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By"
+          },
+          "component": {
+            "title": "Component",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "model_version_id": {
+            "format": "uuid",
+            "title": "Model Version Id",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "requested_by": {
+            "format": "uuid",
+            "title": "Requested By",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "component",
+          "model_version_id",
+          "requested_by",
+          "approved_by",
+          "status",
+          "reason",
+          "created_at",
+          "decided_at"
+        ],
+        "title": "PromotionOut",
+        "type": "object"
+      },
+      "QueueRow": {
+        "properties": {
+          "agent_alerts": {
+            "title": "Agent Alerts",
+            "type": "integer"
+          },
+          "avg_customer_hostility": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Customer Hostility"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "customer_alerts": {
+            "title": "Customer Alerts",
+            "type": "integer"
+          },
+          "queue": {
+            "title": "Queue",
+            "type": "string"
+          }
+        },
+        "required": [
+          "queue",
+          "calls",
+          "agent_alerts",
+          "customer_alerts",
+          "avg_customer_hostility"
+        ],
+        "title": "QueueRow",
+        "type": "object"
+      },
+      "ReviewIn": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "corrected_category": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Category"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "corrected_severity": {
+            "anyOf": [
+              {
+                "enum": [
+                  1,
+                  2,
+                  3
+                ],
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corrected Severity"
+          },
+          "kind": {
+            "default": "verdict",
+            "enum": [
+              "verdict",
+              "dispute"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "enum": [
+                  "correct",
+                  "wrong_category",
+                  "false_positive",
+                  "wrong_severity"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          }
+        },
+        "title": "ReviewIn",
+        "type": "object"
+      },
+      "ReviewOut": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "corrected_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corrected Category"
+          },
+          "corrected_severity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Corrected Severity"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "reviewer_user_id": {
+            "format": "uuid",
+            "title": "Reviewer User Id",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          }
+        },
+        "required": [
+          "id",
+          "event_id",
+          "reviewer_user_id",
+          "kind",
+          "verdict",
+          "corrected_category",
+          "corrected_severity",
+          "comment",
+          "created_at"
+        ],
+        "title": "ReviewOut",
+        "type": "object"
+      },
+      "ReviewQueueItem": {
+        "properties": {
+          "call": {
+            "$ref": "#/components/schemas/CallSummary"
+          },
+          "event": {
+            "$ref": "#/components/schemas/EventOut"
+          }
+        },
+        "required": [
+          "event",
+          "call"
+        ],
+        "title": "ReviewQueueItem",
+        "type": "object"
+      },
+      "ReviewQueuePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewQueueItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "ReviewQueuePage",
+        "type": "object"
+      },
+      "RulesIn": {
+        "properties": {
+          "yaml": {
+            "maxLength": 200000,
+            "minLength": 1,
+            "title": "Yaml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "yaml"
+        ],
+        "title": "RulesIn",
+        "type": "object"
+      },
+      "RulesOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "yaml": {
+            "title": "Yaml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "version",
+          "yaml",
+          "active",
+          "updated_by",
+          "updated_at"
+        ],
+        "title": "RulesOut",
+        "type": "object"
+      },
+      "SegmentOut": {
+        "properties": {
+          "avg_conf": {
+            "title": "Avg Conf",
+            "type": "number"
+          },
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "text_redacted": {
+            "title": "Text Redacted",
+            "type": "string"
+          },
+          "ts_end": {
+            "title": "Ts End",
+            "type": "number"
+          },
+          "ts_start": {
+            "title": "Ts Start",
+            "type": "number"
+          },
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/Word"
+            },
+            "title": "Words",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "channel",
+          "ts_start",
+          "ts_end",
+          "text_redacted",
+          "words",
+          "avg_conf"
+        ],
+        "title": "SegmentOut",
+        "type": "object"
+      },
+      "SignalBrief": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          },
+          "signal_id": {
+            "title": "Signal Id",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "text_span": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text Span"
+          },
+          "ts_end": {
+            "title": "Ts End",
+            "type": "number"
+          },
+          "ts_start": {
+            "title": "Ts Start",
+            "type": "number"
+          }
+        },
+        "required": [
+          "signal_id",
+          "source",
+          "category",
+          "score",
+          "ts_start",
+          "ts_end"
+        ],
+        "title": "SignalBrief",
+        "type": "object"
+      },
+      "SignedUrls": {
+        "properties": {
+          "expires_in_s": {
+            "title": "Expires In S",
+            "type": "integer"
+          },
+          "urls": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Urls",
+            "type": "object"
+          }
+        },
+        "required": [
+          "urls",
+          "expires_in_s"
+        ],
+        "title": "SignedUrls",
+        "type": "object"
+      },
+      "SimulateIn": {
+        "properties": {
+          "call_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "maxItems": 500,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Ids"
+          },
+          "limit": {
+            "default": 100,
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "yaml": {
+            "maxLength": 200000,
+            "minLength": 1,
+            "title": "Yaml",
+            "type": "string"
+          }
+        },
+        "required": [
+          "yaml"
+        ],
+        "title": "SimulateIn",
+        "type": "object"
+      },
+      "SimulationReport": {
+        "properties": {
+          "baseline_alerts": {
+            "title": "Baseline Alerts",
+            "type": "integer"
+          },
+          "baseline_by_category": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Baseline By Category",
+            "type": "object"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "candidate_alerts": {
+            "title": "Candidate Alerts",
+            "type": "integer"
+          },
+          "candidate_by_category": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Candidate By Category",
+            "type": "object"
+          },
+          "changed_calls": {
+            "items": {
+              "$ref": "#/components/schemas/CallDiff"
+            },
+            "title": "Changed Calls",
+            "type": "array"
+          }
+        },
+        "required": [
+          "calls",
+          "baseline_alerts",
+          "candidate_alerts",
+          "baseline_by_category",
+          "candidate_by_category",
+          "changed_calls"
+        ],
+        "title": "SimulationReport",
+        "type": "object"
+      },
+      "Speaker": {
+        "enum": [
+          "agent",
+          "customer"
+        ],
+        "title": "Speaker",
+        "type": "string"
+      },
+      "TeamAnalytics": {
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRow"
+            },
+            "title": "Agents",
+            "type": "array"
+          },
+          "alerts": {
+            "title": "Alerts",
+            "type": "integer"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "team_id": {
+            "format": "uuid",
+            "title": "Team Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "team_id",
+          "name",
+          "calls",
+          "alerts",
+          "agents"
+        ],
+        "title": "TeamAnalytics",
+        "type": "object"
+      },
+      "Timelines": {
+        "properties": {
+          "bin_s": {
+            "title": "Bin S",
+            "type": "number"
+          },
+          "duration_s": {
+            "title": "Duration S",
+            "type": "number"
+          },
+          "series": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              "type": "object"
+            },
+            "title": "Series",
+            "type": "object"
+          }
+        },
+        "required": [
+          "bin_s",
+          "duration_s",
+          "series"
+        ],
+        "title": "Timelines",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "Word": {
+        "additionalProperties": false,
+        "description": "One recognised word. ``word`` is already redacted (PII words replaced by tags).",
+        "properties": {
+          "conf": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Conf",
+            "type": "number"
+          },
+          "end": {
+            "minimum": 0.0,
+            "title": "End",
+            "type": "number"
+          },
+          "start": {
+            "minimum": 0.0,
+            "title": "Start",
+            "type": "number"
+          },
+          "word": {
+            "title": "Word",
+            "type": "string"
+          }
+        },
+        "required": [
+          "word",
+          "start",
+          "end",
+          "conf"
+        ],
+        "title": "Word",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "GENERATED by `make gen-types` from services/api. Do not edit.",
+    "title": "gal-e api",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/analytics/agents/{agent_id}": {
+      "get": {
+        "operationId": "agent_analytics_api_v1_analytics_agents__agent_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentAnalytics"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Agent Analytics",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/queues": {
+      "get": {
+        "operationId": "queue_analytics_api_v1_analytics_queues_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QueueRow"
+                  },
+                  "title": "Response Queue Analytics Api V1 Analytics Queues Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Queue Analytics",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/analytics/teams/{team_id}": {
+      "get": {
+        "operationId": "team_analytics_api_v1_analytics_teams__team_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "team_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Team Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamAnalytics"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Team Analytics",
+        "tags": [
+          "analytics"
+        ]
+      }
+    },
+    "/api/v1/audit": {
+      "get": {
+        "operationId": "list_audit_api_v1_audit_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "user_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "object_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Object Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "object_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Object Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditOut"
+                  },
+                  "title": "Response List Audit Api V1 Audit Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Audit",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/calls": {
+      "get": {
+        "operationId": "list_calls_api_v1_calls_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date_from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            }
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "team_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Team Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "queue",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Queue"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Category"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "alert",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Alert"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mode",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mode"
+            }
+          },
+          {
+            "description": "transcript search",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "transcript search",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallPage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Calls",
+        "tags": [
+          "calls"
+        ]
+      }
+    },
+    "/api/v1/calls/{call_id}": {
+      "get": {
+        "operationId": "call_detail_api_v1_calls__call_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "title": "Call Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Call Detail",
+        "tags": [
+          "calls"
+        ]
+      }
+    },
+    "/api/v1/calls/{call_id}/audio-url": {
+      "get": {
+        "operationId": "call_audio_url_api_v1_calls__call_id__audio_url_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "title": "Call Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedUrls"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Call Audio Url",
+        "tags": [
+          "calls"
+        ]
+      }
+    },
+    "/api/v1/calls/{call_id}/events": {
+      "get": {
+        "operationId": "call_events_api_v1_calls__call_id__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "title": "Call Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EventOut"
+                  },
+                  "title": "Response Call Events Api V1 Calls  Call Id  Events Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Call Events",
+        "tags": [
+          "calls"
+        ]
+      }
+    },
+    "/api/v1/calls/{call_id}/segments": {
+      "get": {
+        "operationId": "call_segments_api_v1_calls__call_id__segments_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "title": "Call Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SegmentOut"
+                  },
+                  "title": "Response Call Segments Api V1 Calls  Call Id  Segments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Call Segments",
+        "tags": [
+          "calls"
+        ]
+      }
+    },
+    "/api/v1/calls/{call_id}/timelines": {
+      "get": {
+        "operationId": "call_timelines_api_v1_calls__call_id__timelines_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "title": "Call Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "points",
+            "required": false,
+            "schema": {
+              "default": 300,
+              "maximum": 2000,
+              "minimum": 10,
+              "title": "Points",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Timelines"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Call Timelines",
+        "tags": [
+          "calls"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/ack": {
+      "post": {
+        "operationId": "ack_event_api_v1_events__event_id__ack_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AckOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ack Event",
+        "tags": [
+          "calls"
+        ]
+      }
+    },
+    "/api/v1/events/{event_id}/reviews": {
+      "post": {
+        "operationId": "review_event_api_v1_events__event_id__reviews_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "event_id",
+            "required": true,
+            "schema": {
+              "title": "Event Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Review Event",
+        "tags": [
+          "calls"
+        ]
+      }
+    },
+    "/api/v1/ingest/recordings": {
+      "post": {
+        "description": "Upload one recording for post-call processing (it becomes a ``postcall.jobs`` entry).",
+        "operationId": "ingest_recording_api_v1_ingest_recordings_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_ingest_recording_api_v1_ingest_recordings_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Ingest Recording",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/lexicon": {
+      "get": {
+        "operationId": "list_lexicon_api_v1_lexicon_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Category"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "active",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Active"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LexiconOut"
+                  },
+                  "title": "Response List Lexicon Api V1 Lexicon Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Lexicon",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "create_lexicon_api_v1_lexicon_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LexiconIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LexiconOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Lexicon",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/lexicon/{entry_id}": {
+      "delete": {
+        "description": "Soft delete: the entry is deactivated, so history and audit stay intact.",
+        "operationId": "delete_lexicon_api_v1_lexicon__entry_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entry Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Lexicon",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "operationId": "update_lexicon_api_v1_lexicon__entry_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Entry Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LexiconIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LexiconOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Lexicon",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/models": {
+      "get": {
+        "operationId": "list_models_api_v1_models_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "component",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Component"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ModelVersionOut"
+                  },
+                  "title": "Response List Models Api V1 Models Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Models",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/models/promotions": {
+      "get": {
+        "operationId": "list_promotions_api_v1_models_promotions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PromotionOut"
+                  },
+                  "title": "Response List Promotions Api V1 Models Promotions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Promotions",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/models/promotions/{promotion_id}/approve": {
+      "post": {
+        "operationId": "approve_promotion_api_v1_models_promotions__promotion_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "promotion_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Promotion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Approve Promotion",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/models/promotions/{promotion_id}/reject": {
+      "post": {
+        "operationId": "reject_promotion_api_v1_models_promotions__promotion_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "promotion_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Promotion Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Reject Promotion",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/models/{component}/promote": {
+      "post": {
+        "description": "Step 1 of two-person approval: one admin requests, a different admin approves.",
+        "operationId": "request_promotion_api_v1_models__component__promote_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "component",
+            "required": true,
+            "schema": {
+              "title": "Component",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromoteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromotionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Request Promotion",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/review-queue": {
+      "get": {
+        "description": "Alerts and confirmed severity ≥ 2 events without a QA verdict, worst first.",
+        "operationId": "review_queue_api_v1_review_queue_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Category"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewQueuePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Review Queue",
+        "tags": [
+          "calls"
+        ]
+      }
+    },
+    "/api/v1/rules": {
+      "get": {
+        "operationId": "get_rules_api_v1_rules_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "history",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "History",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RulesOut"
+                  },
+                  "title": "Response Get Rules Api V1 Rules Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Rules",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "description": "New active version. Workers load rules at start; see ADR-016 for hot reload.",
+        "operationId": "put_rules_api_v1_rules_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RulesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RulesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Put Rules",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/rules/simulate": {
+      "post": {
+        "operationId": "simulate_rules_api_v1_rules_simulate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Simulate Rules",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/healthz": {
+      "get": {
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Healthz Healthz Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Healthz"
+      }
+    },
+    "/metrics": {
+      "get": {
+        "operationId": "metrics_metrics_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Metrics"
+      }
+    },
+    "/readyz": {
+      "get": {
+        "operationId": "readyz_readyz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Readyz"
+      }
+    }
+  }
+}

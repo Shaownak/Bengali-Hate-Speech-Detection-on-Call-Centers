@@ -3,13 +3,22 @@ name = "gale-api"
 version = "0.1.0"
 description = "GAL-E api"
 requires-python = ">=3.12,<3.13"
-dependencies = ["galecore"]
+dependencies = [
+    "galecore",
+    "gale-fusion-engine",
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14",
+    "psycopg[binary]>=3.2",
+    "pyjwt[crypto]>=2.10",
+    "python-multipart>=0.0.18",
+]
 
 [project.scripts]
 gale-api = "gale_api.__main__:main"
 
 [tool.uv.sources]
 galecore = { workspace = true }
+gale-fusion-engine = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

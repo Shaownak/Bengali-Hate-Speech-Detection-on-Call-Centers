@@ -49,6 +49,8 @@ class RtpSessionRequest(BaseModel):
     # alternative to SSRCs: map by source address "host:port" (Asterisk ExternalMedia)
     remote: dict[Channel, str] = Field(default_factory=dict)
     external_ref: str | None = Field(default=None, max_length=256)
+    agent_id: str | None = Field(default=None, max_length=64)  # employee code (RBAC scoping)
+    queue: str | None = Field(default=None, max_length=100)
 
 
 class WsStart(BaseModel):
@@ -58,10 +60,20 @@ class WsStart(BaseModel):
     encoding: Literal["pcm_s16le"] = "pcm_s16le"
     layout: Literal["stereo_agent_left", "stereo_agent_right", "mono"] = "stereo_agent_left"
     external_ref: str | None = None
+    agent_id: str | None = Field(default=None, max_length=64)
+    queue: str | None = Field(default=None, max_length=100)
 
 
 class CallEvents(Protocol):
-    def started(self, call_id: str, external_ref: str | None, layout: str | None) -> None: ...
+    def started(
+        self,
+        call_id: str,
+        external_ref: str | None,
+        layout: str | None,
+        *,
+        agent_id: str | None = None,
+        queue: str | None = None,
+    ) -> None: ...
 
     def ended(self, call_id: str, duration_s: float) -> None: ...
 
@@ -95,9 +107,18 @@ class Registry:
         self.sessions[call_id] = session
         return session
 
-    def _started(self, session: Session, external_ref: str | None, layout: str | None) -> None:
+    def _started(
+        self,
+        session: Session,
+        external_ref: str | None,
+        layout: str | None,
+        agent_id: str | None = None,
+        queue: str | None = None,
+    ) -> None:
         if self.events is not None:
-            self.events.started(session.call_id, external_ref, layout)
+            self.events.started(
+                session.call_id, external_ref, layout, agent_id=agent_id, queue=queue
+            )
 
     def open_rtp(self, req: RtpSessionRequest) -> Session:
         streams = req.ssrc or req.remote
@@ -121,7 +142,11 @@ class Registry:
             self.by_addr[addr] = (session, ch, pt)
         log.info("rtp_session_open", call_id=req.call_id, channels=len(streams), codec=req.codec)
         self._started(
-            session, req.external_ref, "mono" if Channel.MIXED in streams else "stereo_agent_left"
+            session,
+            req.external_ref,
+            "mono" if Channel.MIXED in streams else "stereo_agent_left",
+            req.agent_id,
+            req.queue,
         )
         return session
 
@@ -132,7 +157,7 @@ class Registry:
             else [Channel.AGENT, Channel.CUSTOMER]
         )
         session = self._new(call_id, "ws", start.sample_rate, channels)
-        self._started(session, start.external_ref, start.layout)
+        self._started(session, start.external_ref, start.layout, start.agent_id, start.queue)
         return session
 
     def close(self, call_id: str) -> SessionStats:

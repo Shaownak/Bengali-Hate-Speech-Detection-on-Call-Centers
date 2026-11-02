@@ -44,6 +44,10 @@ exten => _X.,1,NoOp(GAL-E: inbound call)
  same => n,Set(GALE_ROLE=customer)          ; this (customer) channel
  same => n,Queue(support)                   ; or Dial(PJSIP/${AGENT})
 ```
+Optional, but needed for supervisor scoping in the dashboard: also set the agent's employee code
+and the queue on the agent leg, e.g. in the queue member's subroutine:
+`Set(GALE_AGENT_ID=${MEMBERNAME})` and `Set(GALE_QUEUE=${QUEUENAME})`. Calls without an agent code are
+visible to admins and QA only.
 For queue members (`Local/` or `PJSIP/agent-*`) you can also set it on the member channel:
 `Queue(support,,,,,,,gale-mark)` with a subroutine `[gale-mark] exten => s,1,Set(GALE_ROLE=agent)`.
 
@@ -69,7 +73,7 @@ The fork streams L16 audio over WebSocket to `ws://GW_HOST:8001/v1/fork`. The fi
 GAL-E metadata.
 ```xml
 <!-- in the dialplan of the agent leg, after answer -->
-<action application="set" data="api_on_answer=uuid_audio_fork ${uuid} start ws://GW_HOST:8001/v1/fork stereo 16k {&quot;fs_uuid&quot;:&quot;${uuid}&quot;,&quot;agent_channel&quot;:&quot;left&quot;,&quot;sample_rate&quot;:16000,&quot;channels&quot;:2}"/>
+<action application="set" data="api_on_answer=uuid_audio_fork ${uuid} start ws://GW_HOST:8001/v1/fork stereo 16k {&quot;fs_uuid&quot;:&quot;${uuid}&quot;,&quot;agent_id&quot;:&quot;${agent_code}&quot;,&quot;agent_channel&quot;:&quot;left&quot;,&quot;sample_rate&quot;:16000,&quot;channels&quot;:2}"/>
 ```
 - `stereo` puts the leg's read audio on one side and its write audio on the other. On the **agent** leg, read = agent and write = customer, so `"agent_channel":"left"`. If you fork the customer leg instead, use `"right"`.
 - Build/load `mod_audio_fork` (drachtio `freeswitch-modules`); allow FreeSWITCH → `GW_HOST:8001/tcp`.
@@ -77,7 +81,7 @@ GAL-E metadata.
 
 ## Option C — any platform: generic WebSocket PCM or SIPREC → recorder
 
-- **WebSocket**: `ws://GW_HOST:8001/v1/stream/<call_id>`. Send the JSON `{"event":"start","sample_rate":8000|16000,"channels":2,"layout":"stereo_agent_left","external_ref":"<your call id>"}`, then binary interleaved s16le, then `{"event":"stop"}`.
+- **WebSocket**: `ws://GW_HOST:8001/v1/stream/<call_id>`. Send the JSON `{"event":"start","sample_rate":8000|16000,"channels":2,"layout":"stereo_agent_left","external_ref":"<your call id>","agent_id":"<employee code>","queue":"<queue>"}`, then binary interleaved s16le, then `{"event":"stop"}`.
 - **Post-call only (no live alerts)**: drop stereo recordings into the gateway's watched folder (`GALE_INGEST_DROP_DIR`): `<name>.wav` plus an optional `<name>.json` (`{"external_ref":…,"queue":…}`). Write the WAV last or rename it into place. Each file becomes a `postcall.jobs` entry.
 
 ## What the PBX team must configure (checklist)
@@ -89,6 +93,7 @@ GAL-E metadata.
 | 3 | Network | Asterisk RTP range → GW_HOST:40000/udp; GW → Asterisk:8088/tcp | FS → GW_HOST:8001/tcp | → GW_HOST:8001/tcp, or a shared folder |
 | 4 | Codec | µ-law (default) or A-law (`GALE_INGEST` codec) | L16 16 kHz | s16le 8/16 kHz |
 | 5 | A staging PBX + 2 test extensions (agent, customer) | ✓ | ✓ | ✓ |
+| 6a | Agent employee code (dashboard scoping) | `GALE_AGENT_ID`, `GALE_QUEUE` channel vars | `agent_id` in metadata | `agent_id` in the start message |
 | 6 | Call identifier to correlate with CDRs | `linkedid` (sent automatically) | `${uuid}` in metadata | `external_ref` |
 | 7 | Legal: monitoring notice in the IVR greeting (PDPO 2025) | ✓ | ✓ | ✓ |
 

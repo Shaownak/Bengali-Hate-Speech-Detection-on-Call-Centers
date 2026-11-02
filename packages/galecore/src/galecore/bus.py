@@ -42,6 +42,7 @@ FEEDBACK = "feedback"
 LLM_DECISIONS = "llm.decisions"
 CALL_SCORES = "call.scores"
 POSTCALL_JOBS = "postcall.jobs"
+POSTCALL_RESULTS = "postcall.results"
 DLQ_SUFFIX = ".dlq"
 
 DEFAULT_MAXLEN = 100_000
