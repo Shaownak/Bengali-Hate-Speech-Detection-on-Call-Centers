@@ -14,6 +14,9 @@ concurrency:
 
 env:
   PYTHONUTF8: "1"
+  # uv.toml says only-system so local dev never downloads Python onto C: (ADR-009). CI runners
+  # need not ship 3.12 (ubuntu-latest = Ubuntu 26 since 2026-10-19), so let uv fetch it here.
+  UV_PYTHON_PREFERENCE: managed
   NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
@@ -28,8 +31,8 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
           enable-cache: true
@@ -39,14 +42,14 @@ jobs:
   web:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         with:
           version: 12
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - run: uv sync --locked
@@ -62,7 +65,7 @@ jobs:
       matrix:
         service: [api, ingest_gateway, audio_worker, asr_worker, text_worker, llm_judge, fusion_engine]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: build image
         run: >
           docker build -f infra/docker/service.Dockerfile
