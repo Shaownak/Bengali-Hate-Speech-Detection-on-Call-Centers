@@ -44,7 +44,7 @@ from gale_fusion_engine.rules import parse_rules
 from gale_fusion_engine.simulate import SimulationReport, simulate
 from galecore.bangla import normalize
 from galecore.bus import POSTCALL_JOBS
-from galecore.config import RulesConfig, load_thresholds
+from galecore.config import RulesConfig, ThresholdsConfig, load_thresholds
 from galecore.schemas import Category, PostcallJob
 
 router = APIRouter(prefix="/api/v1", tags=["admin"])
@@ -225,6 +225,14 @@ def simulate_rules(
         calls[str(e.call_id)][1].append(repo.event_of(e))
     thresholds = load_thresholds(request.app.state.settings.config_dir)
     return simulate(calls, baseline, candidate, thresholds)
+
+
+@router.get("/thresholds", response_model=ThresholdsConfig)
+def get_thresholds(
+    request: Request, p: Annotated[Principal, require("rules.read")]
+) -> ThresholdsConfig:
+    """Alert thresholds per category × speaker × mode (read-only; edited in configs/, ADR-017)."""
+    return load_thresholds(request.app.state.settings.config_dir)
 
 
 # --- models -------------------------------------------------------------------------------------

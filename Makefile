@@ -33,7 +33,7 @@ PY_PKGS := -p galecore -p gale_postcall -p gale_api -p gale_ingest_gateway -p ga
            -p gale_asr_worker -p gale_text_worker -p gale_llm_judge -p gale_fusion_engine
 
 .PHONY: help setup dev-up dev-down dev-status check check-py check-web lint fmt typecheck test \
-        test-web gen-types gen-types-check simulate fixtures fixtures-wav golden-check report eval bakeoff e2e clean-caches
+        test-web gen-types gen-types-check simulate fixtures fixtures-wav golden-check report eval bakeoff e2e e2e-install clean-caches
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  %-16s %s\n",$$1,$$2}'
@@ -130,8 +130,11 @@ eval: ## evaluate a component: make eval COMPONENT=<asr|kws|shout|ser|audiotox|t
 bakeoff: ## compare candidates: make bakeoff CANDIDATES=configs/bakeoff/asr.yaml SPLIT=dev [ADR=docs/adr/0NN-x.md]
 	$(PY) -m ml.eval.bakeoff --candidates $(CANDIDATES) --split $(SPLIT) $(if $(ADR),--adr $(ADR),)
 
-e2e: ## Playwright against the dev stack (Prompt 13)
-	@echo "e2e: arrives in P5 Prompt 13. See docs/PROGRESS.md." && exit 2
+e2e: ## Playwright against the dev stack + simulator (run `make dev-up` first)
+	cd web && PLAYWRIGHT_BROWSERS_PATH=$(GALE)/ms-playwright $(PNPM) exec playwright test
+
+e2e-install: ## download Chromium for Playwright into .gale/ (not the user profile)
+	cd web && PLAYWRIGHT_BROWSERS_PATH=$(GALE)/ms-playwright $(PNPM) exec playwright install chromium
 
 clean-caches: ## delete .gale caches (keeps pgdata, models)
 	rm -rf $(GALE)/uv-cache $(GALE)/pnpm-cache $(GALE)/tmp/* $(GALE)/pre-commit

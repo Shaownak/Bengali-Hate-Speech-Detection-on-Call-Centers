@@ -3,7 +3,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Noto Sans Bengali", "Hind Siliguri", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), var(--font-noto-bengali), var(--font-hind), "Noto Sans Bengali",
+    ui-sans-serif, system-ui, sans-serif;
   --color-background: oklch(1 0 0);
   --color-foreground: oklch(0.145 0 0);
   --color-muted: oklch(0.97 0 0);
@@ -26,4 +27,25 @@ body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+}
+
+/* Reports print cleanly (PDF export uses the browser's print-to-PDF). */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Respect reduced motion: provisional → confirmed transitions become instant. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -1,24 +1,24 @@
-import Link from "next/link";
+"use client";
+
 import { useTranslations } from "next-intl";
-import { setRequestLocale } from "next-intl/server";
-import { use } from "react";
+import { useEffect } from "react";
 
 import { CategoryList } from "@/components/category-list";
-import { Button } from "@/components/ui/button";
+import { useRouter } from "@/i18n/navigation";
+import { homeFor, useAuth, useHydrated } from "@/lib/auth";
 
-export default function Home({ params }: { params: Promise<{ locale: string }> }) {
-  const { locale } = use(params);
-  setRequestLocale(locale);
+/** Entry: signed-in users go to their role's home screen, others to sign-in. */
+export default function Home() {
   const t = useTranslations("home");
-  const other = locale === "bn" ? "en" : "bn";
+  const me = useAuth((s) => s.me);
+  const hydrated = useHydrated();
+  const router = useRouter();
+  useEffect(() => {
+    if (hydrated) router.replace(me ? homeFor(me) : "/login");
+  }, [hydrated, me, router]);
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 p-8">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/${other}`}>{t("switchLanguage")}</Link>
-        </Button>
-      </header>
+      <h1 className="text-2xl font-semibold">{t("title")}</h1>
       <p>{t("subtitle")}</p>
       <section aria-labelledby="cats">
         <h2 id="cats" className="mb-2 font-medium">
@@ -26,7 +26,6 @@ export default function Home({ params }: { params: Promise<{ locale: string }> }
         </h2>
         <CategoryList />
       </section>
-      <p className="text-sm opacity-70">{t("stubNotice")}</p>
     </main>
   );
 }

@@ -75,12 +75,21 @@ class SignalBrief(_M):
     text_span: str | None = None
 
 
+class ReviewBrief(_M):
+    kind: str
+    verdict: str | None
+    comment: str | None
+    created_at: datetime
+
+
 class EventOut(FusedEvent):
     acked_by: uuid.UUID | None = None
     acked_at: datetime | None = None
     review_count: int = 0
     latest_verdict: str | None = None
+    flagged: bool = False
     top_signals: list[SignalBrief] = Field(default_factory=list)
+    reviews: list[ReviewBrief] = Field(default_factory=list)
 
 
 class Timelines(_M):
@@ -97,7 +106,9 @@ class SignedUrls(_M):
 
 
 class ReviewIn(BaseModel):
-    kind: Literal["verdict", "dispute"] = "verdict"
+    # verdict: QA label · dispute: the agent contests · note: supervisor/coaching note ·
+    # flag: send to the QA review queue
+    kind: Literal["verdict", "dispute", "note", "flag"] = "verdict"
     verdict: Literal["correct", "wrong_category", "false_positive", "wrong_severity"] | None = None
     corrected_category: Category | None = None
     corrected_severity: Severity | None = None
@@ -107,8 +118,10 @@ class ReviewIn(BaseModel):
     def _shape(self) -> ReviewIn:
         if self.kind == "verdict" and self.verdict is None:
             raise ValueError("a verdict review needs `verdict`")
-        if self.kind == "dispute" and not (self.comment or "").strip():
-            raise ValueError("a dispute needs a comment")
+        if self.kind in ("dispute", "note") and not (self.comment or "").strip():
+            raise ValueError(f"a {self.kind} needs a comment")
+        if self.kind != "verdict" and self.verdict is not None:
+            raise ValueError("only verdict reviews carry `verdict`")
         if self.verdict == "wrong_category" and self.corrected_category is None:
             raise ValueError("wrong_category needs corrected_category")
         if self.verdict == "wrong_severity" and self.corrected_severity is None:
@@ -158,6 +171,15 @@ class DayPoint(_M):
     alerts: int
 
 
+class CoachingMoment(_M):
+    call_id: uuid.UUID
+    event_id: str
+    category: str
+    severity: int
+    ts_start: float
+    explanation_bn: str | None
+
+
 class AgentAnalytics(_M):
     agent_id: uuid.UUID
     employee_code: str
@@ -169,6 +191,10 @@ class AgentAnalytics(_M):
     avg_professionalism: float | None
     disputes: int
     trend: list[DayPoint]
+    alerts_per_100_calls: float | None = None
+    team_median_alerts_per_100_calls: float | None = None
+    coaching_moments: list[CoachingMoment] = Field(default_factory=list)
+    coaching_points_bn: list[str] = Field(default_factory=list)
 
 
 class AgentRow(_M):
@@ -179,12 +205,21 @@ class AgentRow(_M):
     avg_professionalism: float | None
 
 
+class HeatCell(_M):
+    weekday: int  # 0 = Monday (call-centre local time)
+    hour: int
+    calls: int
+    agent_incidents: int
+    avg_customer_hostility: float | None
+
+
 class TeamAnalytics(_M):
     team_id: uuid.UUID
     name: str
     calls: int
     alerts: int
     agents: list[AgentRow]
+    heatmap: list[HeatCell] = Field(default_factory=list)
 
 
 class QueueRow(_M):
@@ -297,3 +332,37 @@ class DevTokenIn(BaseModel):
 class DevTokenOut(_M):
     access_token: str
     token_type: Literal["bearer"] = "bearer"  # noqa: S105 (not a secret)
+
+
+class MeOut(_M):
+    user_id: uuid.UUID
+    sub: str
+    role: str
+    team_ids: list[uuid.UUID]
+    agent_id: uuid.UUID | None
+    permissions: list[str]
+
+
+class TeamOut(_M):
+    id: uuid.UUID
+    name: str
+    supervisor_user_id: uuid.UUID | None
+
+
+class AgentOut(_M):
+    id: uuid.UUID
+    employee_code: str
+    name: str | None
+    team_id: uuid.UUID | None
+    active: bool
+
+
+class Directory(_M):
+    teams: list[TeamOut]
+    agents: list[AgentOut]
+
+
+class Agreement(_M):
+    events_with_multiple_verdicts: int
+    reviewers: int
+    pairwise_agreement: float | None

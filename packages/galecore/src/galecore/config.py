@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     oidc_jwks_url: str | None = None
     oidc_role_claim: str = "realm_access.roles"
     dev_jwt_secret: str = "gale-dev-only-secret-not-for-prod-0000"  # noqa: S105 (dev/test only)
+    display_tz: str = "Asia/Dhaka"  # call-centre local time for hour-of-day analytics
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     db_auto_migrate: bool = False  # api runs `alembic upgrade head` at startup (dev stack)
     log_level: str = "INFO"

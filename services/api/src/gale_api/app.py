@@ -26,6 +26,7 @@ from gale_api.routes_admin import router as admin_router
 from gale_api.routes_analytics import router as analytics_router
 from gale_api.routes_calls import router as calls_router
 from gale_api.routes_dev import router as dev_router
+from gale_api.routes_me import router as me_router
 from gale_api.ws import LiveHub
 from gale_api.ws import router as ws_router
 from galecore.bus import BusClient
@@ -94,7 +95,7 @@ def build_app(
         allow_methods=["*"],
         allow_headers=["Authorization", "Content-Type"],
     )
-    for r in (calls_router, analytics_router, admin_router, ws_router):
+    for r in (calls_router, analytics_router, admin_router, me_router, ws_router):
         app.include_router(r)
     if s.auth_mode == "dev":
         app.include_router(dev_router)

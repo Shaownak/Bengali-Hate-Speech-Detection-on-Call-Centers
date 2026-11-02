@@ -170,6 +170,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/directory": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Directory */
+        get: operations["directory_api_v1_directory_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events/{event_id}/ack": {
         parameters: {
             query?: never;
@@ -258,6 +275,23 @@ export interface paths {
          * @description Soft delete: the entry is deactivated, so history and audit stay intact.
          */
         delete: operations["delete_lexicon_api_v1_lexicon__entry_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Me */
+        get: operations["me_api_v1_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -360,9 +394,30 @@ export interface paths {
         };
         /**
          * Review Queue
-         * @description Alerts and confirmed severity ≥ 2 events without a QA verdict, worst first.
+         * @description Alerts, severity ≥ 2 and QA-flagged events without a verdict: worst first, then the most
+         *     uncertain (probability nearest 0.5) first.
          */
         get: operations["review_queue_api_v1_review_queue_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reviews/agreement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Agreement
+         * @description Pairwise percent agreement between QA verdicts on the same event (docs/04 §2.4).
+         */
+        get: operations["agreement_api_v1_reviews_agreement_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -403,6 +458,26 @@ export interface paths {
         put?: never;
         /** Simulate Rules */
         post: operations["simulate_rules_api_v1_rules_simulate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/thresholds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Thresholds
+         * @description Alert thresholds per category × speaker × mode (read-only; edited in configs/, ADR-017).
+         */
+        get: operations["get_thresholds_api_v1_thresholds_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -488,10 +563,16 @@ export interface components {
             agent_id: string;
             /** Alerts */
             alerts: number;
+            /** Alerts Per 100 Calls */
+            alerts_per_100_calls?: number | null;
             /** Avg Professionalism */
             avg_professionalism: number | null;
             /** Calls */
             calls: number;
+            /** Coaching Moments */
+            coaching_moments?: components["schemas"]["CoachingMoment"][];
+            /** Coaching Points Bn */
+            coaching_points_bn?: string[];
             /** Disputes */
             disputes: number;
             /** Employee Code */
@@ -502,8 +583,26 @@ export interface components {
             talk_minutes: number;
             /** Team Id */
             team_id: string | null;
+            /** Team Median Alerts Per 100 Calls */
+            team_median_alerts_per_100_calls?: number | null;
             /** Trend */
             trend: components["schemas"]["DayPoint"][];
+        };
+        /** AgentOut */
+        AgentOut: {
+            /** Active */
+            active: boolean;
+            /** Employee Code */
+            employee_code: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string | null;
+            /** Team Id */
+            team_id: string | null;
         };
         /** AgentRow */
         AgentRow: {
@@ -533,6 +632,15 @@ export interface components {
             respectful_register_maintained: boolean;
             /** Violations */
             violations: string[];
+        };
+        /** Agreement */
+        Agreement: {
+            /** Events With Multiple Verdicts */
+            events_with_multiple_verdicts: number;
+            /** Pairwise Agreement */
+            pairwise_agreement: number | null;
+            /** Reviewers */
+            reviewers: number;
         };
         /** AlertKey */
         AlertKey: {
@@ -751,6 +859,31 @@ export interface components {
             /** Speaker */
             speaker: string;
         };
+        /** CategoryThresholds */
+        CategoryThresholds: {
+            alert_postcall: components["schemas"]["SpeakerThresholds"];
+            alert_realtime: components["schemas"]["SpeakerThresholds"];
+            /** Log */
+            log: number;
+        };
+        /** CoachingMoment */
+        CoachingMoment: {
+            /**
+             * Call Id
+             * Format: uuid
+             */
+            call_id: string;
+            /** Category */
+            category: string;
+            /** Event Id */
+            event_id: string;
+            /** Explanation Bn */
+            explanation_bn: string | null;
+            /** Severity */
+            severity: number;
+            /** Ts Start */
+            ts_start: number;
+        };
         /** CustomerScore */
         CustomerScore: {
             /** Abuse Toward Agent */
@@ -768,6 +901,13 @@ export interface components {
             calls: number;
             /** Day */
             day: string;
+        };
+        /** Directory */
+        Directory: {
+            /** Agents */
+            agents: components["schemas"]["AgentOut"][];
+            /** Teams */
+            teams: components["schemas"]["TeamOut"][];
         };
         /** Escalation */
         Escalation: {
@@ -803,6 +943,11 @@ export interface components {
             explanation_bn?: string | null;
             /** Explanation En */
             explanation_en?: string | null;
+            /**
+             * Flagged
+             * @default false
+             */
+            flagged: boolean;
             /** Latest Verdict */
             latest_verdict?: string | null;
             /** Probability */
@@ -812,6 +957,8 @@ export interface components {
              * @default 0
              */
             review_count: number;
+            /** Reviews */
+            reviews?: components["schemas"]["ReviewBrief"][];
             /**
              * Severity
              * @enum {integer}
@@ -837,10 +984,34 @@ export interface components {
          * @enum {string}
          */
         EventStatus: "provisional" | "confirmed" | "dismissed_by_llm" | "reviewed_true" | "reviewed_false";
+        /** HeatCell */
+        HeatCell: {
+            /** Agent Incidents */
+            agent_incidents: number;
+            /** Avg Customer Hostility */
+            avg_customer_hostility: number | null;
+            /** Calls */
+            calls: number;
+            /** Hour */
+            hour: number;
+            /** Weekday */
+            weekday: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** Hysteresis */
+        Hysteresis: {
+            /** Cooldown S */
+            cooldown_s: number;
+            /** Escalate Repeats */
+            escalate_repeats: number;
+            /** Escalate Window S */
+            escalate_window_s: number;
+            /** Merge Gap S */
+            merge_gap_s: number;
         };
         /** IngestOut */
         IngestOut: {
@@ -917,6 +1088,24 @@ export interface components {
             updated_at: string;
             /** Variants */
             variants: string[];
+        };
+        /** MeOut */
+        MeOut: {
+            /** Agent Id */
+            agent_id: string | null;
+            /** Permissions */
+            permissions: string[];
+            /** Role */
+            role: string;
+            /** Sub */
+            sub: string;
+            /** Team Ids */
+            team_ids: string[];
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
         };
         /** ModelVersionOut */
         ModelVersionOut: {
@@ -1000,6 +1189,20 @@ export interface components {
             /** Queue */
             queue: string;
         };
+        /** ReviewBrief */
+        ReviewBrief: {
+            /** Comment */
+            comment: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Kind */
+            kind: string;
+            /** Verdict */
+            verdict: string | null;
+        };
         /** ReviewIn */
         ReviewIn: {
             /** Comment */
@@ -1012,7 +1215,7 @@ export interface components {
              * @default verdict
              * @enum {string}
              */
-            kind: "verdict" | "dispute";
+            kind: "verdict" | "dispute" | "note" | "flag";
             /** Verdict */
             verdict?: ("correct" | "wrong_category" | "false_positive" | "wrong_severity") | null;
         };
@@ -1169,6 +1372,13 @@ export interface components {
          * @enum {string}
          */
         Speaker: "agent" | "customer";
+        /** SpeakerThresholds */
+        SpeakerThresholds: {
+            /** Agent */
+            agent: number;
+            /** Customer */
+            customer: number;
+        };
         /** TeamAnalytics */
         TeamAnalytics: {
             /** Agents */
@@ -1177,6 +1387,8 @@ export interface components {
             alerts: number;
             /** Calls */
             calls: number;
+            /** Heatmap */
+            heatmap?: components["schemas"]["HeatCell"][];
             /** Name */
             name: string;
             /**
@@ -1184,6 +1396,28 @@ export interface components {
              * Format: uuid
              */
             team_id: string;
+        };
+        /** TeamOut */
+        TeamOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Supervisor User Id */
+            supervisor_user_id: string | null;
+        };
+        /** ThresholdsConfig */
+        ThresholdsConfig: {
+            /** Categories */
+            categories: {
+                [key: string]: components["schemas"]["CategoryThresholds"];
+            };
+            hysteresis: components["schemas"]["Hysteresis"];
+            /** Version */
+            version: number;
         };
         /** Timelines */
         Timelines: {
@@ -1376,16 +1610,23 @@ export interface operations {
         parameters: {
             query?: {
                 agent_id?: string | null;
+                agent_score_max?: number | null;
+                agent_score_min?: number | null;
                 alert?: boolean | null;
                 category?: components["schemas"]["Category"] | null;
                 date_from?: string | null;
                 date_to?: string | null;
+                hostility_max?: number | null;
+                hostility_min?: number | null;
                 limit?: number;
+                min_severity?: number | null;
                 mode?: string | null;
                 offset?: number;
                 /** @description transcript search */
                 q?: string | null;
                 queue?: string | null;
+                reviewed?: boolean | null;
+                speaker?: ("agent" | "customer") | null;
                 status?: string | null;
                 team_id?: string | null;
             };
@@ -1568,6 +1809,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    directory_api_v1_directory_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Directory"];
                 };
             };
         };
@@ -1803,6 +2064,26 @@ export interface operations {
             };
         };
     };
+    me_api_v1_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeOut"];
+                };
+            };
+        };
+    };
     list_models_api_v1_models_get: {
         parameters: {
             query?: {
@@ -1995,6 +2276,26 @@ export interface operations {
             };
         };
     };
+    agreement_api_v1_reviews_agreement_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Agreement"];
+                };
+            };
+        };
+    };
     get_rules_api_v1_rules_get: {
         parameters: {
             query?: {
@@ -2088,6 +2389,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_thresholds_api_v1_thresholds_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThresholdsConfig"];
                 };
             };
         };

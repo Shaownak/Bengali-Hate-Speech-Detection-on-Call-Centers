@@ -21,7 +21,11 @@ describe("categories", () => {
     expect(Object.keys(en.categories).sort()).toEqual(backendEnum);
   });
 
-  it("bn and en message files have the same keys", () => {
-    expect(Object.keys(bn.home).sort()).toEqual(Object.keys(en.home).sort());
+  it("bn and en message files have exactly the same keys", () => {
+    const keys = (o: object, p = ""): string[] =>
+      Object.entries(o).flatMap(([k, v]) =>
+        v && typeof v === "object" ? keys(v as object, `${p}${k}.`) : [`${p}${k}`],
+      );
+    expect(keys(bn).sort()).toEqual(keys(en).sort());
   });
 });

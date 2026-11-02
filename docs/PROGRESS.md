@@ -103,9 +103,11 @@ Exit gate: usability sign-off.
 - [x] FastAPI REST + WS per `04_GUI_SPEC.md` §3, OIDC (Keycloak), RBAC, audit log on every audio/transcript view, signed audio URLs (Prompt 12, ADR-016; OIDC verified against the dev issuer only)
 - [x] Alembic migrations for the `01_ARCHITECTURE.md` §4 schema (+ D-08 additions), monthly partitions
 - [x] OpenAPI → TS types (`web/src/types/generated/api.ts`) + typed `openapi-fetch` client
-- [ ] Web: `/live`, `/live/[callId]`, `/calls`, `/calls/[callId]`, `/review`, `/analytics`, `/me`, `/admin/{lexicon,rules,models,health,audit}`
-- [ ] bn/en i18n, dark/light, WCAG 2.1 AA, wallboard 1,000 calls at 2 updates/s
-- [ ] Vitest, Playwright e2e against simulator stack, visual regression, Lighthouse a11y ≥ 90
+- [x] Web: `/live`, `/live/[callId]`, `/calls`, `/calls/[callId]`, `/review`, `/analytics`, `/me`, `/admin/{lexicon,rules,models,health,audit}` (Prompt 13, ADR-017)
+- [x] bn/en i18n (key parity tested), dark/light, wallboard 1,000 calls at 2 updates/s (reducer load test + virtualised grid)
+- [ ] WCAG 2.1 AA audit (icon + text + colour, ARIA meters, skip link and reduced motion are in place; no axe/Lighthouse run yet)
+- [x] Vitest (27 tests) + Playwright e2e against the simulator stack (5 scenarios)
+- [ ] Visual regression + Lighthouse a11y ≥ 90 (reference screenshots exist in `docs/screenshots/`)
 - [ ] **[HUMAN]** UX review with 3 supervisors + 2 QA analysts 🔒
 
 ### P6 — Production hardening (weeks 12–16) · Prompt 14
@@ -161,6 +163,7 @@ Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own
 | D-22 | Evaluation definitions (ADR-014): gold with context flags must end dismissed/absent; per-slice FPR = false alerts per 100 calls; call-level 'needs QA review' = alert-worthy agent event or T3 professionalism ≤ 2; bootstrap resamples without events are skipped; golden loads only with a matching lock. | P2 |
 | D-23 | Streaming services (ADR-015): one `galecore.streaming.Worker` per service; lexicon fast path on ASR partials; latency measured from the word (lexicon) or utterance end (register/classifier); replay-based restart recovery; post-call jobs yield to real-time backlog; provisional alerts can be retracted via `events.fused`. | P4 |
 | D-24 | API & persistence (ADR-016): an `api_persister` consumer writes bus messages to Postgres (idempotent upserts); post-call runs publish `postcall.results`. String pipeline ids; monthly partitions on `call_started_at`; trigram index only where `pg_trgm` exists. Role from the token, scoping from the DB (out of scope = 404). WS auth via first message, 250 ms batches. Two-person model promotion; `research_only` never promotable. Gateway carries optional `agent_id`/`queue`. | P5 |
+| D-25 | Web dashboard (ADR-017): client-rendered screens over the generated API client; sign-in via Keycloak PKCE (`oidc-client-ts`) or the dev issuer, token in sessionStorage; one `LiveSocket` (first-message auth, backoff) + pure Zustand reducers; wavesurfer for stereo/per-channel audio; CSV in the browser, PDF via print. Small API additions (`/me`, `/directory`, `/reviews/agreement`, `/thresholds`, note/flag reviews, heatmap, more call filters). | P5 |
 | D-15 | Mono/diarized audio: `Channel.mixed` is allowed only before diarization. Fusion accepts only `agent`/`customer`. Segments that can't be attributed are stored but never alert. | P1 |
 
 ---
@@ -376,6 +379,31 @@ Smaller inconsistencies, resolved in-line without an ADR:
 
 **Needs a human:** a Keycloak realm `gale` with client `gale-api` and the five realm roles, for staging.
 
+## Prompt 13 summary (2026-11-02)
+
+**Built:** `web/` per docs/04 §2, Bangla by default with an English toggle:
+- `/live`: KPIs, filters, virtualised call grid with agent/customer risk meters, alert feed with acknowledge / false alarm, optional sound and desktop notification for severity 3, offline banner.
+- `/live/[callId]`: two-lane streaming transcript with partials greyed and flagged spans, register-switch markers, loudness/anger/overtalk timelines, event stack, note / flag-for-QA / acknowledge.
+- `/calls` (all spec filters incl. transcript search, CSV) and `/calls/[callId]`: stereo waveform with event regions, synced transcript with PII tags, timelines + escalation curve, scorecard, event table with evidence drill-down and review controls, CSV/PDF.
+- `/review`: keyboard-first (J/K, 1–4, Space plays span ±3 s), inter-reviewer agreement.
+- `/analytics`: agent scorecard vs team median, coaching moments, team heatmap, queues, fairness panel (pending Q-05).
+- `/me`: own calls, scorecard, disputes.
+- `/admin/lexicon`: masked terms with reveal, proposal → approval, CSV import, 7-day match preview.
+- `/admin/rules`: YAML + form view, simulate on last N calls, history with rollback, thresholds table.
+- `/admin/models` (two-person promotion), `/admin/health` (API readiness + Grafana embeds), `/admin/audit` (filters, CSV).
+- `make e2e` / `make e2e-install` (Chromium under `.gale/ms-playwright`).
+
+**Verified:**
+- Vitest: 27 tests covering reducers, socket backoff and refusals, a 1,000-call load test, CSV/YAML/keyboard helpers, accessible components, bn/en parity.
+- Playwright against `make dev-up` + simulator: alert appears on the wallboard; call detail; a keyboard review sets `reviewed_false`; an agent can't see another agent's calls (UI and API 404); admin screens in English.
+- `next build` passes.
+
+**Screenshots** (synthetic data, written by the e2e run): `docs/screenshots/01-live-wallboard.png`, `02-live-call.png`, `03-call-detail.png`, `04-call-explorer.png`, `05-review-queue.png`, `06-agent-self-view.png`, `07-analytics.png`, `08-team-heatmap.png`, `09-rules-simulate.png`, `10-lexicon.png`, `11-models.png`, `12-audit.png`.
+
+**Stubbed / limits:** Keycloak sign-in not exercised; fairness panel waits on Q-05; simulation shows alert deltas, not P/R; thresholds read-only; no visual-regression or Lighthouse run yet.
+
+**Needs a human:** the UX review with 3 supervisors + 2 QA analysts (P5 exit gate) 🔒; answer Q-05 for the fairness panel.
+
 ## Next step
 
-Run **Prompt 6: P3a ASR fine-tuning** on the GPU box (🔒 GPU + data). Prompts 6–10 need a GPU and annotated data. Prompt 11 (P4) is built on the simulator; its exit gate waits on a staging PBX. Prompt 12 (P5 API) is done. **Prompt 13 (P5 web dashboard)** can be built now against the API and the generated client.
+Run **Prompt 6: P3a ASR fine-tuning** on the GPU box (🔒 GPU + data). Prompts 6–10 need a GPU and annotated data. Prompt 11 (P4) is built on the simulator; its exit gate waits on a staging PBX. Prompts 12–13 (P5 API + dashboard) are done; the P5 exit gate is a UX review with supervisors and QA. **Prompt 14 (P6 production hardening)** needs a cluster 🔒; locally, the remaining P5 items are visual regression + a Lighthouse/axe accessibility run.

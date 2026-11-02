@@ -5,8 +5,9 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from typing import Annotated, Any
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import ColumnElement, and_, cast, func, select
 from sqlalchemy.types import Date
 
@@ -14,7 +15,9 @@ from gale_api.api_models import (
     AgentAnalytics,
     AgentRow,
     CategoryCount,
+    CoachingMoment,
     DayPoint,
+    HeatCell,
     QueueRow,
     TeamAnalytics,
 )
@@ -98,7 +101,36 @@ def agent_analytics(
         .group_by(day)
         .order_by(day)
     ).all()
+    per100 = round(100.0 * int(alerts) / calls, 2) if calls else None
+    moments = db.execute(
+        select(EventRow)
+        .join(Call, Call.id == EventRow.call_id)
+        .where(where, EventRow.speaker == "agent", EventRow.status != "dismissed_by_llm")
+        .order_by(EventRow.severity.desc(), EventRow.probability.desc())
+        .limit(5)
+    ).scalars()
+    latest_card = db.scalar(
+        select(CallScore.scorecard_jsonb)
+        .join(Call, Call.id == CallScore.call_id)
+        .where(where)
+        .order_by(Call.started_at.desc())
+        .limit(1)
+    )
     return AgentAnalytics(
+        alerts_per_100_calls=per100,
+        team_median_alerts_per_100_calls=_team_median(db, agent.team_id, date_from, date_to),
+        coaching_moments=[
+            CoachingMoment(
+                call_id=e.call_id,
+                event_id=e.id,
+                category=e.category,
+                severity=e.severity,
+                ts_start=e.ts_start,
+                explanation_bn=e.explanation_bn,
+            )
+            for e in moments
+        ],
+        coaching_points_bn=list((latest_card or {}).get("coaching_points_bn", [])),
         agent_id=agent.id,
         employee_code=agent.employee_code,
         team_id=agent.team_id,
@@ -112,9 +144,31 @@ def agent_analytics(
     )
 
 
+def _team_median(
+    db: Any, team_id: uuid.UUID | None, date_from: datetime | None, date_to: datetime | None
+) -> float | None:
+    if team_id is None:
+        return None
+    al = _alerts_by_call()
+    rows = db.execute(
+        select(func.count(Call.id), func.coalesce(func.sum(al.c.n), 0))
+        .join(Agent, Agent.id == Call.agent_id)
+        .outerjoin(al, al.c.call_id == Call.id)
+        .where(Agent.team_id == team_id, *_window(date_from, date_to))
+        .group_by(Agent.id)
+    ).all()
+    rates: list[float] = sorted(100.0 * int(a) / n for n, a in rows if n)
+    if not rates:
+        return None
+    mid = len(rates) // 2
+    med = rates[mid] if len(rates) % 2 else (rates[mid - 1] + rates[mid]) / 2
+    return round(med, 2)
+
+
 @router.get("/teams/{team_id}", response_model=TeamAnalytics)
 def team_analytics(
     team_id: uuid.UUID,
+    request: Request,
     db: DB,
     p: AnalyticsUser,
     date_from: datetime | None = None,
@@ -156,7 +210,47 @@ def team_analytics(
         calls=sum(a.calls for a in agents),
         alerts=sum(a.alerts for a in agents),
         agents=agents,
+        heatmap=_heatmap(db, team_id, date_from, date_to, request.app.state.settings.display_tz),
     )
+
+
+def _heatmap(
+    db: Any, team_id: uuid.UUID, date_from: datetime | None, date_to: datetime | None, tz: str
+) -> list[HeatCell]:
+    """Hour-of-day × weekday in call-centre local time (docs/04 §2.5). Bucketed in Python with
+    zoneinfo, so it doesn't depend on the database's timezone tables."""
+    inc = (
+        select(EventRow.call_id, func.count().label("n"))
+        .where(EventRow.alert, EventRow.speaker == "agent", EventRow.status != "dismissed_by_llm")
+        .group_by(EventRow.call_id)
+        .subquery()
+    )
+    rows = db.execute(
+        select(Call.started_at, func.coalesce(inc.c.n, 0), CallScore.customer_hostility)
+        .join(Agent, Agent.id == Call.agent_id)
+        .outerjoin(inc, inc.c.call_id == Call.id)
+        .outerjoin(CallScore, CallScore.call_id == Call.id)
+        .where(Agent.team_id == team_id, *_window(date_from, date_to))
+    ).all()
+    zone = ZoneInfo(tz)
+    cells: dict[tuple[int, int], list[Any]] = {}
+    for started, incidents, hostility in rows:
+        local = started.astimezone(zone)
+        c = cells.setdefault((local.weekday(), local.hour), [0, 0, []])
+        c[0] += 1
+        c[1] += int(incidents)
+        if hostility is not None:
+            c[2].append(hostility)
+    return [
+        HeatCell(
+            weekday=w,
+            hour=h,
+            calls=n,
+            agent_incidents=i,
+            avg_customer_hostility=round(sum(hs) / len(hs), 2) if hs else None,
+        )
+        for (w, h), (n, i, hs) in sorted(cells.items())
+    ]
 
 
 @router.get("/queues", response_model=list[QueueRow])

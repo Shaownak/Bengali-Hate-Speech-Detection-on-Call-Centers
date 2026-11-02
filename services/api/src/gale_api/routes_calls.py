@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from fastapi.responses import Response
@@ -19,6 +19,7 @@ from gale_api.api_models import (
     CallScoreOut,
     CallSummary,
     EventOut,
+    ReviewBrief,
     ReviewIn,
     ReviewOut,
     ReviewQueueItem,
@@ -110,6 +111,13 @@ def list_calls(
     alert: bool | None = None,
     call_status: Annotated[str | None, Query(alias="status")] = None,
     mode: str | None = None,
+    min_severity: Annotated[int | None, Query(ge=1, le=3)] = None,
+    speaker: Literal["agent", "customer"] | None = None,
+    reviewed: bool | None = None,
+    agent_score_min: Annotated[int | None, Query(ge=1, le=5)] = None,
+    agent_score_max: Annotated[int | None, Query(ge=1, le=5)] = None,
+    hostility_min: Annotated[int | None, Query(ge=1, le=5)] = None,
+    hostility_max: Annotated[int | None, Query(ge=1, le=5)] = None,
     q: Annotated[str | None, Query(max_length=200, description="transcript search")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
@@ -130,6 +138,29 @@ def list_calls(
         conds.append(Call.status == call_status)
     if mode:
         conds.append(Call.mode == mode)
+    if min_severity:
+        conds.append(st.c.max_severity >= min_severity)
+    if speaker:
+        conds.append(exists().where(EventRow.call_id == Call.id, EventRow.speaker == speaker, LIVE))
+    if reviewed is not None:
+        has_verdict = exists().where(
+            ReviewRow.event_id == EventRow.id,
+            ReviewRow.kind == "verdict",
+            EventRow.call_id == Call.id,
+        )
+        conds.append(has_verdict if reviewed else ~has_verdict)
+    scores = (agent_score_min, agent_score_max, hostility_min, hostility_max)
+    if any(v is not None for v in scores):
+        sc = select(CallScore.call_id).where(CallScore.call_id == Call.id)
+        if agent_score_min is not None:
+            sc = sc.where(CallScore.agent_score >= agent_score_min)
+        if agent_score_max is not None:
+            sc = sc.where(CallScore.agent_score <= agent_score_max)
+        if hostility_min is not None:
+            sc = sc.where(CallScore.customer_hostility >= hostility_min)
+        if hostility_max is not None:
+            sc = sc.where(CallScore.customer_hostility <= hostility_max)
+        conds.append(sc.exists())
     if alert is not None:
         conds.append(
             func.coalesce(st.c.alert_count, 0) > 0 if alert else st.c.alert_count.is_(None)
@@ -230,6 +261,7 @@ def events_out(db: Session, rows: list[EventRow]) -> list[EventOut]:
         )[:3]
         rvs = reviews.get(r.id, [])
         verdicts = [v.verdict for v in rvs if v.kind == "verdict"]
+        flagged = any(v.kind == "flag" for v in rvs)
         out.append(
             EventOut(
                 **repo.event_of(r).model_dump(),
@@ -237,6 +269,13 @@ def events_out(db: Session, rows: list[EventRow]) -> list[EventOut]:
                 acked_at=r.acked_at,
                 review_count=len(rvs),
                 latest_verdict=verdicts[-1] if verdicts else None,
+                flagged=flagged,
+                reviews=[
+                    ReviewBrief(
+                        kind=v.kind, verdict=v.verdict, comment=v.comment, created_at=v.created_at
+                    )
+                    for v in rvs
+                ],
                 top_signals=[
                     SignalBrief(
                         signal_id=s.id,
@@ -407,13 +446,15 @@ def review_queue(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ReviewQueuePage:
-    """Alerts and confirmed severity ≥ 2 events without a QA verdict, worst first."""
+    """Alerts, severity ≥ 2 and QA-flagged events without a verdict: worst first, then the most
+    uncertain (probability nearest 0.5) first."""
     reviewed = exists().where(ReviewRow.event_id == EventRow.id, ReviewRow.kind == "verdict")
+    flagged = exists().where(ReviewRow.event_id == EventRow.id, ReviewRow.kind == "flag")
     conds: list[ColumnElement[bool]] = [
         call_scope(p),
         ~reviewed,
         EventRow.status.in_([EventStatus.PROVISIONAL.value, EventStatus.CONFIRMED.value]),
-        (EventRow.alert | (EventRow.severity >= 2)),
+        (EventRow.alert | (EventRow.severity >= 2) | flagged),
         EventRow.shadow.is_(False),
     ]
     if category:
@@ -422,7 +463,11 @@ def review_queue(
     total = db.scalar(select(func.count()).select_from(q.subquery())) or 0
     rows = list(
         db.scalars(
-            q.order_by(EventRow.severity.desc(), EventRow.alert.desc(), EventRow.created_at.desc())
+            q.order_by(
+                EventRow.severity.desc(),
+                func.abs(EventRow.probability - 0.5),
+                EventRow.created_at.desc(),
+            )
             .limit(limit)
             .offset(offset)
         )

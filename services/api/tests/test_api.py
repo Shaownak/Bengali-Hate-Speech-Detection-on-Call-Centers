@@ -40,6 +40,17 @@ def test_call_list_filters_and_transcript_search(world: World) -> None:
     assert ids(alert=False) == set()
     assert ids(team_id=str(sid("team-ctg"))) == {world.call_b}
     assert ids(agent_id=str(sid("AG-001"))) == {world.call_a}
+    assert ids(min_severity=3) == {world.call_a, world.call_b}
+    assert ids(speaker="customer") == {world.call_a, world.call_b}
+    assert ids(reviewed=False) == {world.call_a, world.call_b}
+    assert ids(agent_score_max=2, hostility_min=4) == {world.call_a, world.call_b}
+    assert ids(agent_score_min=3) == set()
+    world.client.post(
+        f"/api/v1/events/{world.ev_agent_b}/reviews",
+        json={"kind": "verdict", "verdict": "correct"},
+        headers=h,
+    )
+    assert ids(reviewed=True) == {world.call_b}
     page = world.client.get("/api/v1/calls", params={"limit": 1}, headers=h).json()
     assert page["total"] == 2
     assert len(page["items"]) == 1
@@ -317,3 +328,67 @@ def test_dev_token_endpoint(world: World) -> None:
     r = world.client.post("/api/v1/dev/token", json={"sub": "new-qa", "role": "qa_analyst"})
     h = {"Authorization": f"Bearer {r.json()['access_token']}"}
     assert world.client.get("/api/v1/calls", headers=h).status_code == 200
+
+
+def test_me_directory_and_scoping(world: World) -> None:
+    me = world.client.get("/api/v1/me", headers=world.h("dev-supervisor")).json()
+    assert me["role"] == "supervisor"
+    assert me["team_ids"] == [str(sid("team-dhaka"))]
+    assert "events.ack" in me["permissions"]
+    assert "audit.read" not in me["permissions"]
+    agent = world.client.get("/api/v1/me", headers=world.h("dev-agent")).json()
+    assert agent["agent_id"] == str(sid("AG-001"))
+
+    def codes(sub: str) -> list[str]:
+        d = world.client.get("/api/v1/directory", headers=world.h(sub)).json()
+        return [a["employee_code"] for a in d["agents"]]
+
+    assert codes("dev-admin") == ["AG-001", "AG-002", "AG-003"]
+    assert codes("dev-supervisor") == ["AG-001", "AG-002"]
+    assert codes("dev-agent") == ["AG-001"]
+    teams = world.client.get("/api/v1/directory", headers=world.h("dev-agent")).json()["teams"]
+    assert teams == []
+
+
+def test_notes_flags_and_agreement(world: World) -> None:
+    url = f"/api/v1/events/{world.ev_customer_a}/reviews"
+    sup = world.h("dev-supervisor")
+    assert world.client.post(url, json={"kind": "note"}, headers=sup).status_code == 422
+    bad = {"kind": "note", "comment": "x", "verdict": "correct"}
+    assert world.client.post(url, json=bad, headers=sup).status_code == 422
+    note = {"kind": "note", "comment": "talked to agent"}
+    assert world.client.post(url, json=note, headers=sup).status_code == 201
+    # severity-2 customer event, no alert: already queued; a flag keeps it there and marks it
+    assert world.client.post(url, json={"kind": "flag"}, headers=sup).status_code == 201
+    q = world.client.get("/api/v1/review-queue", headers=world.h("dev-qa")).json()
+    item = next(i for i in q["items"] if i["event"]["event_id"] == world.ev_customer_a)
+    assert item["event"]["flagged"] is True
+    assert [r["kind"] for r in item["event"]["reviews"]] == ["note", "flag"]
+    # agreement: two reviewers on the agent event, disagreeing
+    ev = f"/api/v1/events/{world.ev_agent_a}/reviews"
+    world.client.post(ev, json={"kind": "verdict", "verdict": "correct"}, headers=world.h("dev-qa"))
+    world.client.post(
+        ev, json={"kind": "verdict", "verdict": "false_positive"}, headers=world.h("dev-admin")
+    )
+    agr = world.client.get("/api/v1/reviews/agreement", headers=world.h("dev-qa")).json()
+    assert agr == {"events_with_multiple_verdicts": 1, "reviewers": 2, "pairwise_agreement": 0.0}
+
+
+def test_agent_coaching_and_team_heatmap(world: World) -> None:
+    h = world.h("dev-supervisor")
+    a = world.client.get(f"/api/v1/analytics/agents/{sid('AG-001')}", headers=h).json()
+    assert a["alerts_per_100_calls"] == 100.0
+    assert a["team_median_alerts_per_100_calls"] == 100.0  # AG-002 has no calls
+    assert [m["event_id"] for m in a["coaching_moments"]] == [world.ev_agent_a]
+    assert a["coaching_points_bn"] == ["শান্ত থাকুন"]
+    t = world.client.get(f"/api/v1/analytics/teams/{sid('team-dhaka')}", headers=h).json()
+    # fixture calls start at epoch 1_790_000_000 = Monday 20:13 in Dhaka (UTC+6)
+    assert t["heatmap"] == [
+        {
+            "weekday": 0,
+            "hour": 20,
+            "calls": 1,
+            "agent_incidents": 1,
+            "avg_customer_hostility": 4.0,
+        }
+    ]

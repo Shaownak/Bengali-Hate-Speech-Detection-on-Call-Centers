@@ -37,6 +37,17 @@
             "title": "Alerts",
             "type": "integer"
           },
+          "alerts_per_100_calls": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Alerts Per 100 Calls"
+          },
           "avg_professionalism": {
             "anyOf": [
               {
@@ -51,6 +62,20 @@
           "calls": {
             "title": "Calls",
             "type": "integer"
+          },
+          "coaching_moments": {
+            "items": {
+              "$ref": "#/components/schemas/CoachingMoment"
+            },
+            "title": "Coaching Moments",
+            "type": "array"
+          },
+          "coaching_points_bn": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Coaching Points Bn",
+            "type": "array"
           },
           "disputes": {
             "title": "Disputes",
@@ -83,6 +108,17 @@
             ],
             "title": "Team Id"
           },
+          "team_median_alerts_per_100_calls": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Median Alerts Per 100 Calls"
+          },
           "trend": {
             "items": {
               "$ref": "#/components/schemas/DayPoint"
@@ -104,6 +140,55 @@
           "trend"
         ],
         "title": "AgentAnalytics",
+        "type": "object"
+      },
+      "AgentOut": {
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "employee_code": {
+            "title": "Employee Code",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          }
+        },
+        "required": [
+          "id",
+          "employee_code",
+          "name",
+          "team_id",
+          "active"
+        ],
+        "title": "AgentOut",
         "type": "object"
       },
       "AgentRow": {
@@ -188,6 +273,36 @@
           "violations"
         ],
         "title": "AgentScore",
+        "type": "object"
+      },
+      "Agreement": {
+        "properties": {
+          "events_with_multiple_verdicts": {
+            "title": "Events With Multiple Verdicts",
+            "type": "integer"
+          },
+          "pairwise_agreement": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pairwise Agreement"
+          },
+          "reviewers": {
+            "title": "Reviewers",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "events_with_multiple_verdicts",
+          "reviewers",
+          "pairwise_agreement"
+        ],
+        "title": "Agreement",
         "type": "object"
       },
       "AlertKey": {
@@ -887,6 +1002,76 @@
         "title": "CategoryCount",
         "type": "object"
       },
+      "CategoryThresholds": {
+        "additionalProperties": false,
+        "properties": {
+          "alert_postcall": {
+            "$ref": "#/components/schemas/SpeakerThresholds"
+          },
+          "alert_realtime": {
+            "$ref": "#/components/schemas/SpeakerThresholds"
+          },
+          "log": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Log",
+            "type": "number"
+          }
+        },
+        "required": [
+          "log",
+          "alert_realtime",
+          "alert_postcall"
+        ],
+        "title": "CategoryThresholds",
+        "type": "object"
+      },
+      "CoachingMoment": {
+        "properties": {
+          "call_id": {
+            "format": "uuid",
+            "title": "Call Id",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "event_id": {
+            "title": "Event Id",
+            "type": "string"
+          },
+          "explanation_bn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation Bn"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "integer"
+          },
+          "ts_start": {
+            "title": "Ts Start",
+            "type": "number"
+          }
+        },
+        "required": [
+          "call_id",
+          "event_id",
+          "category",
+          "severity",
+          "ts_start",
+          "explanation_bn"
+        ],
+        "title": "CoachingMoment",
+        "type": "object"
+      },
       "CustomerScore": {
         "additionalProperties": false,
         "properties": {
@@ -934,6 +1119,30 @@
           "alerts"
         ],
         "title": "DayPoint",
+        "type": "object"
+      },
+      "Directory": {
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentOut"
+            },
+            "title": "Agents",
+            "type": "array"
+          },
+          "teams": {
+            "items": {
+              "$ref": "#/components/schemas/TeamOut"
+            },
+            "title": "Teams",
+            "type": "array"
+          }
+        },
+        "required": [
+          "teams",
+          "agents"
+        ],
+        "title": "Directory",
         "type": "object"
       },
       "Escalation": {
@@ -1045,6 +1254,11 @@
             ],
             "title": "Explanation En"
           },
+          "flagged": {
+            "default": false,
+            "title": "Flagged",
+            "type": "boolean"
+          },
           "latest_verdict": {
             "anyOf": [
               {
@@ -1066,6 +1280,13 @@
             "default": 0,
             "title": "Review Count",
             "type": "integer"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewBrief"
+            },
+            "title": "Reviews",
+            "type": "array"
           },
           "severity": {
             "enum": [
@@ -1141,6 +1362,79 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HeatCell": {
+        "properties": {
+          "agent_incidents": {
+            "title": "Agent Incidents",
+            "type": "integer"
+          },
+          "avg_customer_hostility": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Customer Hostility"
+          },
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "hour": {
+            "title": "Hour",
+            "type": "integer"
+          },
+          "weekday": {
+            "title": "Weekday",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "weekday",
+          "hour",
+          "calls",
+          "agent_incidents",
+          "avg_customer_hostility"
+        ],
+        "title": "HeatCell",
+        "type": "object"
+      },
+      "Hysteresis": {
+        "additionalProperties": false,
+        "properties": {
+          "cooldown_s": {
+            "exclusiveMinimum": 0.0,
+            "title": "Cooldown S",
+            "type": "number"
+          },
+          "escalate_repeats": {
+            "minimum": 2.0,
+            "title": "Escalate Repeats",
+            "type": "integer"
+          },
+          "escalate_window_s": {
+            "exclusiveMinimum": 0.0,
+            "title": "Escalate Window S",
+            "type": "number"
+          },
+          "merge_gap_s": {
+            "minimum": 0.0,
+            "title": "Merge Gap S",
+            "type": "number"
+          }
+        },
+        "required": [
+          "cooldown_s",
+          "merge_gap_s",
+          "escalate_repeats",
+          "escalate_window_s"
+        ],
+        "title": "Hysteresis",
         "type": "object"
       },
       "IngestOut": {
@@ -1344,6 +1638,60 @@
           "active"
         ],
         "title": "LexiconOut",
+        "type": "object"
+      },
+      "MeOut": {
+        "properties": {
+          "agent_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "sub": {
+            "title": "Sub",
+            "type": "string"
+          },
+          "team_ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Team Ids",
+            "type": "array"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "sub",
+          "role",
+          "team_ids",
+          "agent_id",
+          "permissions"
+        ],
+        "title": "MeOut",
         "type": "object"
       },
       "ModelVersionOut": {
@@ -1562,6 +1910,49 @@
         "title": "QueueRow",
         "type": "object"
       },
+      "ReviewBrief": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict"
+          }
+        },
+        "required": [
+          "kind",
+          "verdict",
+          "comment",
+          "created_at"
+        ],
+        "title": "ReviewBrief",
+        "type": "object"
+      },
       "ReviewIn": {
         "properties": {
           "comment": {
@@ -1606,7 +1997,9 @@
             "default": "verdict",
             "enum": [
               "verdict",
-              "dispute"
+              "dispute",
+              "note",
+              "flag"
             ],
             "title": "Kind",
             "type": "string"
@@ -2040,6 +2433,29 @@
         "title": "Speaker",
         "type": "string"
       },
+      "SpeakerThresholds": {
+        "additionalProperties": false,
+        "properties": {
+          "agent": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Agent",
+            "type": "number"
+          },
+          "customer": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Customer",
+            "type": "number"
+          }
+        },
+        "required": [
+          "agent",
+          "customer"
+        ],
+        "title": "SpeakerThresholds",
+        "type": "object"
+      },
       "TeamAnalytics": {
         "properties": {
           "agents": {
@@ -2056,6 +2472,13 @@
           "calls": {
             "title": "Calls",
             "type": "integer"
+          },
+          "heatmap": {
+            "items": {
+              "$ref": "#/components/schemas/HeatCell"
+            },
+            "title": "Heatmap",
+            "type": "array"
           },
           "name": {
             "title": "Name",
@@ -2075,6 +2498,67 @@
           "agents"
         ],
         "title": "TeamAnalytics",
+        "type": "object"
+      },
+      "TeamOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "supervisor_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supervisor User Id"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "supervisor_user_id"
+        ],
+        "title": "TeamOut",
+        "type": "object"
+      },
+      "ThresholdsConfig": {
+        "additionalProperties": false,
+        "properties": {
+          "categories": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/CategoryThresholds"
+            },
+            "propertyNames": {
+              "$ref": "#/components/schemas/Category"
+            },
+            "title": "Categories",
+            "type": "object"
+          },
+          "hysteresis": {
+            "$ref": "#/components/schemas/Hysteresis"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "hysteresis",
+          "categories"
+        ],
+        "title": "ThresholdsConfig",
         "type": "object"
       },
       "Timelines": {
@@ -2762,6 +3246,132 @@
             }
           },
           {
+            "in": "query",
+            "name": "min_severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 3,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "speaker",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "agent",
+                    "customer"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Speaker"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reviewed",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reviewed"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent_score_min",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 5,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent Score Min"
+            }
+          },
+          {
+            "in": "query",
+            "name": "agent_score_max",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 5,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent Score Max"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hostility_min",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 5,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Hostility Min"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hostility_max",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 5,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Hostility Max"
+            }
+          },
+          {
             "description": "transcript search",
             "in": "query",
             "name": "q",
@@ -3089,6 +3699,32 @@
         "summary": "Call Timelines",
         "tags": [
           "calls"
+        ]
+      }
+    },
+    "/api/v1/directory": {
+      "get": {
+        "operationId": "directory_api_v1_directory_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Directory"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Directory",
+        "tags": [
+          "me"
         ]
       }
     },
@@ -3499,6 +4135,32 @@
         ]
       }
     },
+    "/api/v1/me": {
+      "get": {
+        "operationId": "me_api_v1_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Me",
+        "tags": [
+          "me"
+        ]
+      }
+    },
     "/api/v1/models": {
       "get": {
         "operationId": "list_models_api_v1_models_get",
@@ -3771,7 +4433,7 @@
     },
     "/api/v1/review-queue": {
       "get": {
-        "description": "Alerts and confirmed severity ≥ 2 events without a QA verdict, worst first.",
+        "description": "Alerts, severity ≥ 2 and QA-flagged events without a verdict: worst first, then the most\nuncertain (probability nearest 0.5) first.",
         "operationId": "review_queue_api_v1_review_queue_get",
         "parameters": [
           {
@@ -3844,6 +4506,33 @@
         "summary": "Review Queue",
         "tags": [
           "calls"
+        ]
+      }
+    },
+    "/api/v1/reviews/agreement": {
+      "get": {
+        "description": "Pairwise percent agreement between QA verdicts on the same event (docs/04 §2.4).",
+        "operationId": "agreement_api_v1_reviews_agreement_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Agreement"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Agreement",
+        "tags": [
+          "me"
         ]
       }
     },
@@ -3985,6 +4674,33 @@
           }
         ],
         "summary": "Simulate Rules",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/v1/thresholds": {
+      "get": {
+        "description": "Alert thresholds per category × speaker × mode (read-only; edited in configs/, ADR-017).",
+        "operationId": "get_thresholds_api_v1_thresholds_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThresholdsConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Thresholds",
         "tags": [
           "admin"
         ]
