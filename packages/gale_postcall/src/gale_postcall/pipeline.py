@@ -69,6 +69,7 @@ class PostCallResult:
     stages_s: dict[str, float]
     models: dict[str, str]
     notes: list[str] = field(default_factory=list)
+    llm_stats: dict[str, Any] = field(default_factory=dict)  # windows, latencies, rejections (eval)
     audio_16k: dict[Channel, np.ndarray] = field(default_factory=dict, repr=False)
 
 
@@ -154,19 +155,31 @@ def run_postcall(
     decisions: list[ProvisionalDecision] = []
     llm_signals: list[Signal] = []
     llm_status: Literal["ok", "offline"] = "ok"
+    llm_stats: dict[str, Any] = {
+        "windows": 0,
+        "window_latency_s": [],
+        "rejected": {},
+        "accepted": 0,
+    }
     with _stage("llm_window", stages):
         for w in windows_for_events(call_id, segments, signals, provisional, queue):
+            t_win = time.perf_counter()
             try:
                 j = pm.llm.judge_window(w.input)
             except JudgeUnavailableError:
                 llm_status = "offline"
                 notes.append("LLM judge offline: events stay provisional")
                 break
+            llm_stats["windows"] += 1
+            llm_stats["window_latency_s"].append(round(time.perf_counter() - t_win, 4))
             decisions += j.provisional_decisions
             g = ground(
                 w.input, j, utterance_ids(w.input.segments), getattr(pm.llm, "version", "llm")
             )
             llm_signals += g.signals
+            llm_stats["accepted"] += len(g.signals)
+            for reason, n in g.rejected.items():
+                llm_stats["rejected"][reason] = llm_stats["rejected"].get(reason, 0) + n
 
     with _stage("fusion", stages):
         judged = engine.apply_judgements(provisional, decisions, signals)
@@ -208,6 +221,7 @@ def run_postcall(
         stages_s=stages,
         models=pm.versions,
         notes=notes,
+        llm_stats=llm_stats,
         audio_16k=audio,
     )
 

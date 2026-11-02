@@ -3,7 +3,7 @@
 Maintained by Claude Code. Updated at the end of every phase/prompt.
 Legend: `[ ]` todo · `[x]` done · `[~]` in progress · **[HUMAN]** needs people, access or sign-off · 🔒 blocked on a human input.
 
-Last updated: 2026-11-02 (Prompt 4: P2 data engine, on synthetic fixtures)
+Last updated: 2026-11-02 (Prompt 5: P2 evaluation harness)
 
 ---
 
@@ -70,7 +70,7 @@ Exit gate: `golden_v1` / `dev_v1` frozen; α ≥ 0.7.
 - [x] Speaker-aware splits (connected components over agent/customer), dialect/queue stratification
 - [x] Augmentation: µ-law/A-law in-process, AMR-NB/GSM-FR via ffmpeg/sox (not installed here: untested), packet loss, band-limit, noise, speed, shout-safe gain; seeded
 - [x] Label Studio T1/T2/T3 templates (from the enums), REST client, tasks with pipeline pre-annotations, export → training sets for ASR, KWS, shout, SER, audio-tox, textclf, LLM SFT, fusion; agreement (α, span IoU) + adjudication CSV (LS itself mocked)
-- [ ] Eval harness (`make eval COMPONENT=… SPLIT=…`), event-matching rule, fairness slices, bootstrap CIs
+- [x] Eval harness (`make eval COMPONENT=… SPLIT=…`, `make bakeoff`): metrics for all 9 components, docs/06 event matching, calibration + reliability plot, call-level ρ/AUC, fairness slices with 1.5× flags, bootstrap CIs, JSON/MD/HTML reports, optional MLflow (ADR-014)
 - [x] Golden-set lock (`golden.lock` hashes) + overlap check (`make golden-check`, tests); converters refuse golden rows
 - [~] DVC config with MinIO remote (written by hand, DVC not installed) + MLflow service in docker-compose (not run: no Docker)
 - [ ] **[HUMAN]** T1/T2/T3 annotation at volume; golden + dev double-annotated; annotator wellbeing plan 🔒
@@ -157,6 +157,7 @@ Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own
 | D-19 | Fusion `rules.yaml` v2: named rules with parameters in YAML; shouted abuse raises the abusive event's severity; event spans come from word/window-precise signals; cool-down suppresses alerts, not events. Register: customer → তুমি fires only with negative context. Overtalk counts turn starts on crosstalk-trimmed VAD. Ground truth follows the same merge/overtalk conventions. Details in ADR-011. | P1 |
 | D-20 | Open-data prototype runs on `--run-tag research` without the licence review (owner decision 2026-11-02, ADR-012): everything trained is `research_only` / not promotable. Raw data, unified set and lexicon candidates stay under `.gale/`. Training deps are an opt-in `ml-train` group; trainer smoke tests skip where torch is absent (CI). | P1 |
 | D-21 | Data engine (ADR-013): uuid5 call ids, salted HMAC customer hashes (salt only from a secret), per-channel quality filters, speaker-connected-component splits, golden lock + converter refusal, LS templates generated from enums, annotator text re-redacted on export. | P2 |
+| D-22 | Evaluation definitions (ADR-014): gold with context flags must end dismissed/absent; per-slice FPR = false alerts per 100 calls; call-level 'needs QA review' = alert-worthy agent event or T3 professionalism ≤ 2; bootstrap resamples without events are skipped; golden loads only with a matching lock. | P2 |
 | D-15 | Mono/diarized audio: `Channel.mixed` is allowed only before diarization. Fusion accepts only `agent`/`customer`. Segments that can't be attributed are stored but never alert. | P1 |
 
 ---
@@ -312,6 +313,24 @@ Smaller inconsistencies, resolved in-line without an ADR:
 - DVC remote credentials.
 - Annotators (see the runbook's setup table).
 
+## Prompt 5 summary (2026-11-02)
+
+**Built:** `ml/eval`:
+- metrics: CER/WER with the shared normaliser, slang recall, script drift; KWS recall + false alarms/hour; docs/06 event matching; P/R/F1 by category × speaker; ECE + reliability bins; Spearman, AUC, UAR; latency summaries; bootstrap CIs;
+- eval sets (fixtures; manifest splits with golden-lock guard);
+- 9 component evaluators on the production code path;
+- fairness slices;
+- reports (JSON/MD/HTML with a reliability SVG) and optional MLflow;
+- `run` (`make eval`) and `bakeoff` (`make bakeoff`, writes the ADR table, example `configs/bakeoff/asr.yaml`).
+
+**Verified:**
+- `make check`: 276 tests at 99.1% coverage.
+- Every component evaluated on the synthetic fixtures. System: event F1 1.0, alert recall 0.7 (cool-down suppresses repeats), 0 false alerts / 100 calls. ASR CER 0 (oracle). Script drift 4.4% (the Banglish call). KWS recall 0 and audio-tox AUC 0.5 (still stubs).
+
+**Found and fixed:** bootstrap resamples with no events were scored as F1 = 0, which widened the CIs.
+
+**Needs a human:** annotated `dev_v1` / `golden_v1` (Prompt 4 flow) before any real numbers; an MLflow server for run tracking.
+
 ## Next step
 
-Run **Prompt 5: P2 evaluation harness** (`make eval`).
+Run **Prompt 6: P3a ASR fine-tuning** on the GPU box (🔒 GPU + data). Prompts 6–10 need a GPU and annotated data. Prompt 11 (P4 streaming services) can be built now on the simulator.

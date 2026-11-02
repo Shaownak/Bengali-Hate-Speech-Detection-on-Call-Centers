@@ -33,7 +33,7 @@ PY_PKGS := -p galecore -p gale_postcall -p gale_api -p gale_ingest_gateway -p ga
            -p gale_asr_worker -p gale_text_worker -p gale_llm_judge -p gale_fusion_engine
 
 .PHONY: help setup dev-up dev-down dev-status check check-py check-web lint fmt typecheck test \
-        test-web gen-types gen-types-check simulate fixtures fixtures-wav golden-check report eval e2e clean-caches
+        test-web gen-types gen-types-check simulate fixtures fixtures-wav golden-check report eval bakeoff e2e clean-caches
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  %-16s %s\n",$$1,$$2}'
@@ -122,8 +122,13 @@ report: ## offline post-call report: make report FILE=tests/fixtures/calls/demo_
 	@test -n "$(FILE)" || (echo "usage: make report FILE=path/to/stereo.wav" && exit 2)
 	$(PY) -m gale_postcall report $(FILE) $(if $(filter 1,$(OPEN)),--open,)
 
-eval: ## eval harness (Prompt 5)
-	@echo "eval: arrives in P2 Prompt 5. See docs/PROGRESS.md." && exit 2
+COMPONENT ?= system
+SPLIT ?= fixtures
+eval: ## evaluate a component: make eval COMPONENT=<asr|kws|shout|ser|audiotox|textclf|llm|fusion|system> SPLIT=<fixtures|dev|golden|…>
+	$(PY) -m ml.eval.run --component $(COMPONENT) --split $(SPLIT)
+
+bakeoff: ## compare candidates: make bakeoff CANDIDATES=configs/bakeoff/asr.yaml SPLIT=dev [ADR=docs/adr/0NN-x.md]
+	$(PY) -m ml.eval.bakeoff --candidates $(CANDIDATES) --split $(SPLIT) $(if $(ADR),--adr $(ADR),)
 
 e2e: ## Playwright against the dev stack (Prompt 13)
 	@echo "e2e: arrives in P5 Prompt 13. See docs/PROGRESS.md." && exit 2

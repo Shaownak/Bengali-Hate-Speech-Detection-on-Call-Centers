@@ -86,6 +86,8 @@ known-first-party = ["galecore", "gale_*", "ml", "tools"]
 "ml/tests/**" = ["S101", "E501", "S314"]
 "ml/data/{__main__,labelstudio/templates}.py" = ["E501"]  # CLI usage text, XML templates
 "ml/data/augment_audio.py" = ["S603", "S607"]  # fixed ffmpeg / sox argv, no user input
+"ml/eval/report.py" = ["E501"]  # HTML / SVG / Markdown templates
+"ml/{eval,tests}/**" = ["N812"]  # `metrics as M`
 
 [tool.mypy]
 python_version = "3.12"

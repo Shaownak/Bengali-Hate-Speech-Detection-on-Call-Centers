@@ -1,0 +1,12 @@
+# ASR bake-off (docs/03 §1.1): run on the GPU box with weights in GALE_MODEL_DIR.
+#   make bakeoff CANDIDATES=configs/bakeoff/asr.yaml SPLIT=dev ADR=docs/adr/0NN-asr-bakeoff.md
+component: asr
+primary: cer
+lower_is_better: true
+candidates:
+  - name: whisper_ct2
+    settings: {model_mode: real}
+    models: {asr_postcall: {backend: whisper_ct2, version: tugstugi-whisper-medium-ct2, revision: 76cce9a874e8752d561a7aff28f01383df270db4}}
+  - name: indic_conformer
+    settings: {model_mode: real}
+    models: {asr_postcall: {backend: indic_conformer, version: 600m-multilingual, revision: 2a77d305038dfc502fd9464e7d028b90381976cb}}

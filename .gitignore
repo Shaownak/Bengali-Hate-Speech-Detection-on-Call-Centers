@@ -32,3 +32,6 @@ configs/lexicon/*.real.*
 
 # synthetic fixture audio is rendered on demand from script.json (ADR-010)
 tests/fixtures/calls/*/call.wav
+
+# evaluation outputs (results that matter go into ADRs / PROGRESS)
+reports/
