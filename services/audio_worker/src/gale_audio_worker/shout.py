@@ -102,51 +102,51 @@ class DSPShoutDetector(ShoutDetector):
         return rule_score(z)
 
     def detect(self, chunk: AudioChunk) -> list[Signal]:
+        """Whole chunk (post-call): baseline from the speaker's first speech, then score."""
         key = (chunk.call_id, chunk.channel)
         base = self._baselines.setdefault(key, Baseline())
-        timeline = self.timeline.setdefault(key, [])
         regions = self.vad.speech_regions(chunk)
         wins = windows(chunk.samples, chunk.sample_rate, regions, chunk.offset_s)
-        if not base.ready():  # post-call: build the baseline from this speaker's first speech
+        if not base.ready():
             for w in wins:
                 if w.speech_ratio >= MIN_SPEECH_RATIO and not base.ready():
                     base.add_initial(w)
             base.finish_early()
-        out = []
-        for w in wins:
-            score = 0.0
-            z: dict[str, float] = {}
-            if base.ready() and w.speech_ratio >= MIN_SPEECH_RATIO:
-                z = base.z(w.feats)
-                score = self._score(z)
-                if score < 0.3:
-                    base.update(w.feats)
-            timeline.append((w.t_start, w.feats["rms_db"], z.get("rms_db", 0.0), score))
-            if score < EMIT_SCORE:
-                continue
-            out.append(
-                Signal(
-                    call_id=chunk.call_id,
-                    channel=chunk.channel,
-                    signal_id=stable_id(chunk.call_id, chunk.channel, "dsp_shout", w.t_start),
-                    source=SignalSource.DSP_SHOUT,
-                    category=Category.SHOUTING,
-                    score=round(score, 4),
-                    ts_start=w.t_start,
-                    ts_end=w.t_end,
-                    evidence=Evidence(
-                        features={
-                            "loudness_z": round(z["rms_db"], 3),
-                            "f0_z": round(z["f0_med_st"], 3),
-                            "hf_z": round(z["hf_ratio_db"], 3),
-                            "rms_db": round(w.feats["rms_db"], 2),
-                            "speech_ratio": w.speech_ratio,
-                        }
-                    ),
-                    model_version=self.version,
-                )
-            )
-        return out
+        return [
+            s for w in wins if (s := self.score_window(chunk.call_id, chunk.channel, w)) is not None
+        ]
+
+    def score_window(self, call_id: str, channel: Channel, w: Window) -> Signal | None:
+        """Score one window against the speaker's baseline (streaming: windows arrive in order and
+        the first 20 s of speech build the baseline before anything is scored)."""
+        key = (call_id, channel)
+        base = self._baselines.setdefault(key, Baseline())
+        if not base.ready() and w.speech_ratio >= MIN_SPEECH_RATIO:
+            base.add_initial(w)
+        score = 0.0
+        z: dict[str, float] = {}
+        if base.ready() and w.speech_ratio >= MIN_SPEECH_RATIO:
+            z = base.z(w.feats)
+            score = self._score(z)
+            if score < 0.3:
+                base.update(w.feats)
+        self.timeline.setdefault(key, []).append(
+            (w.t_start, w.feats["rms_db"], z.get("rms_db", 0.0), score)
+        )
+        if score < EMIT_SCORE:
+            return None
+        return Signal(
+            call_id=call_id, channel=channel,
+            signal_id=stable_id(call_id, channel, "dsp_shout", w.t_start),
+            source=SignalSource.DSP_SHOUT, category=Category.SHOUTING, score=round(score, 4),
+            ts_start=w.t_start, ts_end=w.t_end,
+            evidence=Evidence(features={
+                "loudness_z": round(z["rms_db"], 3), "f0_z": round(z["f0_med_st"], 3),
+                "hf_z": round(z["hf_ratio_db"], 3), "rms_db": round(w.feats["rms_db"], 2),
+                "speech_ratio": w.speech_ratio,
+            }),
+            model_version=self.version,
+        )  # fmt: skip
 
 
 def suppress_line_artefacts(

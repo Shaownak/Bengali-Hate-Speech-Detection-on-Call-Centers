@@ -91,11 +91,11 @@ Exit gate: component targets in `06_EVALUATION.md` met, or an ADR explaining the
 
 ### P4 — Streaming services (weeks 8–13) · Prompt 11
 Exit gate: simulator + staging PBX: p95 confirmed alert ≤ 6 s.
-- [ ] ingest-gateway: Asterisk ARI ExternalMedia + snoop (per direction), FreeSWITCH audio fork, file mode, G.711/AMR-NB decode
-- [ ] Streaming ASR (cache-aware Conformer and/or WhisperLiveKit SimulStreaming)
-- [ ] audio-worker, asr-worker, text-worker, llm-judge, fusion-engine on Redis Streams with consumer groups
-- [ ] Real-time fusion, debounce, LLM circuit breaker ("LLM offline" degradation)
-- [ ] Per-stage latency histograms + OTel traces keyed by `call_id`
+- [x] ingest-gateway: Asterisk ARI ExternalMedia + snoop (per direction), FreeSWITCH audio fork, file mode, G.711 decode (AMR-NB still open: needs a codec lib) — runbook `docs/runbooks/pbx-integration.md`
+- [x] Streaming ASR policy (energy endpointing, partials 1 s, finals after 0.6 s silence) over any `ASRBackend`; real cache-aware Conformer / SimulStreaming backends come with Prompt 6 🔒
+- [x] audio-worker, asr-worker, text-worker, llm-judge, fusion-engine on Redis Streams with consumer groups (+ post-call worker with real-time priority)
+- [x] Real-time fusion, debounce, LLM circuit breaker ("LLM offline" degradation)
+- [x] Per-stage latency histograms + OTel traces keyed by `call_id`
 - [ ] **[HUMAN]** PBX team configures media fork in staging 🔒
 
 ### P5 — API & GUI (weeks 9–14) · Prompts 12–13
@@ -158,6 +158,7 @@ Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own
 | D-20 | Open-data prototype runs on `--run-tag research` without the licence review (owner decision 2026-11-02, ADR-012): everything trained is `research_only` / not promotable. Raw data, unified set and lexicon candidates stay under `.gale/`. Training deps are an opt-in `ml-train` group; trainer smoke tests skip where torch is absent (CI). | P1 |
 | D-21 | Data engine (ADR-013): uuid5 call ids, salted HMAC customer hashes (salt only from a secret), per-channel quality filters, speaker-connected-component splits, golden lock + converter refusal, LS templates generated from enums, annotator text re-redacted on export. | P2 |
 | D-22 | Evaluation definitions (ADR-014): gold with context flags must end dismissed/absent; per-slice FPR = false alerts per 100 calls; call-level 'needs QA review' = alert-worthy agent event or T3 professionalism ≤ 2; bootstrap resamples without events are skipped; golden loads only with a matching lock. | P2 |
+| D-23 | Streaming services (ADR-015): one `galecore.streaming.Worker` per service; lexicon fast path on ASR partials; latency measured from the word (lexicon) or utterance end (register/classifier); replay-based restart recovery; post-call jobs yield to real-time backlog; provisional alerts can be retracted via `events.fused`. | P4 |
 | D-15 | Mono/diarized audio: `Channel.mixed` is allowed only before diarization. Fusion accepts only `agent`/`customer`. Segments that can't be attributed are stored but never alert. | P1 |
 
 ---
@@ -331,6 +332,23 @@ Smaller inconsistencies, resolved in-line without an ADR:
 
 **Needs a human:** annotated `dev_v1` / `golden_v1` (Prompt 4 flow) before any real numbers; an MLflow server for run tracking.
 
+## Prompt 11 summary (2026-11-02)
+
+**Built:**
+- `galecore.streaming`: Worker base (consumer groups, ticks, lifecycle restore, per-call replay), `CallClock`, `gale_stage_latency_seconds`, OTel spans with trace id from the call UUID.
+- ingest-gateway: bus publisher (bounded queue, drop counter, call audio retained to the object store), Asterisk ARI app (snoop + ExternalMedia), FreeSWITCH `/v1/fork`, WS `/v1/stream/{call_id}`, watched drop folder → `postcall.jobs`.
+- Streaming workers: asr (endpointing, partial/final), audio (shout / SER / audio-tox / KWS / overtalk on ring buffers), text (lexicon on partials, full steps on finals), llm-judge (3 s debounce, scorecard at hang-up → `call.scores`), fusion (realtime re-fuse, alerts).
+- `python -m gale_postcall worker` (port 8007) in the dev stack.
+- New schemas `LlmDecision`, `CallScoreMessage`, `PostcallJob`; `CallLifecycle.external_ref` / `wall_clock`.
+
+**Verified:**
+- `tests/integration/test_streaming.py`: the fixtures give the expected events when streamed; the latency budget is met (provisional ≤ 2 s, confirmed ≤ 6 s p95); concurrent unpaced calls; text + fusion killed mid-call and restarted with nothing lost; post-call worker waits for the real-time backlog.
+- Live `make dev-up` + `make simulate CALL=tests/fixtures/calls/demo_01 SPEED=4`: confirmed events, 2 alerts, scorecard and latency metrics. A leftover dropped WAV from Prompt 2 was picked up by the post-call worker as expected.
+
+**Stubbed / limits:** stub models only; ARI tested against a fake ARI (no real PBX here); ASR/audio buffers are in memory, so a crash there loses the utterance in progress; AMR-NB decode not done.
+
+**Needs a human:** the PBX team configures the media fork in staging (runbook checklist) 🔒; p95 on a staging PBX for the P4 exit gate.
+
 ## Next step
 
-Run **Prompt 6: P3a ASR fine-tuning** on the GPU box (🔒 GPU + data). Prompts 6–10 need a GPU and annotated data. Prompt 11 (P4 streaming services) can be built now on the simulator.
+Run **Prompt 6: P3a ASR fine-tuning** on the GPU box (🔒 GPU + data). Prompts 6–10 need a GPU and annotated data. Prompt 11 (P4) is built on the simulator; its exit gate waits on a staging PBX. **Prompt 12 (P5 API & GUI)** can be built now.

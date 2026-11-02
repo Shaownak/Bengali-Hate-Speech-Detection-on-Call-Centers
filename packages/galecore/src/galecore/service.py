@@ -24,6 +24,7 @@ SERVICE_PORTS: dict[str, int] = {
     "text_worker": 8004,
     "llm_judge": 8005,
     "fusion_engine": 8006,
+    "postcall_worker": 8007,
 }
 
 

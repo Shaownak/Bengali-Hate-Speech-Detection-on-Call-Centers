@@ -39,7 +39,10 @@ SERVICES: dict[str, int] = {
     "text_worker": 8004,
     "llm_judge": 8005,
     "fusion_engine": 8006,
+    "postcall_worker": 8007,
 }
+# module + args per service (default: python -m gale_<name>)
+COMMANDS: dict[str, list[str]] = {"postcall_worker": ["-m", "gale_postcall", "worker"]}
 IS_WINDOWS = os.name == "nt"
 
 
@@ -186,10 +189,12 @@ def up(web: bool) -> None:
         "GALE_BUS_URL": f"redis://127.0.0.1:{BUS_PORT}/0",
         "GALE_DB_URL": db_url,
         "GALE_OBJECT_STORE": "local",
+        "GALE_INGEST_DROP_DIR": str(ROOT / ".gale" / "drop" / "incoming"),  # post-call file mode
     }
     for name, port in SERVICES.items():
         if name not in state:
-            state[name] = _spawn(name, [py, "-m", f"gale_{name}"], {**env, "GALE_PORT": str(port)})
+            args = COMMANDS.get(name, ["-m", f"gale_{name}"])
+            state[name] = _spawn(name, [py, *args], {**env, "GALE_PORT": str(port)})
             _save_state(state)
     if web and "web" not in state:
         if not (ROOT / "web" / "node_modules").exists():

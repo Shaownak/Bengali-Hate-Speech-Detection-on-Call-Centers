@@ -256,6 +256,18 @@
           "title": "Event",
           "type": "string"
         },
+        "external_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "External Ref"
+        },
         "mode": {
           "anyOf": [
             {
@@ -289,6 +301,19 @@
           "minimum": 0,
           "title": "Ts",
           "type": "number"
+        },
+        "wall_clock": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "unix time at `ts` (latency measurement)",
+          "title": "Wall Clock"
         }
       },
       "required": [
@@ -297,6 +322,180 @@
         "ts"
       ],
       "title": "CallLifecycle",
+      "type": "object"
+    },
+    "CallScoreMessage": {
+      "$defs": {
+        "AgentScore": {
+          "additionalProperties": false,
+          "properties": {
+            "de_escalation": {
+              "maximum": 5,
+              "minimum": 1,
+              "title": "De Escalation",
+              "type": "integer"
+            },
+            "empathy": {
+              "maximum": 5,
+              "minimum": 1,
+              "title": "Empathy",
+              "type": "integer"
+            },
+            "professionalism": {
+              "maximum": 5,
+              "minimum": 1,
+              "title": "Professionalism",
+              "type": "integer"
+            },
+            "respectful_register_maintained": {
+              "title": "Respectful Register Maintained",
+              "type": "boolean"
+            },
+            "violations": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Violations",
+              "type": "array"
+            }
+          },
+          "required": [
+            "professionalism",
+            "empathy",
+            "de_escalation",
+            "respectful_register_maintained",
+            "violations"
+          ],
+          "title": "AgentScore",
+          "type": "object"
+        },
+        "CallScorecard": {
+          "additionalProperties": false,
+          "properties": {
+            "agent": {
+              "$ref": "#/$defs/AgentScore"
+            },
+            "coaching_points_bn": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 5,
+              "title": "Coaching Points Bn",
+              "type": "array"
+            },
+            "customer": {
+              "$ref": "#/$defs/CustomerScore"
+            },
+            "escalation": {
+              "$ref": "#/$defs/Escalation"
+            },
+            "summary_bn": {
+              "maxLength": 600,
+              "title": "Summary Bn",
+              "type": "string"
+            },
+            "summary_en": {
+              "maxLength": 600,
+              "title": "Summary En",
+              "type": "string"
+            }
+          },
+          "required": [
+            "agent",
+            "customer",
+            "escalation",
+            "summary_bn",
+            "summary_en",
+            "coaching_points_bn"
+          ],
+          "title": "CallScorecard",
+          "type": "object"
+        },
+        "CustomerScore": {
+          "additionalProperties": false,
+          "properties": {
+            "abuse_toward_agent": {
+              "title": "Abuse Toward Agent",
+              "type": "boolean"
+            },
+            "hostility": {
+              "maximum": 5,
+              "minimum": 1,
+              "title": "Hostility",
+              "type": "integer"
+            },
+            "main_issue_bn": {
+              "title": "Main Issue Bn",
+              "type": "string"
+            }
+          },
+          "required": [
+            "hostility",
+            "abuse_toward_agent",
+            "main_issue_bn"
+          ],
+          "title": "CustomerScore",
+          "type": "object"
+        },
+        "Escalation": {
+          "additionalProperties": false,
+          "properties": {
+            "escalated": {
+              "title": "Escalated",
+              "type": "boolean"
+            },
+            "turning_point_utterance_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Turning Point Utterance Id"
+            },
+            "who_escalated_first": {
+              "enum": [
+                "agent",
+                "customer",
+                "none",
+                "unclear"
+              ],
+              "title": "Who Escalated First",
+              "type": "string"
+            }
+          },
+          "required": [
+            "escalated",
+            "who_escalated_first",
+            "turning_point_utterance_id"
+          ],
+          "title": "Escalation",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "The whole-call scorecard after hang-up (stream ``call.scores``).",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "model_version": {
+          "title": "Model Version",
+          "type": "string"
+        },
+        "scorecard": {
+          "$ref": "#/$defs/CallScorecard"
+        }
+      },
+      "required": [
+        "call_id",
+        "scorecard",
+        "model_version"
+      ],
+      "title": "CallScoreMessage",
       "type": "object"
     },
     "CallScorecard": {
@@ -813,6 +1012,170 @@
         "rationale_bn"
       ],
       "title": "JudgedEvent",
+      "type": "object"
+    },
+    "LlmDecision": {
+      "$defs": {
+        "Category": {
+          "description": "Annotation/alert taxonomy. Must match docs/02_DATA_PLAN.md §3.4.",
+          "enum": [
+            "slang_profanity",
+            "insult",
+            "threat",
+            "sexual_harassment",
+            "hate_identity",
+            "disrespect_register",
+            "harsh_tone",
+            "shouting",
+            "sarcasm_mockery",
+            "dismissive_rude",
+            "interruption_overtalk"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "ProvisionalDecision": {
+          "additionalProperties": false,
+          "properties": {
+            "decision": {
+              "enum": [
+                "confirm",
+                "dismiss",
+                "change_category",
+                "change_severity"
+              ],
+              "title": "Decision",
+              "type": "string"
+            },
+            "event_id": {
+              "title": "Event Id",
+              "type": "string"
+            },
+            "new_category": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/Category"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "new_severity": {
+              "anyOf": [
+                {
+                  "enum": [
+                    1,
+                    2,
+                    3
+                  ],
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "New Severity"
+            },
+            "reason_bn": {
+              "anyOf": [
+                {
+                  "maxLength": 160,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reason Bn"
+            }
+          },
+          "required": [
+            "event_id",
+            "decision"
+          ],
+          "title": "ProvisionalDecision",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "description": "One LLM-judge decision on a provisional event (stream ``llm.decisions``).",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "decision": {
+          "$ref": "#/$defs/ProvisionalDecision"
+        },
+        "model_version": {
+          "title": "Model Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "call_id",
+        "decision",
+        "model_version"
+      ],
+      "title": "LlmDecision",
+      "type": "object"
+    },
+    "PostcallJob": {
+      "additionalProperties": false,
+      "description": "A recording to process in post-call mode (stream ``postcall.jobs``).",
+      "properties": {
+        "call_id": {
+          "title": "Call Id",
+          "type": "string"
+        },
+        "channel_layout": {
+          "default": "stereo_agent_left",
+          "enum": [
+            "stereo_agent_left",
+            "stereo_agent_right",
+            "mono"
+          ],
+          "title": "Channel Layout",
+          "type": "string"
+        },
+        "external_ref": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "External Ref"
+        },
+        "queue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Queue"
+        },
+        "uri": {
+          "title": "Uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "call_id",
+        "uri"
+      ],
+      "title": "PostcallJob",
       "type": "object"
     },
     "ProvisionalDecision": {

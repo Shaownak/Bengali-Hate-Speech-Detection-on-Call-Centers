@@ -32,6 +32,9 @@ class Call:
     path: Path
     sample_rate: int
     audio: Int16  # samples × 2 (agent left)
+    external_ref: str | None = (
+        None  # "fixture:<dir>" for synthetic fixtures (stub models key off it)
+    )
 
     @property
     def duration_s(self) -> float:
@@ -47,7 +50,10 @@ def load_call(path: Path, call_id: str | None = None) -> Call:
             f"{wav}: expected a stereo (agent left) recording, got {audio.shape[1]} channel(s)"
         )
     # GAL-E mints UUID call ids (D-18), which also keeps them readable in scrubbed logs
-    return Call(call_id or str(uuid.uuid4()), wav, int(sr), np.ascontiguousarray(audio))
+    ref = (
+        f"fixture:{path.resolve()}" if path.is_dir() and (path / "script.json").is_file() else None
+    )
+    return Call(call_id or str(uuid.uuid4()), wav, int(sr), np.ascontiguousarray(audio), ref)
 
 
 class Pacer:
@@ -151,6 +157,7 @@ async def send_ws(
                     "channels": 2,
                     "encoding": "pcm_s16le",
                     "layout": "stereo_agent_left",
+                    "external_ref": call.external_ref,
                 }
             )
         )
@@ -198,7 +205,13 @@ async def run_rtp(
 ) -> tuple[dict[str, int], dict[str, Any]]:
     ssrc = ssrcs_for(call.call_id)
     r = await client.post(
-        "/v1/rtp/sessions", json={"call_id": call.call_id, "codec": codec, "ssrc": ssrc}
+        "/v1/rtp/sessions",
+        json={
+            "call_id": call.call_id,
+            "codec": codec,
+            "ssrc": ssrc,
+            "external_ref": call.external_ref,
+        },
     )
     r.raise_for_status()
     sent = await send_rtp(

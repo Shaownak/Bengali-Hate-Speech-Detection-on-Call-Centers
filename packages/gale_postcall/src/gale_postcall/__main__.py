@@ -38,7 +38,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     rp.add_argument("--queue")
     rp.add_argument("--open", action="store_true", help="open report.html in the browser")
+    sub.add_parser("worker", help="consume postcall.jobs (file mode); health on GALE_PORT or 8007")
     a = ap.parse_args(argv)
+    if a.cmd == "worker":  # pragma: no cover - long-running service
+        from gale_postcall.worker import build_app
+        from galecore.service import run
+
+        run("postcall_worker", build_app())
+        return 0
 
     if not a.file.is_file():
         if a.file.name == "call.wav" and (a.file.parent / "script.json").is_file():

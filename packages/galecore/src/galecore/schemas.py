@@ -221,6 +221,12 @@ class CallLifecycle(GaleModel):
     agent_id: str | None = None
     channel_layout: Literal["stereo_agent_left", "stereo_agent_right", "mono"] | None = None
     mode: Literal["realtime", "postcall"] | None = None
+    # PBX / recorder id of the call (``external_call_id`` in the DB); synthetic fixtures use
+    # "fixture:<dir>", which stub models key off (galecore.models.oracle)
+    external_ref: str | None = None
+    wall_clock: float | None = Field(
+        default=None, description="unix time at `ts` (latency measurement)"
+    )
 
 
 class Review(GaleModel):
@@ -305,6 +311,32 @@ class CallScorecard(GaleModel):
     coaching_points_bn: list[str] = Field(max_length=5)
 
 
+class LlmDecision(GaleModel):
+    """One LLM-judge decision on a provisional event (stream ``llm.decisions``)."""
+
+    call_id: str
+    decision: ProvisionalDecision
+    model_version: str
+
+
+class CallScoreMessage(GaleModel):
+    """The whole-call scorecard after hang-up (stream ``call.scores``)."""
+
+    call_id: str
+    scorecard: CallScorecard
+    model_version: str
+
+
+class PostcallJob(GaleModel):
+    """A recording to process in post-call mode (stream ``postcall.jobs``)."""
+
+    call_id: str
+    uri: str  # object-store key or local path of the stereo recording
+    channel_layout: Literal["stereo_agent_left", "stereo_agent_right", "mono"] = "stereo_agent_left"
+    external_ref: str | None = None
+    queue: str | None = None
+
+
 # Models exported to JSON Schema / TypeScript by `make gen-types`.
 EXPORTED_MODELS: tuple[type[GaleModel], ...] = (
     AudioFrame,
@@ -319,6 +351,9 @@ EXPORTED_MODELS: tuple[type[GaleModel], ...] = (
     ProvisionalDecision,
     WindowJudgement,
     CallScorecard,
+    LlmDecision,
+    CallScoreMessage,
+    PostcallJob,
 )
 
 

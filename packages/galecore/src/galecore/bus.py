@@ -39,6 +39,9 @@ EVENTS_FUSED = "events.fused"
 ALERTS = "alerts"
 CALL_LIFECYCLE = "call.lifecycle"
 FEEDBACK = "feedback"
+LLM_DECISIONS = "llm.decisions"
+CALL_SCORES = "call.scores"
+POSTCALL_JOBS = "postcall.jobs"
 DLQ_SUFFIX = ".dlq"
 
 DEFAULT_MAXLEN = 100_000
@@ -51,6 +54,10 @@ BUS_CONSUMED = Counter("gale_bus_consumed_total", "Messages handled OK", ["strea
 BUS_FAILED = Counter("gale_bus_failed_total", "Handler failures", ["stream", "group"])
 BUS_DLQ = Counter("gale_bus_dead_lettered_total", "Messages dead-lettered", ["stream", "group"])
 BUS_DUPLICATE = Counter("gale_bus_duplicates_total", "Duplicates skipped", ["stream", "group"])
+
+
+def audio_streams(shards: int = AUDIO_SHARDS) -> list[str]:
+    return [AUDIO_FRAMES.format(shard=i) for i in range(shards)]
 
 
 def audio_stream(call_id: str, shards: int = AUDIO_SHARDS) -> str:

@@ -115,3 +115,18 @@ class FixtureOracle:
             if e.source == "annotation":
                 out.setdefault(by_idx[e.turn_idx].text, []).append((e.category, e.severity))
         return out
+
+
+FIXTURE_PREFIX = "fixture:"
+
+
+def oracle_for_ref(ref: str | None, calls_dir: Path | None = None) -> FixtureOracle | None:
+    """Oracle for ``external_ref = "fixture:<name or absolute dir>"`` (synthetic calls replayed by
+    the simulator). Anything else, including every real call, has no oracle."""
+    if not ref or not ref.startswith(FIXTURE_PREFIX):
+        return None
+    from galecore.config import REPO_ROOT
+
+    p = Path(ref[len(FIXTURE_PREFIX) :])
+    d = p if p.is_absolute() else (calls_dir or REPO_ROOT / "tests" / "fixtures" / "calls") / p
+    return FixtureOracle.from_dir(d) if (d / "script.json").is_file() else None

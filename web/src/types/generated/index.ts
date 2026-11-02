@@ -78,10 +78,13 @@ export interface GaleSchemas {
   AsrSegment?: AsrSegment;
   AudioFrame?: AudioFrame;
   CallLifecycle?: CallLifecycle;
+  CallScoreMessage?: CallScoreMessage;
   CallScorecard?: CallScorecard;
   Evidence?: Evidence;
   FusedEvent?: FusedEvent;
   JudgedEvent?: JudgedEvent;
+  LlmDecision?: LlmDecision;
+  PostcallJob?: PostcallJob;
   ProvisionalDecision?: ProvisionalDecision;
   Review?: Review;
   Signal?: Signal;
@@ -147,12 +150,28 @@ export interface CallLifecycle {
   channel_layout?: ("stereo_agent_left" | "stereo_agent_right" | "mono") | null;
   direction?: ("inbound" | "outbound") | null;
   event: "started" | "ended" | "hold" | "resume" | "transfer" | "hangup";
+  external_ref?: string | null;
   mode?: ("realtime" | "postcall") | null;
   queue?: string | null;
   /**
    * seconds from call start
    */
   ts: number;
+  /**
+   * unix time at `ts` (latency measurement)
+   */
+  wall_clock?: number | null;
+}
+/**
+ * The whole-call scorecard after hang-up (stream ``call.scores``).
+ *
+ * This interface was referenced by `GaleSchemas`'s JSON-Schema
+ * via the `definition` "CallScoreMessage".
+ */
+export interface CallScoreMessage {
+  call_id: string;
+  model_version: string;
+  scorecard: CallScorecard;
 }
 /**
  * This interface was referenced by `GaleSchemas`'s JSON-Schema
@@ -261,6 +280,17 @@ export interface JudgedEvent {
   utterance_id?: string | null;
 }
 /**
+ * One LLM-judge decision on a provisional event (stream ``llm.decisions``).
+ *
+ * This interface was referenced by `GaleSchemas`'s JSON-Schema
+ * via the `definition` "LlmDecision".
+ */
+export interface LlmDecision {
+  call_id: string;
+  decision: ProvisionalDecision;
+  model_version: string;
+}
+/**
  * This interface was referenced by `GaleSchemas`'s JSON-Schema
  * via the `definition` "ProvisionalDecision".
  */
@@ -270,6 +300,19 @@ export interface ProvisionalDecision {
   new_category?: Category | null;
   new_severity?: (1 | 2 | 3) | null;
   reason_bn?: string | null;
+}
+/**
+ * A recording to process in post-call mode (stream ``postcall.jobs``).
+ *
+ * This interface was referenced by `GaleSchemas`'s JSON-Schema
+ * via the `definition` "PostcallJob".
+ */
+export interface PostcallJob {
+  call_id: string;
+  channel_layout?: "stereo_agent_left" | "stereo_agent_right" | "mono";
+  external_ref?: string | null;
+  queue?: string | null;
+  uri: string;
 }
 /**
  * Human verdict on an event, or an agent dispute (D-08).

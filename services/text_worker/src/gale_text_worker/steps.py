@@ -77,39 +77,44 @@ class TextWorker:
         return signals
 
     def _lexicon(self, seg: AsrSegment, text: str) -> list[Signal]:
-        out = []
-        for hit in self.matcher.match(text):
-            first = word_index_at(seg, hit.char_start)
-            last = word_index_at(seg, max(hit.char_start, hit.char_end - 1))
-            if first is not None and last is not None:
-                t0, t1 = seg.words[first].start, seg.words[last].end
-                ids = list(range(first, last + 1))
-            else:
-                t0, t1, ids = seg.ts_start, seg.ts_end, []
-            out.append(
-                Signal(
-                    call_id=seg.call_id,
-                    channel=seg.channel,
-                    signal_id=stable_id(seg.segment_id, "lexicon", hit.char_start),
-                    source=SignalSource.LEXICON,
-                    category=hit.entry.category,
-                    score=hit.score,
-                    ts_start=t0,
-                    ts_end=t1,
-                    evidence=Evidence(
-                        text_span=hit.surface,
-                        char_start=hit.char_start,
-                        char_end=hit.char_end,
-                        word_ids=ids,
-                        segment_id=seg.segment_id,
-                        term_id=hit.entry.id,
-                        features={
-                            "severity": float(hit.entry.severity),
-                            "match_exact": float(hit.match == "exact"),
-                            "context_sensitive": float(hit.entry.context_sensitive),
-                        },
-                    ),
-                    model_version=LEXICON_VERSION,
-                )
+        return lexicon_signals(self.matcher, seg, text)
+
+
+def lexicon_signals(matcher: LexiconMatcher, seg: AsrSegment, text: str) -> list[Signal]:
+    """Lexicon hits in one (normalised) segment as signals with word-precise timing."""
+    out = []
+    for hit in matcher.match(text):
+        first = word_index_at(seg, hit.char_start)
+        last = word_index_at(seg, max(hit.char_start, hit.char_end - 1))
+        if first is not None and last is not None:
+            t0, t1 = seg.words[first].start, seg.words[last].end
+            ids = list(range(first, last + 1))
+        else:
+            t0, t1, ids = seg.ts_start, seg.ts_end, []
+        out.append(
+            Signal(
+                call_id=seg.call_id,
+                channel=seg.channel,
+                signal_id=stable_id(seg.segment_id, "lexicon", hit.char_start),
+                source=SignalSource.LEXICON,
+                category=hit.entry.category,
+                score=hit.score,
+                ts_start=t0,
+                ts_end=t1,
+                evidence=Evidence(
+                    text_span=hit.surface,
+                    char_start=hit.char_start,
+                    char_end=hit.char_end,
+                    word_ids=ids,
+                    segment_id=seg.segment_id,
+                    term_id=hit.entry.id,
+                    features={
+                        "severity": float(hit.entry.severity),
+                        "match_exact": float(hit.match == "exact"),
+                        "context_sensitive": float(hit.entry.context_sensitive),
+                    },
+                ),
+                model_version=LEXICON_VERSION,
             )
-        return out
+        )
+    return out

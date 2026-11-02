@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://127.0.0.1:8100/v1"
     llm_model: str = "gale-llm-judge"
 
+    workers: bool = True  # run the service's bus consumer (off for API-only test apps)
+
     auth_mode: Literal["oidc", "dev"] = "oidc"
     log_level: str = "INFO"
     log_json: bool = True

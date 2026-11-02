@@ -1,15 +1,16 @@
 """Session registry, RTP/UDP receiver and WebSocket PCM handling for the ingest-gateway.
 
-P0 stub transport layer (Prompt 2): the simulator registers a call's SSRCs over HTTP, then
-streams G.711 RTP to one UDP port. In P4 the Asterisk ARI / FreeSWITCH integrations register
-sessions the same way (ExternalMedia gives the SSRC/port per channel).
+Sessions are registered over HTTP (simulator), by the Asterisk ARI app (``ari.py``: RTP mapped
+by the ExternalMedia source address) or over WebSocket (generic PCM, FreeSWITCH ``mod_audio_fork``).
+``CallEvents`` (``publisher.BusPublisher`` in the service) publishes ``call.lifecycle`` on open and
+close; frames go to the ``FrameSink``.
 """
 
 from __future__ import annotations
 
 import asyncio
 import socket
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 import numpy as np
 from pydantic import BaseModel, Field
@@ -31,12 +32,23 @@ class GatewaySettings(BaseSettings):
     rtp_port: int = Field(default=40000, ge=0, le=65535)  # 0 = pick a free port (tests)
     max_sessions: int = Field(default=500, ge=1)
     udp_rcvbuf_bytes: int = 4 * 1024 * 1024
+    drop_dir: str | None = None  # post-call file mode: watch this folder for <name>.wav (+ .json)
+    drop_poll_s: float = 2.0
+    # Asterisk ARI (Prompt 11a): set ari_url to enable
+    ari_url: str | None = None  # e.g. http://asterisk.internal:8088
+    ari_user: str = "gale"
+    ari_password: str = ""
+    ari_app: str = "gale"
+    ari_rtp_host: str = "127.0.0.1"  # the gateway address as Asterisk reaches it
 
 
 class RtpSessionRequest(BaseModel):
     call_id: str = Field(min_length=1, max_length=128)
     codec: Literal["pcmu", "pcma"] = "pcmu"
-    ssrc: dict[Channel, int]  # one RTP stream per speaker channel
+    ssrc: dict[Channel, int] = Field(default_factory=dict)  # one RTP stream per speaker channel
+    # alternative to SSRCs: map by source address "host:port" (Asterisk ExternalMedia)
+    remote: dict[Channel, str] = Field(default_factory=dict)
+    external_ref: str | None = Field(default=None, max_length=256)
 
 
 class WsStart(BaseModel):
@@ -45,6 +57,13 @@ class WsStart(BaseModel):
     channels: Literal[1, 2] = 2
     encoding: Literal["pcm_s16le"] = "pcm_s16le"
     layout: Literal["stereo_agent_left", "stereo_agent_right", "mono"] = "stereo_agent_left"
+    external_ref: str | None = None
+
+
+class CallEvents(Protocol):
+    def started(self, call_id: str, external_ref: str | None, layout: str | None) -> None: ...
+
+    def ended(self, call_id: str, duration_s: float) -> None: ...
 
 
 class GatewayError(Exception):
@@ -54,8 +73,11 @@ class GatewayError(Exception):
 
 
 class Registry:
-    def __init__(self, settings: GatewaySettings, sink: FrameSink):
-        self.settings, self.sink = settings, sink
+    def __init__(
+        self, settings: GatewaySettings, sink: FrameSink, events: CallEvents | None = None
+    ):
+        self.settings, self.sink, self.events = settings, sink, events
+        self.by_addr: dict[str, tuple[Session, Channel, int]] = {}  # "host:port" → …
         self.sessions: dict[str, Session] = {}
         self.by_ssrc: dict[
             int, tuple[Session, Channel, int]
@@ -73,19 +95,34 @@ class Registry:
         self.sessions[call_id] = session
         return session
 
+    def _started(self, session: Session, external_ref: str | None, layout: str | None) -> None:
+        if self.events is not None:
+            self.events.started(session.call_id, external_ref, layout)
+
     def open_rtp(self, req: RtpSessionRequest) -> Session:
-        if Channel.MIXED in req.ssrc and len(req.ssrc) > 1:
+        streams = req.ssrc or req.remote
+        if not streams or (req.ssrc and req.remote):
+            raise GatewayError(422, "give either ssrc or remote per channel")
+        if Channel.MIXED in streams and len(streams) > 1:
             raise GatewayError(422, "mixed channel cannot be combined with speaker channels")
         clash = [
-            s for s in req.ssrc.values() if s in self.by_ssrc and not self.by_ssrc[s][0].closed
+            str(s) for s in req.ssrc.values() if s in self.by_ssrc and not self.by_ssrc[s][0].closed
+        ]
+        clash += [
+            a for a in req.remote.values() if a in self.by_addr and not self.by_addr[a][0].closed
         ]
         if clash:
-            raise GatewayError(409, "ssrc already in use")
-        session = self._new(req.call_id, "rtp", TELEPHONY_SR, list(req.ssrc))
+            raise GatewayError(409, "ssrc / remote address already in use")
+        session = self._new(req.call_id, "rtp", TELEPHONY_SR, list(streams))
         pt = PT_PCMU if req.codec == "pcmu" else PT_PCMA
         for ch, ssrc in req.ssrc.items():
             self.by_ssrc[ssrc] = (session, ch, pt)
-        log.info("rtp_session_open", call_id=req.call_id, channels=len(req.ssrc), codec=req.codec)
+        for ch, addr in req.remote.items():
+            self.by_addr[addr] = (session, ch, pt)
+        log.info("rtp_session_open", call_id=req.call_id, channels=len(streams), codec=req.codec)
+        self._started(
+            session, req.external_ref, "mono" if Channel.MIXED in streams else "stereo_agent_left"
+        )
         return session
 
     def open_ws(self, call_id: str, start: WsStart) -> Session:
@@ -94,13 +131,22 @@ class Registry:
             if start.channels == 1 or start.layout == "mono"
             else [Channel.AGENT, Channel.CUSTOMER]
         )
-        return self._new(call_id, "ws", start.sample_rate, channels)
+        session = self._new(call_id, "ws", start.sample_rate, channels)
+        self._started(session, start.external_ref, start.layout)
+        return session
 
     def close(self, call_id: str) -> SessionStats:
         session = self.get(call_id)
+        was_open = not session.closed
         stats = session.close()
         for ssrc in [k for k, v in self.by_ssrc.items() if v[0] is session]:
             del self.by_ssrc[ssrc]
+        for addr in [k for k, v in self.by_addr.items() if v[0] is session]:
+            del self.by_addr[addr]
+        if was_open and self.events is not None:
+            self.events.ended(
+                call_id, max((c.duration_s for c in stats.channels.values()), default=0.0)
+            )
         for ch, cs in stats.channels.items():
             if cs.lost:
                 LOST.labels(ch.value).inc(cs.lost)
@@ -119,13 +165,15 @@ class Registry:
 
     # --- RTP ---------------------------------------------------------------------------------
 
-    def on_datagram(self, data: bytes) -> None:
+    def on_datagram(self, data: bytes, addr: tuple[str, int] | None = None) -> None:
         try:
             pkt = parse(data)
         except RtpError:
             REJECTED.labels("malformed").inc()
             return
         entry = self.by_ssrc.get(pkt.ssrc)
+        if entry is None and addr is not None:
+            entry = self.by_addr.get(f"{addr[0]}:{addr[1]}")
         if entry is None:
             REJECTED.labels("unknown_ssrc").inc()
             return
@@ -173,7 +221,7 @@ class _RtpProtocol(asyncio.DatagramProtocol):
         self.registry = registry
 
     def datagram_received(self, data: bytes, addr: Any) -> None:
-        self.registry.on_datagram(data)
+        self.registry.on_datagram(data, (str(addr[0]), int(addr[1])) if addr else None)
 
 
 async def start_rtp(registry: Registry) -> asyncio.DatagramTransport:
