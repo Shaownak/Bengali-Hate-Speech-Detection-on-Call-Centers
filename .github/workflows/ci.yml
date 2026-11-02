@@ -72,7 +72,8 @@ jobs:
           --build-arg SERVICE=${{ matrix.service }}
           -t gale-${{ matrix.service }}:${{ github.sha }} .
       - name: trivy scan
-        uses: aquasecurity/trivy-action@0.33.1
+        # pinned by commit: this action's tags were force-pushed in a 2026 supply-chain attack
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           image-ref: gale-${{ matrix.service }}:${{ github.sha }}
           severity: CRITICAL,HIGH
