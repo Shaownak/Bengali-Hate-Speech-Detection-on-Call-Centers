@@ -31,7 +31,7 @@ class Dataset(BaseModel):
     licence: str
     commercial_ok: CommercialOk = "unknown"
     download_allowed: bool = False
-    kind: Literal["text", "translit", "audio"]
+    kind: Literal["text", "translit", "audio", "asr", "ser"]
     files: dict[str, str]
     columns: dict[str, str | list[str]] = Field(default_factory=dict)
     format: str = "VERIFY"

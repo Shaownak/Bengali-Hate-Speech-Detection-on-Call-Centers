@@ -83,7 +83,9 @@ known-first-party = ["galecore", "gale_*", "ml", "tools"]
 "ml/**" = ["S311"]  # data shuffling / augmentation, not cryptography
 # Markdown templates and word lists
 "ml/data/open/{card,registry,lid}.py" = ["E501"]
-"ml/tests/**" = ["S101", "E501"]
+"ml/tests/**" = ["S101", "E501", "S314"]
+"ml/data/{__main__,labelstudio/templates}.py" = ["E501"]  # CLI usage text, XML templates
+"ml/data/augment_audio.py" = ["S603", "S607"]  # fixed ffmpeg / sox argv, no user input
 
 [tool.mypy]
 python_version = "3.12"

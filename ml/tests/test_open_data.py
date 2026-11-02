@@ -191,7 +191,18 @@ def raw(tmp_path: Path) -> Path:
 
 def test_register_covers_docs09_and_is_rendered() -> None:
     ids = {d.id for d in REG.datasets}
-    assert ids == {*(f"T{i}" for i in range(1, 16)), "R1", "R2", "R3", "R4", "A1", "A2", "A3", "A4"}
+    assert ids == {
+        *(f"T{i}" for i in range(1, 16)),
+        "R1",
+        "R2",
+        "R3",
+        "R4",
+        "A1",
+        "A2",
+        "A3",
+        "A4",
+        *(f"S{i}" for i in range(1, 9)),
+    }
     mapper = LabelMapper()
     for d in REG.datasets:
         assert d.commercial_ok in ("true", "false", "unknown")

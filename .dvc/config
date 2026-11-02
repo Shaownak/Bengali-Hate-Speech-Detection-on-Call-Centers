@@ -1,0 +1,8 @@
+[core]
+    remote = minio
+    autostage = true
+['remote "minio"']
+    url = s3://gale-dvc
+    endpointurl = http://127.0.0.1:9000
+# credentials never live here: `dvc remote modify --local minio access_key_id …` writes
+# .dvc/config.local (git-ignored). Prod points the remote at the in-country MinIO (docs/05).

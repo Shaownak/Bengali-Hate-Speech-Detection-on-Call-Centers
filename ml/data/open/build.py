@@ -95,6 +95,8 @@ def build(
     for ds in reg.datasets:
         if only and ds.key not in only and ds.id not in only:
             continue
+        if ds.kind in ("asr", "ser"):  # speech corpora: register only, recipes in P3
+            continue
         try:
             research_only = check_allowed(ds, run_tag)
         except PermissionError:

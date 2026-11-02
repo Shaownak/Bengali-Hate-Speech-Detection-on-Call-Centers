@@ -33,7 +33,7 @@ PY_PKGS := -p galecore -p gale_postcall -p gale_api -p gale_ingest_gateway -p ga
            -p gale_asr_worker -p gale_text_worker -p gale_llm_judge -p gale_fusion_engine
 
 .PHONY: help setup dev-up dev-down dev-status check check-py check-web lint fmt typecheck test \
-        test-web gen-types gen-types-check simulate fixtures fixtures-wav report eval e2e clean-caches
+        test-web gen-types gen-types-check simulate fixtures fixtures-wav golden-check report eval e2e clean-caches
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  %-16s %s\n",$$1,$$2}'
@@ -107,6 +107,9 @@ MODE ?= rtp
 SPEED ?= 1
 simulate: ## replay a synthetic call: make simulate CALL=tests/fixtures/calls/demo_01 [MODE=rtp|ws|file] [SPEED=10]
 	$(PY) -m tools.simulator $(CALL) --mode $(MODE) --speed $(SPEED)
+
+golden-check: ## fail if a golden call/speaker appears in another split or golden.lock drifted
+	$(PY) -m ml.data golden-check
 
 fixtures: ## regenerate synthetic fixture calls (script.json, expected_events.json, call.wav)
 	$(PY) -m tools.fixtures_gen gen

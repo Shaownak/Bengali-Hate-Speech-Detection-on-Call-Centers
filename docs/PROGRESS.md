@@ -3,7 +3,7 @@
 Maintained by Claude Code. Updated at the end of every phase/prompt.
 Legend: `[ ]` todo · `[x]` done · `[~]` in progress · **[HUMAN]** needs people, access or sign-off · 🔒 blocked on a human input.
 
-Last updated: 2026-11-02 (Prompt 4b: P1 open-data track)
+Last updated: 2026-11-02 (Prompt 4: P2 data engine, on synthetic fixtures)
 
 ---
 
@@ -64,15 +64,15 @@ Exit gate: report runs on 100 real calls; first baseline numbers.
 
 ### P2 — Data engine (weeks 3–8) · Prompts 4, 5
 Exit gate: `golden_v1` / `dev_v1` frozen; α ≥ 0.7.
-- [ ] Recorder/S3 ingestion → manifests (`ml/data/manifests/*.jsonl`)
-- [ ] Channel split, 8 kHz native + 16 kHz model copies, quality filters
-- [ ] Auto-transcription seed; redaction applied before anything persists
-- [ ] Speaker-aware splits (by call and by agent/customer), dialect/queue stratification
-- [ ] Augmentation: codec sim (µ-law, A-law, AMR-NB, GSM-FR), packet loss, band-limit, noise, speed, shout-safe gain
-- [ ] Label Studio templates T1/T2/T3 + import/export ↔ manifests ↔ training views
+- [x] Folder / S3-MinIO / recorder-CSV ingestion → schema-validated manifests, salted customer hashes, UUID call ids (tested on synthetic calls + fake S3; real recorder format unverified)
+- [x] Channel split, 8 kHz native + 16 kHz model copies + stereo review copy, per-channel quality filters
+- [x] Resumable auto-transcription job; seed transcripts redacted in-process before they persist
+- [x] Speaker-aware splits (connected components over agent/customer), dialect/queue stratification
+- [x] Augmentation: µ-law/A-law in-process, AMR-NB/GSM-FR via ffmpeg/sox (not installed here: untested), packet loss, band-limit, noise, speed, shout-safe gain; seeded
+- [x] Label Studio T1/T2/T3 templates (from the enums), REST client, tasks with pipeline pre-annotations, export → training sets for ASR, KWS, shout, SER, audio-tox, textclf, LLM SFT, fusion; agreement (α, span IoU) + adjudication CSV (LS itself mocked)
 - [ ] Eval harness (`make eval COMPONENT=… SPLIT=…`), event-matching rule, fairness slices, bootstrap CIs
-- [ ] Golden-set lock: hashed immutable manifests + CI overlap check (calls and speakers)
-- [ ] DVC (MinIO remote) + MLflow (Postgres + MinIO)
+- [x] Golden-set lock (`golden.lock` hashes) + overlap check (`make golden-check`, tests); converters refuse golden rows
+- [~] DVC config with MinIO remote (written by hand, DVC not installed) + MLflow service in docker-compose (not run: no Docker)
 - [ ] **[HUMAN]** T1/T2/T3 annotation at volume; golden + dev double-annotated; annotator wellbeing plan 🔒
 
 ### P3 — Model training (weeks 6–12) · Prompts 6–10
@@ -156,6 +156,7 @@ Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own
 | D-18 | GAL-E mints its own UUID `call_id` (never a PBX channel name or caller-derived id). The log scrubber keeps `call_id` / `trace_id` unredacted only when the value is a valid UUID; any other value, e.g. `PJSIP/017…`, is still scrubbed. From Q-10, approved 2026-11-02. P4 ingest-gateway mints the UUID when ARI/FreeSWITCH report a new call. | P0 |
 | D-19 | Fusion `rules.yaml` v2: named rules with parameters in YAML; shouted abuse raises the abusive event's severity; event spans come from word/window-precise signals; cool-down suppresses alerts, not events. Register: customer → তুমি fires only with negative context. Overtalk counts turn starts on crosstalk-trimmed VAD. Ground truth follows the same merge/overtalk conventions. Details in ADR-011. | P1 |
 | D-20 | Open-data prototype runs on `--run-tag research` without the licence review (owner decision 2026-11-02, ADR-012): everything trained is `research_only` / not promotable. Raw data, unified set and lexicon candidates stay under `.gale/`. Training deps are an opt-in `ml-train` group; trainer smoke tests skip where torch is absent (CI). | P1 |
+| D-21 | Data engine (ADR-013): uuid5 call ids, salted HMAC customer hashes (salt only from a secret), per-channel quality filters, speaker-connected-component splits, golden lock + converter refusal, LS templates generated from enums, annotator text re-redacted on export. | P2 |
 | D-15 | Mono/diarized audio: `Channel.mixed` is allowed only before diarization. Fusion accepts only `agent`/`customer`. Segments that can't be attributed are stored but never alert. | P1 |
 
 ---
@@ -289,6 +290,28 @@ Smaller inconsistencies, resolved in-line without an ADR:
 - A GPU box for the encoder, transliteration and KWS runs.
 - Human review of the lexicon candidates.
 
+## Prompt 4 summary (2026-11-02, on synthetic fixtures)
+
+**Built:**
+- `ml/data`: manifests + pseudonymisation; folder / S3 / recorder-CSV ingestion; processing and quality filters; resumable transcription; splits + golden lock; seeded augmentation; agreement + adjudication; CLI `python -m ml.data`.
+- `ml/data/labelstudio`: T1–T3 templates, client, tasks with pre-annotations, converters for 8 training sets.
+- docs/02 §1.1 speech corpora added to the dataset register.
+- `.dvc/config` (MinIO remote); MLflow in compose; `make golden-check`.
+- `docs/runbooks/annotation-ops.md`; ADR-013.
+
+**Verified:** the full flow runs on 3 synthetic calls in tests: ingest → split/lock → transcribe → LS tasks → simulated double annotation → training sets → agreement. `make check` passes.
+
+**Not verified (no access here):** real recorder exports, a live Label Studio, real MinIO/S3, ffmpeg AMR/GSM codecs, DVC and MLflow servers.
+
+**Needs a human:**
+- The recording location and recorder CSV column names.
+- The pseudonymisation salt (a secret).
+- S3/MinIO credentials.
+- A Label Studio URL + token.
+- The golden call list.
+- DVC remote credentials.
+- Annotators (see the runbook's setup table).
+
 ## Next step
 
-Run **Prompt 5: P2 evaluation harness** (`make eval`), reusing the docs/06 matching rule from the Prompt 3 integration test. Prompt 4 (data engine) needs access to real call recordings.
+Run **Prompt 5: P2 evaluation harness** (`make eval`).

@@ -1,0 +1,2 @@
+# DVC ignores these when tracking data directories
+.gale/

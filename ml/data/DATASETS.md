@@ -31,3 +31,11 @@ Generated from `ml/data/datasets.yaml` by `python -m ml.data.open register --wri
 | A2 | `bn_hate_audio` | Bangla Hate Speech & Non-Hate Audio (2025) | [10.17632/tgjbpp4z5b](https://data.mendeley.com/datasets/tgjbpp4z5b) | VERIFY | **unknown** | manual | all: `**/*.wav` | wav-folders |
 | A3 | `adima_bn` | ADIMA (Bengali split) | [link](https://sharechat.com/research/adima) | research — VERIFY | **unknown** | manual | all: `**/*.wav` | wav-folders |
 | A4 | `mutox_bn` | MuTox (Bengali split) | [link](https://github.com/facebookresearch/seamless_communication) | VERIFY | **unknown** | manual | all: `**/*.wav` | wav-folders |
+| S1 | `ood_speech` | OOD-Speech (Bengali.AI) — ~1,178 h train + 23 h OOD test | [link](https://huggingface.co/datasets/bengaliAI/OOD-Speech) | TO VERIFY | **unknown** | manual | all: `**/*` | VERIFY |
+| S2 | `indicvoices_bn` | IndicVoices (AI4Bharat) Bengali — ~600 h spontaneous | [link](https://ai4bharat.iitm.ac.in/indicvoices) | TO VERIFY | **unknown** | manual | all: `**/*` | VERIFY |
+| S3 | `openslr53` | OpenSLR-53 Large Bengali ASR — ~211 h | [link](https://www.openslr.org/53/) | TO VERIFY (open per docs/02) | **unknown** | manual | all: `**/*` | VERIFY |
+| S4 | `commonvoice_bn` | Common Voice Bengali — 400 h+ | [link](https://commonvoice.mozilla.org/bn/datasets) | TO VERIFY (CC0 per docs/02) | **unknown** | manual | all: `**/*` | VERIFY |
+| S5 | `ben10` | Ben-10 — 78 h, 10 dialects | [link](https://huggingface.co/datasets/bengaliAI/ben10) | TO VERIFY | **unknown** | manual | all: `**/*` | VERIFY |
+| S6 | `buet_telecom_speech` | Bengali telecom customer-care speech (BUET, 2026) — synthetic, 26.8 h | TO VERIFY | TO VERIFY (CC BY 4.0 per docs/02) | **unknown** | manual | all: `**/*` | VERIFY |
+| S7 | `subesco` | SUBESCO — 7,000 utterances, 7 emotions | [link](https://zenodo.org/records/4526477) | TO VERIFY (CC BY 4.0 per docs/02) | **unknown** | manual | all: `**/*.wav` | VERIFY |
+| S8 | `banglaser` | BanglaSER / KBES / BanSpEmo — small SER sets | TO VERIFY | TO VERIFY | **unknown** | manual | all: `**/*.wav` | VERIFY |

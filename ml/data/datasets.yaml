@@ -290,3 +290,62 @@ datasets:
     files: {all: "**/*.wav"}
     columns: {label: parent_dir}
     format: wav-folders
+  # ---------------------------------------------------------------- speech corpora (docs/02 §1.1)
+  # Licence column "TO VERIFY" until the legal review (ADR-012). No loaders yet: ASR/SER training
+  # recipes arrive in P3 (docs/03 §1, §4); these entries make the register complete.
+  - id: S1
+    key: ood_speech
+    name: OOD-Speech (Bengali.AI) — ~1,178 h train + 23 h OOD test
+    url: https://huggingface.co/datasets/bengaliAI/OOD-Speech
+    licence: TO VERIFY
+    kind: asr
+    files: {all: "**/*"}
+  - id: S2
+    key: indicvoices_bn
+    name: IndicVoices (AI4Bharat) Bengali — ~600 h spontaneous
+    url: https://ai4bharat.iitm.ac.in/indicvoices
+    licence: TO VERIFY
+    kind: asr
+    files: {all: "**/*"}
+  - id: S3
+    key: openslr53
+    name: OpenSLR-53 Large Bengali ASR — ~211 h
+    url: https://www.openslr.org/53/
+    licence: TO VERIFY (open per docs/02)
+    kind: asr
+    files: {all: "**/*"}
+  - id: S4
+    key: commonvoice_bn
+    name: Common Voice Bengali — 400 h+
+    url: https://commonvoice.mozilla.org/bn/datasets
+    licence: TO VERIFY (CC0 per docs/02)
+    kind: asr
+    files: {all: "**/*"}
+  - id: S5
+    key: ben10
+    name: Ben-10 — 78 h, 10 dialects
+    url: https://huggingface.co/datasets/bengaliAI/ben10
+    licence: TO VERIFY
+    kind: asr
+    files: {all: "**/*"}
+  - id: S6
+    key: buet_telecom_speech
+    name: Bengali telecom customer-care speech (BUET, 2026) — synthetic, 26.8 h
+    url: TO VERIFY
+    licence: TO VERIFY (CC BY 4.0 per docs/02)
+    kind: asr
+    files: {all: "**/*"}
+  - id: S7
+    key: subesco
+    name: SUBESCO — 7,000 utterances, 7 emotions
+    url: https://zenodo.org/records/4526477
+    licence: TO VERIFY (CC BY 4.0 per docs/02)
+    kind: ser
+    files: {all: "**/*.wav"}
+  - id: S8
+    key: banglaser
+    name: BanglaSER / KBES / BanSpEmo — small SER sets
+    url: TO VERIFY
+    licence: TO VERIFY
+    kind: ser
+    files: {all: "**/*.wav"}
