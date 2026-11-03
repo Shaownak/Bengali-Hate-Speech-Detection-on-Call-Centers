@@ -26,6 +26,13 @@ RUN sed -i -E '/^(storeDir|cacheDir):/d' pnpm-workspace.yaml && GALE_STANDALONE=
 
 FROM node:22.23.0-bookworm-slim@sha256:d9f850096136edbc402debdd8729579a288aac64574ada0ff4db26b6ae58b0b2
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
+# Debian security fixes newer than the pinned base; the runtime runs `node server.js` only, so the
+# bundled package managers (npm, corepack, yarn) are removed with their CVE surface (Trivy gate)
+RUN apt-get update \
+ && apt-get upgrade -y --no-install-recommends \
+ && rm -rf /var/lib/apt/lists/* \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /opt/yarn-* \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg
 WORKDIR /web
 COPY --from=build --chown=root:root /web/.next/standalone ./
 COPY --from=build --chown=root:root /web/.next/static ./.next/static

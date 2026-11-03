@@ -23,4 +23,19 @@ for _ in $(seq 60); do
   sleep 3
 done
 echo "events persisted for $CALL: ${N:-0}"
-test "${N:-0}" -gt 0
+if [ "${N:-0}" -le 0 ]; then
+  # where the pipeline stopped: API view of the call, then every bus stream's length and each
+  # consumer group's backlog (counts only, no message contents)
+  for p in "" /segments /timelines; do
+    echo "GET /calls/<call>$p: $(curl -s -o /tmp/smoke.json -w '%{http_code}' -H "Authorization: Bearer $TOKEN" \
+      "localhost:8000/api/v1/calls/$CALL$p") $(uv run python -c 'import json; d=json.load(open("/tmp/smoke.json")); print({k: len(v) if isinstance(v, list) else type(v).__name__ for k, v in d.items()} if isinstance(d, dict) else len(d))' 2>/dev/null)"
+  done
+  kubectl -n gale-app exec deploy/gale-api -- python -c '
+import os, redis
+r = redis.from_url(os.environ["GALE_BUS_URL"], decode_responses=True)
+for k in sorted(r.scan_iter(_type="stream")):
+    groups = [(g.get("name"), g.get("pending"), g.get("lag")) for g in r.xinfo_groups(k)]
+    print(k, r.xlen(k), groups)
+' || true
+  exit 1
+fi
