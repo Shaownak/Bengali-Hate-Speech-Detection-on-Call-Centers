@@ -237,6 +237,12 @@ ingress:
 migrations:
   enabled: true                     # Helm hook Job: `python -m gale_api migrate` (post-install, pre-upgrade)
 
+# Synthetic fixture scripts for the stub models (kind smoke only; refused unless env=dev + stub):
+# a ConfigMap with keys <call>.script.json / <call>.expected_events.json, mounted in the ML pods
+devFixtures:
+  configMap: ""
+  calls: []
+
 retention:
   enabled: true
   schedule: "30 3 * * *"

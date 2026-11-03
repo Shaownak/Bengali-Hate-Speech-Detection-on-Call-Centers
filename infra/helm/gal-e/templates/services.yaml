@@ -1,5 +1,8 @@
 {{- $root := . -}}
 {{- $real := eq .Values.global.modelMode "real" -}}
+{{- /* synthetic fixture scripts for the stub models (CI smoke only); never with real data */ -}}
+{{- $fixtures := (.Values.devFixtures | default dict).configMap | default "" -}}
+{{- if and $fixtures (or $real (ne .Values.global.env "dev")) }}{{ fail "devFixtures needs global.env=dev and modelMode=stub" }}{{ end -}}
 {{- range $key, $svc := .Values.services }}
 {{- if $svc.enabled }}
 {{- $name := include "gale.svcName" $key }}
@@ -98,6 +101,9 @@ spec:
             - name: GALE_INGEST_ARI_PASSWORD
               valueFrom: { secretKeyRef: { name: {{ $root.Values.secrets.ingestAri }}, key: GALE_INGEST_ARI_PASSWORD, optional: true } }
             {{- end }}
+            {{- if and $fixtures (eq $svc.namespace "ml") }}
+            - { name: GALE_FIXTURE_CALLS_DIR, value: /etc/gale/fixtures }
+            {{- end }}
             {{- range $k, $v := $svc.env }}
             - { name: {{ $k }}, value: {{ $v | quote }} }
             {{- end }}
@@ -131,6 +137,9 @@ spec:
             {{- if ne $key "web" }}
             - { name: pilot, mountPath: /etc/gale/pilot, readOnly: true }
             {{- end }}
+            {{- if and $fixtures (eq $svc.namespace "ml") }}
+            - { name: fixtures, mountPath: /etc/gale/fixtures, readOnly: true }
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 1Gi }
@@ -148,6 +157,16 @@ spec:
         {{- if ne $key "web" }}
         - name: pilot
           configMap: { name: gale-pilot }
+        {{- end }}
+        {{- if and $fixtures (eq $svc.namespace "ml") }}
+        - name: fixtures
+          configMap:
+            name: {{ $fixtures }}
+            items:
+              {{- range $root.Values.devFixtures.calls }}
+              - { key: {{ . }}.script.json, path: {{ . }}/script.json }
+              - { key: {{ . }}.expected_events.json, path: {{ . }}/expected_events.json }
+              {{- end }}
         {{- end }}
 ---
 apiVersion: v1

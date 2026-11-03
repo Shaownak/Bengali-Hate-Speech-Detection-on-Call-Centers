@@ -135,6 +135,25 @@ def test_pilot_values(values: str) -> None:
         assert cfg.sampler.golden_manifest.startswith("/etc/gale/golden/")
 
 
+@pytest.mark.parametrize("values", ["values-staging.yaml", "values-prod.yaml", "values-kind.yaml"])
+def test_dev_fixtures_only_in_kind(values: str) -> None:
+    """Fixture scripts for the stub models are mounted in the kind smoke only, and the chart
+    refuses them outside env=dev + stub."""
+    base = yaml.safe_load((CHART / "values.yaml").read_text(encoding="utf-8"))
+    v = _merge(base, yaml.safe_load((CHART / values).read_text(encoding="utf-8")) or {})
+    if values == "values-kind.yaml":
+        assert v["devFixtures"]["configMap"]
+        assert v["global"]["modelMode"] == "stub"
+        secrets = (ROOT / "infra" / "kind" / "secrets.sh").read_text(encoding="utf-8")
+        assert v["devFixtures"]["configMap"] in secrets
+        for call in v["devFixtures"]["calls"]:
+            assert (ROOT / "tests" / "fixtures" / "calls" / call / "script.json").is_file()
+    else:
+        assert not v["devFixtures"]["configMap"]
+    t = (CHART / "templates" / "services.yaml").read_text(encoding="utf-8")
+    assert 'fail "devFixtures needs global.env=dev and modelMode=stub"' in t
+
+
 def test_pilot_jobs_never_skip_the_golden_check() -> None:
     for name in ("pilot.yaml", "retrain.yaml"):
         t = (CHART / "templates" / name).read_text(encoding="utf-8")

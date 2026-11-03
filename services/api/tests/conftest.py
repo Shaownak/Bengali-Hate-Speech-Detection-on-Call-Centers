@@ -18,7 +18,7 @@ from fakeredis import FakeAsyncRedis, FakeServer
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, make_url
 
 from gale_api import repo
 from gale_api.app import build_app
@@ -57,9 +57,8 @@ def _admin(url: str) -> Engine:
 
 
 def _with_db(url: str, name: str) -> str:
-    base, _, rest = url.rpartition("/")
-    query = rest.split("?", 1)[1] if "?" in rest else ""
-    return f"{base}/{name}" + (f"?{query}" if query else "")
+    # parsed, not split on "/": on Linux pgserver's URL is a unix socket (``?host=/run/user/…``)
+    return make_url(url).set(database=name).render_as_string(hide_password=False)
 
 
 @pytest.fixture(scope="session")

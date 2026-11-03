@@ -122,11 +122,19 @@ FIXTURE_PREFIX = "fixture:"
 
 def oracle_for_ref(ref: str | None, calls_dir: Path | None = None) -> FixtureOracle | None:
     """Oracle for ``external_ref = "fixture:<name or absolute dir>"`` (synthetic calls replayed by
-    the simulator). Anything else, including every real call, has no oracle."""
+    the simulator). Anything else, including every real call, has no oracle.
+
+    An absolute dir that does not exist here (the simulator ran on another host, e.g. against a
+    cluster) falls back to the fixture of the same name under ``calls_dir``
+    (default ``Settings.fixture_calls_dir``)."""
     if not ref or not ref.startswith(FIXTURE_PREFIX):
         return None
-    from galecore.config import REPO_ROOT
+    if calls_dir is None:
+        from galecore.config import get_settings
 
+        calls_dir = get_settings().fixture_calls_dir
     p = Path(ref[len(FIXTURE_PREFIX) :])
-    d = p if p.is_absolute() else (calls_dir or REPO_ROOT / "tests" / "fixtures" / "calls") / p
+    d = p if p.is_absolute() else calls_dir / p
+    if not (d / "script.json").is_file():
+        d = calls_dir / p.name
     return FixtureOracle.from_dir(d) if (d / "script.json").is_file() else None

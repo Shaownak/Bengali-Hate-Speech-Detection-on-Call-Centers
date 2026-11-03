@@ -20,3 +20,7 @@ done
 kubectl -n gale-data create secret generic gale-pg-owner --type=kubernetes.io/basic-auth \
   --from-literal=username=gale --from-literal=password="$PW"
 kubectl -n gale-app create secret generic gale-signing --from-literal=GALE_OBJECT_URL_SECRET="$SIGN"
+# synthetic fixture scripts for the stub models (values-kind.yaml devFixtures); no audio, no real data
+kubectl -n gale-ml create configmap gale-dev-fixtures \
+  --from-file=demo_01.script.json=tests/fixtures/calls/demo_01/script.json \
+  --from-file=demo_01.expected_events.json=tests/fixtures/calls/demo_01/expected_events.json

@@ -7,6 +7,7 @@ import pytest
 from galecore.config import Settings
 from galecore.models import FixtureOracle, RealModelsUnavailableError, load_models
 from galecore.models.base import AudioChunk, WindowInput
+from galecore.models.oracle import oracle_for_ref
 from galecore.models.stubs import StubVAD
 from galecore.objectstore import LocalObjectStore
 from galecore.schemas import Category, Channel, EventStatus, FusedEvent
@@ -53,6 +54,19 @@ def test_oracle_refuses_non_synthetic(tmp_path: Path) -> None:
     (tmp_path / "expected_events.json").write_text(json.dumps({"events": []}), encoding="utf-8")
     with pytest.raises(ValueError, match="synthetic"):
         FixtureOracle.from_dir(tmp_path)
+
+
+def test_oracle_for_ref_resolves_names_and_foreign_paths(tmp_path: Path) -> None:
+    assert oracle_for_ref(None) is None
+    assert oracle_for_ref("pbx:12345", FIXTURES) is None  # real calls never get an oracle
+    by_name = oracle_for_ref("fixture:demo_03", FIXTURES)
+    assert by_name is not None
+    local = oracle_for_ref(f"fixture:{(FIXTURES / 'demo_03').resolve()}", tmp_path)
+    assert local == by_name  # an existing absolute dir wins
+    # the simulator ran on another host (CI runner → cluster): same fixture name under calls_dir
+    foreign = "fixture:/home/runner/work/x/tests/fixtures/calls/demo_03"
+    assert oracle_for_ref(foreign, FIXTURES) == by_name
+    assert oracle_for_ref("fixture:/elsewhere/no_such_call", FIXTURES) is None
 
 
 def test_stub_asr_and_llm_with_oracle() -> None:

@@ -16,3 +16,7 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+
+# Patched transitive versions (Trivy HIGH): next pins postcss 8.4.31 (CVE-2026-45623, CVE-2026-73646)
+overrides:
+  "postcss@<8.5.18": "^8.5.18"

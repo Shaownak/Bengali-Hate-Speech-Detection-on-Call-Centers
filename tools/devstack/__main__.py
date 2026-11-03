@@ -70,13 +70,15 @@ def _pg_ctl() -> Path:
 def start_db() -> str:
     """Start embedded Postgres (pg_ctl daemonises it) and return the SQLAlchemy URL."""
     import pgserver
+    from sqlalchemy.engine import make_url
 
     srv = pgserver.get_server(str(PGDATA), cleanup_mode=None)  # keep running after we exit
     exists = srv.psql("SELECT 1 FROM pg_database WHERE datname = 'gale';")
     if "1 row" not in exists:
         srv.psql("CREATE DATABASE gale;")
-    uri = srv.get_uri().rsplit("/", 1)[0] + "/gale"
-    return uri.replace("postgresql://", "postgresql+psycopg://")
+    # parsed, not split on "/": on Linux the URL is a unix socket (``?host=/run/user/…``)
+    url = make_url(srv.get_uri()).set(drivername="postgresql+psycopg", database="gale")
+    return url.render_as_string(hide_password=False)
 
 
 def stop_db() -> None:

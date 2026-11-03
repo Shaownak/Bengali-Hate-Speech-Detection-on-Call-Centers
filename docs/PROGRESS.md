@@ -534,6 +534,22 @@ fine-tune, and the trainer image build (CI). The LLM LoRA retrain stays disabled
 - the pilot itself: QA sampling, supervisors' reviews and ratings, the pilot lead's stage
   sign-offs.
 
+## CI fixes (2026-11-03)
+
+CI on `main` had been red since Prompt 12; the jobs pass on Windows, so this was not visible locally.
+- **python (ubuntu)**: all 77 Postgres-backed API tests errored. On Linux, pgserver returns a
+  unix-socket URL (`?host=/run/user/…`). The test fixture (and `make dev-up`) built database URLs by
+  splitting on the last `/`, which rewrote the socket path. Both now use SQLAlchemy's `make_url`.
+- **security (Trivy)**: HIGH CVEs in web dev/transitive dependencies. `@playwright/test` 1.55.0 →
+  1.55.1 (CVE-2025-59288). postcss 8.4.31 (pinned by `next`; CVE-2026-45623, CVE-2026-73646) is
+  overridden to ≥ 8.5.18 in `web/pnpm-workspace.yaml`. Local e2e needs `make e2e-install` for
+  Chromium 1193.
+- **kind smoke**: 0 events were persisted. The stub models read the synthetic script by the
+  simulator's `fixture:<absolute path>` ref, and that path exists only on the CI runner. The
+  oracle now falls back to the fixture name under `GALE_FIXTURE_CALLS_DIR`. The chart mounts a
+  dev-only ConfigMap there (`devFixtures`, refused unless env=dev + stub), created by
+  `infra/kind/secrets.sh`.
+
 ## Next step
 
 Run **Prompt 6: P3a ASR fine-tuning** on the GPU box (🔒 GPU + data). Prompts 6–10 need a GPU and annotated data. Prompt 11 (P4) is built on the simulator; its exit gate waits on a staging PBX. Prompts 12–13 (P5 API + dashboard) are done; the P5 exit gate is a UX review with supervisors and QA. Prompt 14 (P6) is built and CI-validated; its exit gate needs the staging cluster and a GPU load test 🔒. Prompt 15 (P7) tooling is built; the pilot itself runs on the staging cluster with real calls, following `docs/PILOT_PLAYBOOK.md` 🔒. All prompts that can run without a GPU, real data or a cluster are now done.

@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # pilot policy override (Helm ConfigMap); default <config_dir>/pilot.yaml (ADR-020)
     pilot_config: Path | None = None
     data_dir: Path = REPO_ROOT / ".gale"
+    # synthetic fixture calls the stub models read their script from (`fixture:<name>` refs);
+    # in a cluster, a dev-only ConfigMap mount (Helm `devFixtures`)
+    fixture_calls_dir: Path = REPO_ROOT / "tests" / "fixtures" / "calls"
 
     bus_url: str = "redis://127.0.0.1:6380/0"
     bus_backend: Literal["redis", "memory"] = "redis"

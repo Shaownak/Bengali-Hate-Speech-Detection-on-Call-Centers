@@ -57,6 +57,10 @@ observability:
 networkPolicies:
   enabled: false   # validated by `helm template` + kubeconform; kind's CNI is not the target
 
+devFixtures:                        # created by infra/kind/secrets.sh from tests/fixtures/calls
+  configMap: gale-dev-fixtures
+  calls: [demo_01]
+
 retention:
   enabled: true
   execute: false
