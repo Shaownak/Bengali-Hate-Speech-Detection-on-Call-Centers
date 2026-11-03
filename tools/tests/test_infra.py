@@ -108,3 +108,42 @@ def test_otel_collector_config() -> None:
     cfg = yaml.safe_load((CHART / "files" / "otel-collector.yaml").read_text(encoding="utf-8"))
     assert cfg["service"]["pipelines"]["traces"]["receivers"] == ["otlp"]
     assert "attributes/scrub" in cfg["service"]["pipelines"]["traces"]["processors"]
+
+
+def _merge(a: dict, b: dict) -> dict:  # type: ignore[type-arg]
+    out = dict(a)
+    for k, v in b.items():
+        out[k] = _merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
+@pytest.mark.parametrize(
+    "values", ["values.yaml", "values-staging.yaml", "values-prod.yaml", "values-kind.yaml"]
+)
+def test_pilot_values(values: str) -> None:
+    """The chart's pilot policy is a valid PilotConfig in every environment (ADR-020)."""
+    from galecore.pilot import COMPONENTS, PilotConfig
+
+    base = yaml.safe_load((CHART / "values.yaml").read_text(encoding="utf-8"))
+    v = _merge(base, yaml.safe_load((CHART / values).read_text(encoding="utf-8")) or {})
+    cfg = PilotConfig.model_validate(v["pilot"]["config"])
+    assert set(v["retrain"]["components"]) <= set(COMPONENTS)
+    gate = yaml.safe_load((ROOT / "configs" / "promotion_gate.yaml").read_text(encoding="utf-8"))
+    assert set(v["retrain"]["components"]) <= set(gate["components"])
+    if values != "values-kind.yaml":  # real clusters start in shadow mode
+        assert cfg.alerts.default == "hidden"
+        assert cfg.sampler.golden_manifest.startswith("/etc/gale/golden/")
+
+
+def test_pilot_jobs_never_skip_the_golden_check() -> None:
+    for name in ("pilot.yaml", "retrain.yaml"):
+        t = (CHART / "templates" / name).read_text(encoding="utf-8")
+        assert "--no-golden-manifest" not in t, name
+    retrain = (CHART / "templates" / "retrain.yaml").read_text(encoding="utf-8")
+    assert "--golden-manifest /etc/gale/golden/calls.jsonl" in retrain
+    assert "register-model" in retrain  # candidates are registered as shadow, never activated
+
+
+def test_trainer_image_built_in_ci() -> None:
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    assert "infra/docker/trainer.Dockerfile" in ci

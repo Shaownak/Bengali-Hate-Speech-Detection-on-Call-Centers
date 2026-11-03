@@ -29,9 +29,25 @@ data:
   OTEL_EXPORTER_OTLP_ENDPOINT: {{ printf "http://gale-otel-collector.%s.svc.cluster.local:4318" (include "gale.ns" (list $root "obs")) | quote }}
   {{- end }}
   HF_HUB_OFFLINE: "1"              # no model downloads at runtime (CLAUDE.md, docs/05 §7)
+  GALE_PILOT_CONFIG: /etc/gale/pilot/pilot.yaml   # ADR-020; ConfigMap gale-pilot
+  {{- with $root.Values.pilot.prometheusUrl }}
+  GALE_PROMETHEUS_URL: {{ . | quote }}            # weekly pilot report: latency + shadow agreement
+  {{- end }}
   {{- range $k, $v := $root.Values.config }}
   {{ $k }}: {{ $v | quote }}
   {{- end }}
+---
+# Pilot policy (shadow mode, canaries, report/sampler settings; ADR-020). Workers and jobs read it
+# at start: after changing pilot.config, roll the workers (`kubectl rollout restart`).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gale-pilot
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list $root "pilot") | nindent 4 }}
+data:
+  pilot.yaml: |
+    {{- toYaml $root.Values.pilot.config | nindent 4 }}
 {{- end }}
 
 {{- if .Values.externalSecrets.enabled }}
@@ -43,6 +59,10 @@ data:
   (dict "name" .Values.secrets.signing "remote" $es.remote.signing "keys" (list "GALE_OBJECT_URL_SECRET") "areas" (list "app"))
   (dict "name" .Values.secrets.ingestAri "remote" $es.remote.ingestAri "keys" (list "GALE_INGEST_ARI_PASSWORD") "areas" (list "ingest"))
 }}
+{{- if .Values.pilot.secret }}
+{{- /* all four keys must exist in the store (empty strings for unused channels) */}}
+{{- $items = append $items (dict "name" .Values.pilot.secret "remote" $es.remote.pilot "keys" (list "GALE_LS_TOKEN" "GALE_SMTP_USER" "GALE_SMTP_PASSWORD" "GALE_REPORT_WEBHOOK_URL") "areas" (list "app")) }}
+{{- end }}
 {{- if eq .Values.postgres.mode "cnpg" }}
 {{- $items = append $items (dict "name" "gale-pg-owner" "remote" $es.remote.db "keys" (list "username" "password") "areas" (list "data") "type" "kubernetes.io/basic-auth") }}
 {{- if .Values.postgres.cnpg.backup.enabled }}

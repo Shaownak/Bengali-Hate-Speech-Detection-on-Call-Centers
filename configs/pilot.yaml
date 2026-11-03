@@ -1,0 +1,86 @@
+# Pilot & continuous improvement (docs/06 §6, docs/02 §6, ADR-020).
+# This file is the dev/test default. Clusters get theirs from the Helm values (`pilot.config`,
+# mounted as $GALE_PILOT_CONFIG); workers and jobs read it at start, so roll them to apply.
+version: 1
+
+# P-0 offline replay | P-1 shadow live | P-2 supervisor pilot | P-3 rollout
+# (dev/e2e: P-3, everything visible; the Helm values start staging/prod at P-1, alerts hidden)
+stage: P-3
+
+# Alert visibility. Events of calls whose queue is not visible are computed, persisted and
+# reviewable by QA, but carry `shadow: true` and are hidden from supervisors and agents
+# (live wallboard, call pages, analytics). `default: visible` shows every queue (P-3).
+alerts:
+  default: visible           # hidden | visible  (dev shows everything; staging P-1 uses hidden)
+  visible_queues: []         # P-2: the queues of the 2–3 pilot teams
+
+# Candidate model versions running beside the stable one (`configs/models.yaml`).
+#   role: shadow → both run; the candidate's outputs are tagged shadow=true and never drive events
+#   role: canary → the candidate replaces the stable model for the routed calls
+# Routing is deterministic per (component, call): `percent` of calls, optionally only `queues`.
+# Real weights: $GALE_MODEL_DIR/candidates/<component>/<version>/ (stub mode: version label only).
+candidates: {}
+#  text_clf: {version: textclf-2026-12, role: shadow, percent: 100, queues: []}
+#  fusion:   {version: calib-2026-12, role: canary, percent: 10, queues: [billing]}
+#  llm_judge: {version: lora-2026-12, role: shadow, percent: 25}
+
+# Exit criteria per stage (docs/06 §6). The weekly report checks the measurable ones;
+# `manual` items are ticked by the pilot lead in the playbook.
+exit_criteria:
+  P-0:
+    precision: 0.80
+    min_reviewed: 200
+  P-1:
+    precision: 0.80
+    latency_p95_s: {provisional_event: 2.0, confirmed_event: 6.0, alert: 6.0}
+    manual: [no stability incidents]
+  P-2:
+    alert_acceptance: 0.75
+    usefulness: 4.0
+    fairness_red_flags: 0
+  P-3:
+    manual: [incidents per 100 calls trending down, QA coverage 100%, time-to-intervene tracked]
+
+report:
+  timezone: Asia/Dhaka
+  out_dir: reports/pilot            # under GALE_DATA_DIR; also copied to the object store
+  min_slice_calls: 30               # fairness: smaller slices are reported but never flagged
+  fairness_precision_gap: 0.10      # flag: slice precision this far below overall
+  fairness_rate_ratio: 1.5          # flag: slice alert rate this many × the overall rate
+  drift_psi: 0.2                    # flag: score-distribution PSI vs the previous week
+  repeat_offender_incidents: 3      # agent with ≥ N confirmed agent incidents in the week
+  notify:
+    email:
+      enabled: false
+      smtp_host: smtp.gale.internal
+      smtp_port: 587
+      starttls: true
+      sender: gale-reports@gale.internal
+      to: []                        # e.g. [qa-lead@…, ops@…]; SMTP user/password from env
+    webhook:
+      enabled: false
+      format: slack                 # slack (incoming webhook) | json
+      # URL from env GALE_REPORT_WEBHOOK_URL (a secret: it embeds a token)
+    dashboard_url: https://gale.gale.internal/en/admin/pilot
+
+sampler:
+  budget: 300                       # docs/02 §6: 200–400 items per week
+  per_call_max: 3
+  # share of the budget per bucket; unused share flows to the other buckets
+  quotas:
+    false_positive: 0.30
+    false_negative: 0.25
+    low_confidence: 0.20
+    disagreement: 0.15
+    new_terms: 0.10
+  low_confidence_band: [0.40, 0.65]
+  disagreement_gap: 0.5             # |acoustic − lexical| family score
+  new_term_min_count: 3             # token seen in ≥ N flagged spans …
+  new_term_min_calls: 2             # … across ≥ N calls, and not in the active lexicon
+  # The golden manifest (call ids of the golden set): sampled calls must never overlap it
+  # (CLAUDE.md rule 3). The sampler refuses to run without it outside dev/test.
+  golden_manifest: data/manifests/calls.jsonl   # under GALE_DATA_DIR
+  labelstudio:
+    url: http://label-studio.gale-app.svc.cluster.local:8080   # self-hosted only
+    project: GAL-E T2 active learning
+    audio_prefix: /data/local-files/?d=

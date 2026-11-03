@@ -112,25 +112,37 @@ function Models() {
             <Card key={component}>
               <CardTitle>{component}</CardTitle>
               <ul className="flex flex-col gap-2 text-sm">
-                {versions.map((m) => (
-                  <li key={m.id} className="flex flex-wrap items-center gap-2" data-model={m.version}>
-                    <span className="font-mono">{m.version}</span>
-                    {m.active && <span className="rounded border px-1 text-xs">{t("activeBadge")}</span>}
-                    {m.research_only && <span className="text-xs text-amber-700 dark:text-amber-300">{t("researchOnly")}</span>}
-                    {Object.keys(m.metrics).length > 0 && (
-                      <span className="text-xs opacity-80">
-                        {Object.entries(m.metrics)
-                          .map(([k, v]) => `${k}=${typeof v === "number" ? v.toFixed(3) : String(v)}`)
-                          .join(" · ")}
-                      </span>
-                    )}
-                    {admin && !m.active && !m.research_only && (
-                      <Button size="sm" variant="outline" onClick={() => promote.mutate(m)}>
-                        {t("promote")}
-                      </Button>
-                    )}
-                  </li>
-                ))}
+                {versions.map((m) => {
+                  const gate = m.metrics.gate as { passed?: boolean } | undefined;
+                  const numeric = Object.entries(m.metrics).filter(([, v]) => typeof v === "number");
+                  return (
+                    <li key={m.id} className="flex flex-wrap items-center gap-2" data-model={m.version}>
+                      <span className="font-mono">{m.version}</span>
+                      {m.active && <span className="rounded border px-1 text-xs">{t("activeBadge")}</span>}
+                      {m.shadow && (
+                        <span className="rounded border border-dashed px-1 text-xs" title={t("shadowHint")}>
+                          {t("shadowBadge")}
+                        </span>
+                      )}
+                      {gate && (
+                        <span className="text-xs" data-testid="gate">
+                          {gate.passed ? t("gatePassed") : t("gateFailed")}
+                        </span>
+                      )}
+                      {m.research_only && <span className="text-xs text-amber-700 dark:text-amber-300">{t("researchOnly")}</span>}
+                      {numeric.length > 0 && (
+                        <span className="text-xs opacity-80">
+                          {numeric.map(([k, v]) => `${k}=${(v as number).toFixed(3)}`).join(" · ")}
+                        </span>
+                      )}
+                      {admin && !m.active && !m.research_only && gate?.passed !== false && (
+                        <Button size="sm" variant="outline" onClick={() => promote.mutate(m)}>
+                          {t("promote")}
+                        </Button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </Card>
           ))}

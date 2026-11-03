@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     model_dir: Path = REPO_ROOT / ".gale" / "models"
     lexicon_path: Path | None = None  # real lexicon, outside the repo (CLAUDE.md hard rule 2)
     config_dir: Path = REPO_ROOT / "configs"
+    # pilot policy override (Helm ConfigMap); default <config_dir>/pilot.yaml (ADR-020)
+    pilot_config: Path | None = None
     data_dir: Path = REPO_ROOT / ".gale"
 
     bus_url: str = "redis://127.0.0.1:6380/0"

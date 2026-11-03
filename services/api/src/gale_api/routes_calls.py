@@ -40,7 +40,7 @@ from gale_api.db import (
     SignalRow,
     now,
 )
-from gale_api.scope import call_scope, get_call, get_event
+from gale_api.scope import call_scope, event_scope, get_call, get_event
 from galecore.bangla import normalize
 from galecore.metrics import REVIEWS
 from galecore.objectstore import LocalObjectStore
@@ -51,7 +51,7 @@ router = APIRouter(prefix="/api/v1", tags=["calls"])
 LIVE = EventRow.status != EventStatus.DISMISSED_BY_LLM.value
 
 
-def _event_stats() -> Any:
+def _event_stats(p: Principal) -> Any:
     return (
         select(
             EventRow.call_id.label("call_id"),
@@ -59,13 +59,14 @@ def _event_stats() -> Any:
             func.count().filter(EventRow.alert).label("alert_count"),
             func.max(EventRow.severity).filter(LIVE).label("max_severity"),
         )
+        .where(event_scope(p))
         .group_by(EventRow.call_id)
         .subquery()
     )
 
 
-def _summary_query() -> tuple[Select[Any], Any]:
-    st = _event_stats()
+def _summary_query(p: Principal) -> tuple[Select[Any], Any]:
+    st = _event_stats(p)
     q = (
         select(
             Call,
@@ -123,7 +124,7 @@ def list_calls(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> CallPage:
-    base, st = _summary_query()
+    base, st = _summary_query(p)
     conds: list[ColumnElement[bool]] = [call_scope(p)]
     if date_from:
         conds.append(Call.started_at >= date_from)
@@ -142,12 +143,17 @@ def list_calls(
     if min_severity:
         conds.append(st.c.max_severity >= min_severity)
     if speaker:
-        conds.append(exists().where(EventRow.call_id == Call.id, EventRow.speaker == speaker, LIVE))
+        conds.append(
+            exists().where(
+                EventRow.call_id == Call.id, EventRow.speaker == speaker, LIVE, event_scope(p)
+            )
+        )
     if reviewed is not None:
         has_verdict = exists().where(
             ReviewRow.event_id == EventRow.id,
             ReviewRow.kind == "verdict",
             EventRow.call_id == Call.id,
+            event_scope(p),
         )
         conds.append(has_verdict if reviewed else ~has_verdict)
     scores = (agent_score_min, agent_score_max, hostility_min, hostility_max)
@@ -168,7 +174,12 @@ def list_calls(
         )
     if category:
         conds.append(
-            exists().where(EventRow.call_id == Call.id, EventRow.category == category.value, LIVE)
+            exists().where(
+                EventRow.call_id == Call.id,
+                EventRow.category == category.value,
+                LIVE,
+                event_scope(p),
+            )
         )
     if q:
         needle = normalize(q)
@@ -188,7 +199,7 @@ def list_calls(
 @router.get("/calls/{call_id}", response_model=CallDetail)
 def call_detail(call_id: str, db: DB, p: Annotated[Principal, require("calls.read")]) -> CallDetail:
     call = get_call(db, p, call_id)
-    base, _ = _summary_query()
+    base, _ = _summary_query(p)
     summary = _summary(db.execute(base.where(Call.id == call.id)).one())
     sc = db.get(CallScore, call.id)
     scores = (
@@ -300,7 +311,11 @@ def call_events(
 ) -> list[EventOut]:
     call = get_call(db, p, call_id)
     rows = list(
-        db.scalars(select(EventRow).where(EventRow.call_id == call.id).order_by(EventRow.ts_start))
+        db.scalars(
+            select(EventRow)
+            .where(EventRow.call_id == call.id, event_scope(p))
+            .order_by(EventRow.ts_start)
+        )
     )
     return events_out(db, rows)
 
@@ -328,7 +343,11 @@ def call_timelines(
             SignalRow.ts_start,
             SignalRow.ts_end,
             SignalRow.score,
-        ).where(SignalRow.call_id == call.id, SignalRow.source.in_(list(SERIES)))
+        ).where(
+            SignalRow.call_id == call.id,
+            SignalRow.source.in_(list(SERIES)),
+            SignalRow.shadow.is_(False),
+        )
     ).all()
     duration = call.duration_s or max((r.ts_end for r in rows), default=0.0)
     bin_s = max(1.0, duration / points)
@@ -445,6 +464,9 @@ def review_queue(
     db: DB,
     p: Annotated[Principal, require("review_queue.read")],
     category: Category | None = None,
+    shadow: Annotated[
+        bool | None, Query(description="QA/admin: only shadow-mode (true) or live (false) events")
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> ReviewQueuePage:
@@ -457,8 +479,10 @@ def review_queue(
         ~reviewed,
         EventRow.status.in_([EventStatus.PROVISIONAL.value, EventStatus.CONFIRMED.value]),
         (EventRow.alert | (EventRow.severity >= 2) | flagged),
-        EventRow.shadow.is_(False),
+        event_scope(p),
     ]
+    if shadow is not None and p.sees_shadow:
+        conds.append(EventRow.shadow.is_(shadow))
     if category:
         conds.append(EventRow.category == category.value)
     q = select(EventRow).join(Call, Call.id == EventRow.call_id).where(and_(*conds))
@@ -474,7 +498,7 @@ def review_queue(
             .offset(offset)
         )
     )
-    base, _ = _summary_query()
+    base, _ = _summary_query(p)
     calls = {
         r[0].id: _summary(r) for r in db.execute(base.where(Call.id.in_({e.call_id for e in rows})))
     }

@@ -42,7 +42,7 @@ def _window(date_from: datetime | None, date_to: datetime | None) -> list[Column
 def _alerts_by_call() -> Any:
     return (
         select(EventRow.call_id, func.count().label("n"))
-        .where(EventRow.alert, EventRow.status != "dismissed_by_llm")
+        .where(EventRow.alert, EventRow.status != "dismissed_by_llm", ~EventRow.shadow)
         .group_by(EventRow.call_id)
         .subquery()
     )
@@ -78,7 +78,7 @@ def agent_analytics(
     by_cat = db.execute(
         select(EventRow.category, EventRow.speaker, func.count())
         .join(Call, Call.id == EventRow.call_id)
-        .where(where, EventRow.status != "dismissed_by_llm")
+        .where(where, EventRow.status != "dismissed_by_llm", ~EventRow.shadow)
         .group_by(EventRow.category, EventRow.speaker)
         .order_by(func.count().desc())
     ).all()
@@ -105,7 +105,12 @@ def agent_analytics(
     moments = db.execute(
         select(EventRow)
         .join(Call, Call.id == EventRow.call_id)
-        .where(where, EventRow.speaker == "agent", EventRow.status != "dismissed_by_llm")
+        .where(
+            where,
+            EventRow.speaker == "agent",
+            EventRow.status != "dismissed_by_llm",
+            ~EventRow.shadow,
+        )
         .order_by(EventRow.severity.desc(), EventRow.probability.desc())
         .limit(5)
     ).scalars()
@@ -221,7 +226,12 @@ def _heatmap(
     zoneinfo, so it doesn't depend on the database's timezone tables."""
     inc = (
         select(EventRow.call_id, func.count().label("n"))
-        .where(EventRow.alert, EventRow.speaker == "agent", EventRow.status != "dismissed_by_llm")
+        .where(
+            EventRow.alert,
+            EventRow.speaker == "agent",
+            EventRow.status != "dismissed_by_llm",
+            ~EventRow.shadow,
+        )
         .group_by(EventRow.call_id)
         .subquery()
     )
@@ -268,7 +278,7 @@ def queue_analytics(
             func.count().filter(EventRow.speaker == "agent").label("agent_alerts"),
             func.count().filter(EventRow.speaker == "customer").label("customer_alerts"),
         )
-        .where(EventRow.alert, EventRow.status != "dismissed_by_llm")
+        .where(EventRow.alert, EventRow.status != "dismissed_by_llm", ~EventRow.shadow)
         .group_by(EventRow.call_id)
         .subquery()
     )

@@ -4,6 +4,10 @@
 Debounce: at most one window request per call every ``debounce_s`` (docs/01 §2: 1 req / 3 s / call);
 all provisional events that arrived meanwhile are judged together. If the judge is offline the
 events simply stay provisional (fusion keeps them) and are retried on the next round.
+
+Pilot (ADR-020): an ``llm_judge`` candidate either judges the routed calls itself (canary) or runs
+on the same windows beside the stable judge (shadow): its decisions are only compared (agreement
+metric), its grounded findings are published as ``shadow`` signals.
 """
 
 from __future__ import annotations
@@ -14,11 +18,13 @@ from dataclasses import dataclass, field
 from gale_llm_judge.client import JudgeUnavailableError
 from gale_llm_judge.grounding import ground
 from gale_llm_judge.windows import utterance_ids, windows_for_events
+from galecore import metrics as m
 from galecore.bus import ASR_SEGMENTS, CALL_SCORES, EVENTS_FUSED, LLM_DECISIONS, SIGNALS, BusClient
 from galecore.config import Settings
-from galecore.models import RealModelsUnavailableError, load_models
-from galecore.models.base import LLMJudge
+from galecore.models import RealModelsUnavailableError, VersionedLLMJudge, load_models
+from galecore.models.base import LLMJudge, WindowInput
 from galecore.models.oracle import oracle_for_ref
+from galecore.pilot import Candidate, PilotPolicy
 from galecore.schemas import (
     AsrSegment,
     CallLifecycle,
@@ -28,6 +34,7 @@ from galecore.schemas import (
     LlmDecision,
     Signal,
     SignalSource,
+    WindowJudgement,
 )
 from galecore.streaming import Worker, span
 
@@ -41,6 +48,8 @@ class CallState:
     judged: set[str] = field(default_factory=set)
     last_request: float = 0.0
     ended_at: float | None = None
+    routed: bool = False
+    candidate: Candidate | None = None
 
 
 class LlmStream(Worker):
@@ -59,12 +68,13 @@ class LlmStream(Worker):
         super().__init__(bus, **kw)  # type: ignore[arg-type]
         self.settings, self.debounce_s, self.end_grace_s = settings, debounce_s, end_grace_s
         self._judge = judge
+        self.pilot = PilotPolicy.load(settings)
         self.calls: dict[str, CallState] = {}
         self.subscribe(EVENTS_FUSED, FusedEvent, self.on_event)
         self.subscribe(ASR_SEGMENTS, AsrSegment, self.on_segment)
         self.subscribe(SIGNALS, Signal, self.on_signal)
 
-    def judge_for(self, call_id: str) -> LLMJudge:
+    def _stable(self, call_id: str) -> LLMJudge:
         if self._judge is not None:
             return self._judge
         if self.settings.model_mode != "stub":  # pragma: no cover
@@ -72,6 +82,27 @@ class LlmStream(Worker):
                 "real judge: point GALE_LLM_BASE_URL at the vLLM server"
             )
         return load_models(self.settings, oracle_for_ref(self.clock.refs.get(call_id))).llm
+
+    def _routed(self, call_id: str) -> Candidate | None:
+        st = self.calls.setdefault(call_id, CallState())
+        if not st.routed:
+            st.routed = True
+            st.candidate = self.pilot.route("llm_judge", call_id, self.clock.queues.get(call_id))
+            if st.candidate is not None:
+                m.CANDIDATE_CALLS.labels("llm_judge", st.candidate.version, st.candidate.role).inc()
+        return st.candidate
+
+    def judge_for(self, call_id: str) -> LLMJudge:
+        cand = self._routed(call_id)
+        if cand is not None and cand.role == "canary":
+            return VersionedLLMJudge(self._stable(call_id), cand.version)
+        return self._stable(call_id)
+
+    def shadow_for(self, call_id: str) -> VersionedLLMJudge | None:
+        cand = self._routed(call_id)
+        if cand is None or cand.role != "shadow":
+            return None
+        return VersionedLLMJudge(self._stable(call_id), cand.version)
 
     async def on_segment(self, seg: AsrSegment) -> None:
         if seg.is_final:
@@ -104,6 +135,7 @@ class LlmStream(Worker):
         events = list(st.pending.values())
         segs = sorted(st.segments.values(), key=lambda s: s.ts_start)
         judge = self.judge_for(call_id)
+        shadow = self.shadow_for(call_id)
         for w in windows_for_events(call_id, segs, list(st.signals.values()), events):
             try:
                 with span("llm.window", call_id):
@@ -111,6 +143,8 @@ class LlmStream(Worker):
             except JudgeUnavailableError:
                 return  # stay pending; retried after the next debounce
             version = getattr(judge, "version", "stub")
+            if shadow is not None:
+                await self._shadow_window(call_id, shadow, w.input, j)
             for d in j.provisional_decisions:
                 await self.bus.publish(
                     LLM_DECISIONS,
@@ -128,6 +162,26 @@ class LlmStream(Worker):
         ]:  # not in any window (no transcript yet): next round
             if eid in st.judged:
                 st.pending.pop(eid, None)
+
+    async def _shadow_window(
+        self, call_id: str, shadow: VersionedLLMJudge, win: WindowInput, stable: WindowJudgement
+    ) -> None:
+        """Same window through the shadow candidate: decisions are compared, never published."""
+        try:
+            with span("llm.shadow", call_id):
+                j = shadow.judge_window(win)
+        except JudgeUnavailableError:
+            return
+        a = {(d.event_id, d.decision) for d in stable.provisional_decisions}
+        b = {(d.event_id, d.decision) for d in j.provisional_decisions}
+        for outcome, n in (("agree", a & b), ("stable_only", a - b), ("candidate_only", b - a)):
+            if n:
+                m.SHADOW_COMPARE.labels("llm_judge", shadow.version, outcome).inc(len(n))
+        for sig in ground(win, j, utterance_ids(win.segments), shadow.version).signals:
+            sid = f"{sig.signal_id}~{shadow.version}"
+            await self.bus.publish(
+                SIGNALS, sig.model_copy(update={"signal_id": sid, "shadow": True}), idem_key=sid
+            )
 
     async def _scorecard(self, call_id: str, st: CallState) -> None:
         judge = self.judge_for(call_id)

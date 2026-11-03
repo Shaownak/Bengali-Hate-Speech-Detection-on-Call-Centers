@@ -60,6 +60,10 @@ PERMISSIONS: dict[str, frozenset[Role]] = {
     "dsar.execute": frozenset({A}),
     "live.read": frozenset({A, Q, S}),
     "live_call.read": frozenset({A, Q, S, G}),
+    # pilot & feedback loop (ADR-020)
+    "pilot.read": frozenset({A, Q, U}),
+    "pilot.feedback": frozenset({A, Q, S}),
+    "events.report_missed": frozenset({A, Q, S}),
 }
 
 
@@ -76,6 +80,12 @@ class Principal:
 
     @property
     def sees_all_calls(self) -> bool:
+        return self.role in (Role.ADMIN, Role.QA)
+
+    @property
+    def sees_shadow(self) -> bool:
+        """Shadow-mode events (alerts computed but not yet shown, ADR-020) are for QA sampling
+        and admins only; supervisors and agents never see them."""
         return self.role in (Role.ADMIN, Role.QA)
 
 

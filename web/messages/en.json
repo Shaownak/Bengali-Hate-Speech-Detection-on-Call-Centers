@@ -67,7 +67,8 @@
     "audit": "Audit",
     "admin": "Admin",
     "signOut": "Sign out",
-    "skip": "Skip to content"
+    "skip": "Skip to content",
+    "pilot": "Pilot"
   },
   "auth": {
     "title": "Sign in",
@@ -99,7 +100,9 @@
     "fastPath": "Fast path only — not yet confirmed",
     "active": "Active",
     "ended": "Ended",
-    "queued": "Queued"
+    "queued": "Queued",
+    "shadow": "Shadow",
+    "shadowHint": "Shadow mode: computed but not yet shown to supervisors (pilot)"
   },
   "speaker": {
     "agent": "Agent",
@@ -211,7 +214,11 @@
     "pickCategory": "Corrected category",
     "pickSeverity": "Corrected severity",
     "position": "{i} of {n}",
-    "uncertainty": "Uncertainty"
+    "uncertainty": "Uncertainty",
+    "shadowFilter": "Events",
+    "shadowAll": "All",
+    "shadowLive": "Shown to supervisors",
+    "shadowOnly": "Shadow mode only"
   },
   "analytics": {
     "title": "Analytics",
@@ -309,7 +316,11 @@
     "approve": "Approve",
     "reject": "Reject",
     "twoPerson": "A second admin must approve each promotion.",
-    "activeBadge": "Active"
+    "activeBadge": "Active",
+    "shadowBadge": "shadow",
+    "shadowHint": "Registered candidate: runs only where the pilot config routes calls to it",
+    "gatePassed": "golden gate ✓",
+    "gateFailed": "golden gate ✗"
   },
   "health": {
     "title": "System health",
@@ -336,5 +347,59 @@
     "sarcasm_mockery": "Sarcasm / mockery",
     "dismissive_rude": "Dismissive / rude",
     "interruption_overtalk": "Interruption / overtalk"
+  },
+  "missed": {
+    "title": "Missed by GAL-E",
+    "hint": "Abuse in this call that GAL-E did not flag. It goes to annotation and retraining.",
+    "report": "Report a miss",
+    "speaker": "Speaker",
+    "agent": "Agent",
+    "customer": "Customer",
+    "category": "Category",
+    "severity": "Severity",
+    "start": "Start (s)",
+    "end": "End (s)",
+    "comment": "Comment (optional)",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "pilot": {
+    "title": "Pilot",
+    "intro": "Pilot stage, alert visibility, candidate models and the weekly reports. Alerts are advisory.",
+    "stage": "Stage",
+    "stage_P0": "Offline replay",
+    "stage_P1": "Shadow live: alerts hidden from supervisors",
+    "stage_P2": "Supervisor pilot",
+    "stage_P3": "Rollout",
+    "week": "Current week {week}",
+    "alerts": "Alerts",
+    "alertsHidden": "Hidden from supervisors except in the visible queues",
+    "alertsVisible": "Visible in every queue",
+    "visibleQueues": "Visible queues",
+    "candidates": "Candidate models",
+    "noCandidates": "None: every call uses the active models.",
+    "roleShadow": "shadow",
+    "roleCanary": "canary",
+    "reports": "Weekly reports",
+    "noReports": "No weekly report yet (the job runs Monday 07:00).",
+    "calls": "Calls",
+    "alertsN": "Alerts",
+    "precision": "Precision",
+    "acceptance": "Alert acceptance",
+    "usefulness": "Usefulness",
+    "fairnessFlags": "Fairness flags",
+    "missed": "Missed events",
+    "exit": "Exit criteria",
+    "status_pass": "met",
+    "status_fail": "not met",
+    "status_unknown": "unknown",
+    "status_manual": "checked by the pilot lead",
+    "open": "Open full report",
+    "fullReport": "Report {week}",
+    "close": "Close",
+    "rateTitle": "How useful were GAL-E alerts this week?",
+    "rateQuestion": "1 = not useful · 5 = very useful",
+    "rateComment": "What would make them more useful? (optional)",
+    "rateSaved": "You rated {rating}/5 for {week}. You can change it until the week ends."
   }
 }

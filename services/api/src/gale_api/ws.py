@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from gale_api.audit import write_audit
 from gale_api.auth import AuthError, Principal, principal_for
 from gale_api.db import Agent, Call, EventRow, Segment
-from gale_api.scope import call_scope
+from gale_api.scope import call_scope, event_scope
 from galecore.bus import (
     ALERTS,
     ASR_SEGMENTS,
@@ -139,7 +139,12 @@ class LiveHub:
         call_id = getattr(msg, "call_id", "")
         if isinstance(msg, CallLifecycle) and msg.event == "started":
             await self.team_of(call_id, msg.agent_id)
+        hidden = (isinstance(msg, FusedEvent) and msg.shadow) or (
+            isinstance(msg, Signal) and msg.shadow
+        )
         for sub in list(self.subs):
+            if hidden and not sub.principal.sees_shadow:
+                continue  # shadow mode (ADR-020): not for supervisors / agents
             if stream in sub.streams and await self.allowed(sub, call_id):
                 sub.push(stream, msg)
 
@@ -233,7 +238,9 @@ def _live_snapshot(sessions: sessionmaker[Session], p: Principal) -> dict[str, A
         ).all()
         ids = [c.id for c in calls]
         alerts = s.scalars(
-            select(EventRow).where(EventRow.call_id.in_(ids), EventRow.alert).limit(5000)
+            select(EventRow)
+            .where(EventRow.call_id.in_(ids), EventRow.alert, event_scope(p))
+            .limit(5000)
         ).all()
         return {
             "calls": [
@@ -270,7 +277,7 @@ def _call_snapshot(
         segs = s.scalars(
             select(Segment).where(Segment.call_id == cid).order_by(Segment.ts_start)
         ).all()
-        events = s.scalars(select(EventRow).where(EventRow.call_id == cid)).all()
+        events = s.scalars(select(EventRow).where(EventRow.call_id == cid, event_scope(p))).all()
         return {
             "call_id": call_id,
             "status": call.status,

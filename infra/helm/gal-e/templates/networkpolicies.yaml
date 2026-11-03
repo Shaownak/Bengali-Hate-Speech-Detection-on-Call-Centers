@@ -171,6 +171,72 @@ spec:
       ports: [{ port: 443 }]
     {{- end }}
 ---
+# pilot jobs (ADR-020): Prometheus for the weekly report, Label Studio for the sampler, and the
+# SMTP relay / chat webhook / external Label Studio from pilot.egressCidrs
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: pilot-jobs-egress
+  namespace: {{ $n.app }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { gale.io/pilot-job: "true" } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $root.Values.global.monitoringNamespace }} } }
+      ports: [{ port: 9090 }]
+    - to:
+        - podSelector: { matchLabels: { app.kubernetes.io/name: label-studio } }
+      ports: [{ port: 8080 }]
+    {{- range $root.Values.pilot.egressCidrs }}
+    - to: [{ ipBlock: { cidr: {{ . }} } }]
+      ports: [{ port: 25 }, { port: 465 }, { port: 587 }, { port: 443 }, { port: 8080 }]
+    {{- end }}
+{{- if $root.Values.retrain.enabled }}
+---
+# retrain workflow (ADR-020): the register step writes one model_versions row; Argo's executor
+# reports step results to the Kubernetes API. Still no internet egress from gale-ml.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: retrain-register-db
+  namespace: {{ $n.ml }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: gale-retrain, gale.io/db-client: "true" } }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        {{- if eq $root.Values.postgres.mode "cnpg" }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $n.data }} } }
+          podSelector: { matchLabels: { cnpg.io/cluster: gale-pg } }
+        {{- else if eq $root.Values.postgres.mode "simple" }}
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: {{ $n.data }} } }
+          podSelector: { matchLabels: { app.kubernetes.io/name: gale-pg } }
+        {{- else }}
+        - ipBlock: { cidr: {{ required "postgres.externalCidr is required for an external DB" $root.Values.postgres.externalCidr }} }
+        {{- end }}
+      ports: [{ port: 5432 }]
+{{- with $root.Values.networkPolicies.apiServerCidrs }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: retrain-executor
+  namespace: {{ $n.ml }}
+  labels: {{- include "gale.labels" (list $root "netpol") | nindent 4 }}
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: gale-retrain } }
+  policyTypes: [Egress]
+  egress:
+    {{- range . }}
+    - to: [{ ipBlock: { cidr: {{ . }} } }]
+      ports: [{ port: 443 }, { port: 6443 }]
+    {{- end }}
+{{- end }}
+{{- end }}
+---
 # ML post-call worker writes nothing to Postgres; the persister lives in the api pods.
 # data: who may reach the stores; backups egress only to the backup target
 apiVersion: networking.k8s.io/v1

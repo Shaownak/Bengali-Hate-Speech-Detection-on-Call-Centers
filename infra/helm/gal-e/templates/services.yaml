@@ -128,6 +128,9 @@ spec:
             {{- if and $real (eq $svc.namespace "ml") }}
             - { name: models, mountPath: {{ $root.Values.models.mountPath }}, readOnly: true }
             {{- end }}
+            {{- if ne $key "web" }}
+            - { name: pilot, mountPath: /etc/gale/pilot, readOnly: true }
+            {{- end }}
       volumes:
         - name: tmp
           emptyDir: { sizeLimit: 1Gi }
@@ -141,6 +144,10 @@ spec:
         {{- if and $real (eq $svc.namespace "ml") }}
         - name: models
           persistentVolumeClaim: { claimName: {{ $root.Values.models.pvcName }}, readOnly: true }
+        {{- end }}
+        {{- if ne $key "web" }}
+        - name: pilot
+          configMap: { name: gale-pilot }
         {{- end }}
 ---
 apiVersion: v1

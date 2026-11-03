@@ -2,7 +2,7 @@
 // go to docs/screenshots/ and contain no real call data.
 import { expect, test } from "@playwright/test";
 
-import { apiGet, apiToken, login, shot, simulate, simulateInBackground } from "./helpers";
+import { apiGet, apiToken, isoWeekDhaka, login, python, shot, simulate, simulateInBackground } from "./helpers";
 
 test.describe.configure({ mode: "serial" });
 
@@ -119,4 +119,41 @@ test("admin screens: analytics, rules, lexicon (masked), models, audit — and E
   await expect(page.getByTestId("audit-table")).toBeVisible();
   await expect(page.getByTestId("audit-table")).toContainText("transcript.view");
   await shot(page, "12-audit");
+});
+
+test("pilot: QA reports a miss, a supervisor rates the week, the weekly report shows exit criteria", async ({
+  browser,
+}) => {
+  const qa = await (await browser.newContext()).newPage();
+  await login(qa, "dev-qa", "en");
+  await qa.goto(`/en/calls/${liveCall}`);
+  await qa.getByRole("button", { name: "Report a miss" }).click();
+  await qa.getByRole("button", { name: "Save" }).click();
+  await expect(qa.getByTestId("missed-events")).toContainText("Insult");
+
+  const sup = await (await browser.newContext()).newPage();
+  await login(sup, "dev-supervisor", "en");
+  await sup.goto("/en/analytics");
+  await sup.getByTestId("usefulness").getByRole("radio", { name: "4" }).click();
+  await expect(sup.getByTestId("usefulness").getByRole("status")).toContainText("4/5");
+
+  const week = isoWeekDhaka();
+  const out = JSON.parse(await python(["-m", "gale_api", "pilot-report", "--week", week])) as {
+    week: string;
+    exit: Record<string, string>;
+  };
+  expect(out.week).toBe(week);
+
+  const admin = await (await browser.newContext()).newPage();
+  await login(admin, "dev-admin", "en");
+  await admin.goto("/en/admin/pilot");
+  await expect(admin.getByTestId("pilot-stage")).toHaveText("P-3"); // dev default: rollout
+  const card = admin.locator(`[data-testid="pilot-report"][data-week="${week}"]`);
+  await expect(card).toContainText("Exit criteria");
+  await expect(card).toContainText("pilot lead"); // P-3 criteria are signed off by the pilot lead
+  await card.getByRole("button", { name: "Open full report" }).click();
+  await expect(admin.locator("iframe")).toBeVisible();
+  await shot(admin, "13-pilot");
+  await admin.goto(`/en/calls/${liveCall}`);
+  await expect(admin.getByTestId("missed-events")).toContainText("Insult");
 });

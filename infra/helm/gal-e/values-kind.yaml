@@ -60,3 +60,15 @@ networkPolicies:
 retention:
   enabled: true
   execute: false
+
+pilot:
+  config:
+    stage: P-1
+    alerts: { default: visible }   # the smoke test checks persisted events, nothing is hidden
+  goldenManifestConfigMap: ""
+  sampler: { enabled: false }       # no Label Studio, no golden manifest in kind
+  exportFeedback: { enabled: false }
+  report: { notify: false }
+
+retrain:
+  enabled: false                    # no Argo in kind

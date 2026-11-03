@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -44,6 +44,29 @@ export async function simulate(
     { cwd: ROOT, env: { ...process.env, PYTHONUTF8: "1" }, timeout: 170_000 },
   );
   return callId;
+}
+
+/** Run a GAL-E CLI command against the dev stack (e.g. a pilot job) and return its stdout. */
+export async function python(args: string[]): Promise<string> {
+  // the dev stack's embedded Postgres listens on a random port, written by `make dev-up`
+  const dbUri = path.join(ROOT, ".gale", "devstack", "db_uri");
+  const db = existsSync(dbUri) ? { GALE_DB_URL: readFileSync(dbUri, "utf-8").trim() } : {};
+  const { stdout } = await run(PY, args, {
+    cwd: ROOT,
+    env: { ...process.env, ...db, GALE_ENV: "dev", PYTHONUTF8: "1" },
+    timeout: 120_000,
+  });
+  return stdout;
+}
+
+/** ISO week (YYYY-Www) of a date in the call centre's time zone (UTC+6, no DST). */
+export function isoWeekDhaka(d = new Date()): string {
+  const local = new Date(d.getTime() + 6 * 3600_000);
+  const t = new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()));
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7)); // the week's Thursday decides the year
+  const yearStart = Date.UTC(t.getUTCFullYear(), 0, 1);
+  const week = Math.ceil(((t.getTime() - yearStart) / 86_400_000 + 1) / 7);
+  return `${t.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
 /** Start a simulation without waiting for it (to watch the wallboard while it plays). */

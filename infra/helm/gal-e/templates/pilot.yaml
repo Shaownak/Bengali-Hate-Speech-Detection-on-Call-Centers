@@ -1,0 +1,49 @@
+{{- /*
+Pilot & feedback-loop jobs (ADR-020), all with the api image in gale-app:
+  weekly report (Mon 07:00) · active-learning sample → Label Studio (Mon 08:00) · nightly feedback
+  export for the retrain pipelines. They print counts / pass-fail only (CLAUDE.md rule 1).
+*/ -}}
+{{- $root := . -}}
+{{- $ns := include "gale.ns" (list . "app") -}}
+{{- $p := .Values.pilot -}}
+{{- $jobs := list }}
+{{- if $p.report.enabled }}
+{{- $args := list "python" "-m" "gale_api" "pilot-report" }}
+{{- if $p.report.notify }}{{ $args = append $args "--notify" }}{{ end }}
+{{- $jobs = append $jobs (dict "name" "gale-pilot-report" "schedule" $p.report.schedule "args" $args "deadline" 1800) }}
+{{- end }}
+{{- if $p.sampler.enabled }}
+{{- $args := list "python" "-m" "gale_api" "al-sample" }}
+{{- if $p.sampler.push }}{{ $args = append $args "--push" }}{{ end }}
+{{- $jobs = append $jobs (dict "name" "gale-al-sampler" "schedule" $p.sampler.schedule "args" $args "deadline" 3600) }}
+{{- end }}
+{{- if $p.exportFeedback.enabled }}
+{{- $args := list "python" "-m" "gale_api" "export-feedback" }}
+{{- $jobs = append $jobs (dict "name" "gale-export-feedback" "schedule" $p.exportFeedback.schedule "args" $args "deadline" 3600) }}
+{{- end }}
+{{- range $j := $jobs }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ $j.name }}
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list $root $j.name) | nindent 4 }}
+spec:
+  schedule: {{ $j.schedule | quote }}
+  timeZone: Asia/Dhaka
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: {{ $j.deadline }}
+      template:
+        metadata:
+          labels:
+            {{- include "gale.labels" (list $root $j.name) | nindent 12 }}
+            gale.io/db-client: "true"
+            gale.io/pilot-job: "true"
+        spec: {{- include "gale.jobPod" (list $root $j.args) | nindent 10 }}
+{{- end }}

@@ -275,6 +275,11 @@ def request_promotion(
         )
     if mv.active:
         raise HTTPException(status.HTTP_409_CONFLICT, "already active")
+    gate = (mv.metrics_jsonb or {}).get("gate")
+    if gate is not None and not gate.get("passed"):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "failed the golden-set promotion gate (ADR-020)"
+        )
     pending = db.scalar(
         select(ModelPromotion).where(
             ModelPromotion.model_version_id == mv.id, ModelPromotion.status == "pending"
@@ -315,7 +320,7 @@ def _decide(
         mv = db.get(ModelVersion, row.model_version_id)
         if mv is None:  # pragma: no cover - FK guarantees it
             raise HTTPException(status.HTTP_404_NOT_FOUND, "model version not found")
-        mv.active, mv.deployed_at = True, now()
+        mv.active, mv.shadow, mv.deployed_at = True, False, now()
     return row
 
 

@@ -33,7 +33,8 @@ PY_PKGS := -p galecore -p gale_postcall -p gale_api -p gale_ingest_gateway -p ga
            -p gale_asr_worker -p gale_text_worker -p gale_llm_judge -p gale_fusion_engine
 
 .PHONY: help setup dev-up dev-down dev-status check check-py check-web lint fmt typecheck test \
-        test-web gen-types gen-types-check simulate fixtures fixtures-wav golden-check report eval bakeoff e2e e2e-install helm-check dashboards loadtest clean-caches
+        test-web gen-types gen-types-check simulate fixtures fixtures-wav golden-check report eval bakeoff e2e e2e-install helm-check dashboards loadtest \
+        pilot-report al-sample retrain clean-caches
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  %-16s %s\n",$$1,$$2}'
@@ -151,6 +152,16 @@ dashboards: ## regenerate the Grafana dashboards in the Helm chart
 
 loadtest: ## load test at 25/50/100/200% of PEAK concurrent calls against `make dev-up`
 	$(PY) -m tools.loadtest --peak $${PEAK:-4} --levels 25,50,100,200
+
+pilot-report: ## weekly pilot report (ADR-020): make pilot-report [WEEK=2026-W44] [NOTIFY=1] → .gale/reports/pilot
+	$(PY) -m gale_api pilot-report $(if $(WEEK),--week $(WEEK)) $(if $(NOTIFY),--notify) --out $(GALE)/reports/pilot
+
+al-sample: ## active-learning sample: make al-sample [WEEK=…] [PUSH=1] → .gale/al (needs the golden manifest)
+	$(PY) -m gale_api al-sample $(if $(WEEK),--week $(WEEK)) $(if $(PUSH),--push) --out $(GALE)/al
+
+retrain: ## retrain + gate: make retrain COMPONENT=fusion FEEDBACK=fb.jsonl [SPLIT=golden] [VERSION=…]
+	$(PY) -m ml.retrain run --component $(COMPONENT) --work $(GALE)/retrain/$(COMPONENT) \
+	  --feedback $(FEEDBACK) --split $${SPLIT:-golden} --version $${VERSION:-$(COMPONENT)-local}
 
 e2e: ## Playwright against the dev stack + simulator (run `make dev-up` first)
 	cd web && PLAYWRIGHT_BROWSERS_PATH=$(GALE)/ms-playwright $(PNPM) exec playwright test

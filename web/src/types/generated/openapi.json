@@ -1442,6 +1442,70 @@
         "title": "EventStatus",
         "type": "string"
       },
+      "FeedbackIn": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "rating": {
+            "description": "usefulness of GAL-E alerts this week, 1–5",
+            "maximum": 5.0,
+            "minimum": 1.0,
+            "title": "Rating",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rating"
+        ],
+        "title": "FeedbackIn",
+        "type": "object"
+      },
+      "FeedbackOut": {
+        "properties": {
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "rating": {
+            "title": "Rating",
+            "type": "integer"
+          },
+          "week": {
+            "title": "Week",
+            "type": "string"
+          }
+        },
+        "required": [
+          "week",
+          "rating",
+          "comment",
+          "created_at"
+        ],
+        "title": "FeedbackOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1785,6 +1849,130 @@
         "title": "MeOut",
         "type": "object"
       },
+      "MissedEventIn": {
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/Category"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "maxLength": 2000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "severity": {
+            "enum": [
+              1,
+              2,
+              3
+            ],
+            "title": "Severity",
+            "type": "integer"
+          },
+          "speaker": {
+            "enum": [
+              "agent",
+              "customer"
+            ],
+            "title": "Speaker",
+            "type": "string"
+          },
+          "ts_end": {
+            "minimum": 0.0,
+            "title": "Ts End",
+            "type": "number"
+          },
+          "ts_start": {
+            "minimum": 0.0,
+            "title": "Ts Start",
+            "type": "number"
+          }
+        },
+        "required": [
+          "speaker",
+          "category",
+          "severity",
+          "ts_start",
+          "ts_end"
+        ],
+        "title": "MissedEventIn",
+        "type": "object"
+      },
+      "MissedEventOut": {
+        "properties": {
+          "call_id": {
+            "format": "uuid",
+            "title": "Call Id",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reporter_user_id": {
+            "format": "uuid",
+            "title": "Reporter User Id",
+            "type": "string"
+          },
+          "severity": {
+            "title": "Severity",
+            "type": "integer"
+          },
+          "speaker": {
+            "title": "Speaker",
+            "type": "string"
+          },
+          "ts_end": {
+            "title": "Ts End",
+            "type": "number"
+          },
+          "ts_start": {
+            "title": "Ts Start",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "call_id",
+          "reporter_user_id",
+          "speaker",
+          "category",
+          "severity",
+          "ts_start",
+          "ts_end",
+          "comment",
+          "created_at"
+        ],
+        "title": "MissedEventOut",
+        "type": "object"
+      },
       "ModelVersionOut": {
         "properties": {
           "active": {
@@ -1836,6 +2024,11 @@
             "title": "Research Only",
             "type": "boolean"
           },
+          "shadow": {
+            "default": false,
+            "title": "Shadow",
+            "type": "boolean"
+          },
           "version": {
             "title": "Version",
             "type": "string"
@@ -1853,6 +2046,188 @@
           "research_only"
         ],
         "title": "ModelVersionOut",
+        "type": "object"
+      },
+      "PilotCandidateOut": {
+        "properties": {
+          "component": {
+            "title": "Component",
+            "type": "string"
+          },
+          "percent": {
+            "title": "Percent",
+            "type": "number"
+          },
+          "queues": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Queues",
+            "type": "array"
+          },
+          "role": {
+            "enum": [
+              "shadow",
+              "canary"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "component",
+          "version",
+          "role",
+          "percent",
+          "queues"
+        ],
+        "title": "PilotCandidateOut",
+        "type": "object"
+      },
+      "PilotReportBrief": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "exit": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Exit",
+            "type": "array"
+          },
+          "has_html": {
+            "default": false,
+            "title": "Has Html",
+            "type": "boolean"
+          },
+          "headline": {
+            "additionalProperties": true,
+            "title": "Headline",
+            "type": "object"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "week": {
+            "title": "Week",
+            "type": "string"
+          }
+        },
+        "required": [
+          "week",
+          "stage",
+          "created_at"
+        ],
+        "title": "PilotReportBrief",
+        "type": "object"
+      },
+      "PilotReportOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "exit": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Exit",
+            "type": "array"
+          },
+          "has_html": {
+            "default": false,
+            "title": "Has Html",
+            "type": "boolean"
+          },
+          "headline": {
+            "additionalProperties": true,
+            "title": "Headline",
+            "type": "object"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "title": "Payload",
+            "type": "object"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "week": {
+            "title": "Week",
+            "type": "string"
+          }
+        },
+        "required": [
+          "week",
+          "stage",
+          "created_at",
+          "payload"
+        ],
+        "title": "PilotReportOut",
+        "type": "object"
+      },
+      "PilotStatus": {
+        "properties": {
+          "alerts_default": {
+            "enum": [
+              "hidden",
+              "visible"
+            ],
+            "title": "Alerts Default",
+            "type": "string"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/PilotCandidateOut"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "exit_criteria": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Exit Criteria",
+            "type": "object"
+          },
+          "stage": {
+            "title": "Stage",
+            "type": "string"
+          },
+          "visible_queues": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Visible Queues",
+            "type": "array"
+          },
+          "week": {
+            "title": "Week",
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "alerts_default",
+          "visible_queues",
+          "candidates",
+          "exit_criteria",
+          "week"
+        ],
+        "title": "PilotStatus",
         "type": "object"
       },
       "PromoteIn": {
@@ -3683,6 +4058,112 @@
         ]
       }
     },
+    "/api/v1/calls/{call_id}/missed": {
+      "get": {
+        "operationId": "list_missed_api_v1_calls__call_id__missed_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "title": "Call Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MissedEventOut"
+                  },
+                  "title": "Response List Missed Api V1 Calls  Call Id  Missed Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Missed",
+        "tags": [
+          "pilot"
+        ]
+      },
+      "post": {
+        "operationId": "report_missed_api_v1_calls__call_id__missed_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "call_id",
+            "required": true,
+            "schema": {
+              "title": "Call Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MissedEventIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MissedEventOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Report Missed",
+        "tags": [
+          "pilot"
+        ]
+      }
+    },
     "/api/v1/calls/{call_id}/segments": {
       "get": {
         "operationId": "call_segments_api_v1_calls__call_id__segments_get",
@@ -4569,6 +5050,235 @@
         ]
       }
     },
+    "/api/v1/pilot/feedback": {
+      "get": {
+        "operationId": "my_feedback_api_v1_pilot_feedback_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/FeedbackOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response My Feedback Api V1 Pilot Feedback Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "My Feedback",
+        "tags": [
+          "pilot"
+        ]
+      },
+      "post": {
+        "description": "One rating per user and week; posting again replaces it.",
+        "operationId": "rate_week_api_v1_pilot_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Rate Week",
+        "tags": [
+          "pilot"
+        ]
+      }
+    },
+    "/api/v1/pilot/reports": {
+      "get": {
+        "operationId": "list_reports_api_v1_pilot_reports_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PilotReportBrief"
+                  },
+                  "title": "Response List Reports Api V1 Pilot Reports Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Reports",
+        "tags": [
+          "pilot"
+        ]
+      }
+    },
+    "/api/v1/pilot/reports/{week}": {
+      "get": {
+        "operationId": "get_report_api_v1_pilot_reports__week__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "week",
+            "required": true,
+            "schema": {
+              "title": "Week",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PilotReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Report",
+        "tags": [
+          "pilot"
+        ]
+      }
+    },
+    "/api/v1/pilot/reports/{week}/html": {
+      "get": {
+        "operationId": "get_report_html_api_v1_pilot_reports__week__html_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "week",
+            "required": true,
+            "schema": {
+              "title": "Week",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Get Report Html",
+        "tags": [
+          "pilot"
+        ]
+      }
+    },
+    "/api/v1/pilot/status": {
+      "get": {
+        "operationId": "pilot_status_api_v1_pilot_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PilotStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Pilot Status",
+        "tags": [
+          "pilot"
+        ]
+      }
+    },
     "/api/v1/review-queue": {
       "get": {
         "description": "Alerts, severity ≥ 2 and QA-flagged events without a verdict: worst first, then the most\nuncertain (probability nearest 0.5) first.",
@@ -4588,6 +5298,24 @@
                 }
               ],
               "title": "Category"
+            }
+          },
+          {
+            "description": "QA/admin: only shadow-mode (true) or live (false) events",
+            "in": "query",
+            "name": "shadow",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "QA/admin: only shadow-mode (true) or live (false) events",
+              "title": "Shadow"
             }
           },
           {

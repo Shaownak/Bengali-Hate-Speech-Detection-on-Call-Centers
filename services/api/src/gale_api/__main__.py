@@ -1,11 +1,14 @@
 """Run the API: ``python -m gale_api`` | ``migrate`` | ``downgrade [rev]`` | ``seed-dev`` |
-``retention [--execute]``."""
+``retention [--execute]`` | pilot jobs (ADR-020): ``pilot-report`` | ``al-sample`` |
+``export-feedback`` | ``register-model`` (``--help`` on each)."""
 
 from __future__ import annotations
 
+import json
 import sys
 
 from gale_api import SERVICE_NAME
+from gale_api.pilot.run import COMMANDS as PILOT_COMMANDS
 from galecore.config import get_settings
 
 
@@ -31,6 +34,8 @@ def main(argv: list[str] | None = None) -> None:
             rep = run_retention(db, store_from_settings(s), policy, execute="--execute" in args)
         # counts only: no call ids or content (CLAUDE.md rule 1)
         print(rep)
+    elif args and args[0] in PILOT_COMMANDS:
+        print(json.dumps(PILOT_COMMANDS[args[0]](s, args[1:]), default=str))
     elif args and args[0] == "seed-dev":
         from gale_api.db import make_engine, make_sessionmaker, migrate, session_scope
         from gale_api.seed import seed_dev

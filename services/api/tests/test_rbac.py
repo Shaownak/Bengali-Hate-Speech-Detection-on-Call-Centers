@@ -17,7 +17,14 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from gale_api.db import ModelPromotion, ModelVersion, make_sessionmaker, now, session_scope
+from gale_api.db import (
+    ModelPromotion,
+    ModelVersion,
+    PilotReport,
+    make_sessionmaker,
+    now,
+    session_scope,
+)
 from gale_api.seed import sid
 
 from .conftest import World
@@ -313,6 +320,66 @@ CASES = [
         files=True,
         route="/api/v1/ingest/recordings",
     ),
+    # pilot & feedback loop (ADR-020)
+    *(
+        Case(
+            f"pilot_{name}",
+            "GET",
+            path,
+            expect(403, admin=200, qa=200, aud=200),
+            route=route,
+        )
+        for name, path, route in (
+            ("status", lambda w, c: "/api/v1/pilot/status", "/api/v1/pilot/status"),
+            ("reports", lambda w, c: "/api/v1/pilot/reports", "/api/v1/pilot/reports"),
+            (
+                "report",
+                lambda w, c: f"/api/v1/pilot/reports/{c['week']}",
+                "/api/v1/pilot/reports/{week}",
+            ),
+            (
+                "report_html",
+                lambda w, c: f"/api/v1/pilot/reports/{c['week']}/html",
+                "/api/v1/pilot/reports/{week}/html",
+            ),
+        )
+    ),
+    Case(
+        "pilot_feedback_get",
+        "GET",
+        lambda w, c: "/api/v1/pilot/feedback",
+        expect(403, admin=200, qa=200, sup=200, supc=200),
+        route="/api/v1/pilot/feedback",
+    ),
+    Case(
+        "pilot_feedback_post",
+        "POST",
+        lambda w, c: "/api/v1/pilot/feedback",
+        expect(403, admin=200, qa=200, sup=200, supc=200),
+        body=lambda w, c: {"rating": 4},
+        route="/api/v1/pilot/feedback",
+    ),
+    Case(
+        "missed_post",
+        "POST",
+        lambda w, c: f"/api/v1/calls/{w.call_a}/missed",
+        expect(403, admin=201, qa=201, sup=201, supc=404),
+        body=lambda w, c: {
+            "speaker": "agent",
+            "category": "insult",
+            "severity": 2,
+            "ts_start": 1.0,
+            "ts_end": 2.0,
+        },
+        route="/api/v1/calls/{call_id}/missed",
+    ),
+    Case(
+        "missed_list",
+        "GET",
+        lambda w, c: f"/api/v1/calls/{w.call_a}/missed",
+        CALL_A,
+        route="/api/v1/calls/{call_id}/missed",
+    ),
 ]
 
 
@@ -350,6 +417,17 @@ def _context(w: World) -> dict[str, Any]:
             s.add(p)
             s.flush()
             ctx[key] = p.id
+        s.add(
+            PilotReport(
+                week="2026-W38",
+                stage="P-1",
+                payload_jsonb={"exit": [], "headline": {"calls": 2}},
+                html_key="reports/pilot/2026-W38/report.html",
+                created_at=now(),
+            )
+        )
+    w.app.state.store.put("reports/pilot/2026-W38/report.html", b"<html></html>")
+    ctx["week"] = "2026-W38"
     return ctx
 
 

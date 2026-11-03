@@ -67,12 +67,14 @@ class CallClock:
     def __init__(self) -> None:
         self.started: dict[str, float] = {}
         self.refs: dict[str, str | None] = {}
+        self.queues: dict[str, str | None] = {}  # pilot routing / alert visibility (ADR-020)
         self.ended: dict[str, float] = {}
 
     def observe(self, ev: CallLifecycle) -> None:
         if ev.event == "started":
             self.started[ev.call_id] = (ev.wall_clock or time.time()) - ev.ts
             self.refs[ev.call_id] = ev.external_ref
+            self.queues[ev.call_id] = ev.queue
         elif ev.event in ("ended", "hangup"):
             self.ended[ev.call_id] = ev.ts
 

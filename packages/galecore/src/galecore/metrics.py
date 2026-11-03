@@ -40,6 +40,19 @@ ASR_CONFIDENCE = Histogram(
     "gale_asr_confidence", "Average word confidence of final ASR segments", buckets=SCORE_BUCKETS
 )
 
+# --- pilot: candidate models beside the stable ones (ADR-020) ---------------------------------
+# outcome: agree | stable_only | candidate_only (an output one side produced and the other didn't)
+SHADOW_COMPARE = Counter(
+    "gale_shadow_compare_total",
+    "Shadow/canary candidate vs stable model outputs on the same calls",
+    ["component", "version", "outcome"],
+)
+CANDIDATE_CALLS = Counter(
+    "gale_candidate_calls_total",
+    "Calls routed to a candidate model",
+    ["component", "version", "role"],
+)
+
 # --- human feedback (ML: precision from reviews) -----------------------------------------------
 REVIEWS = Counter("gale_reviews_total", "Human reviews", ["kind", "verdict"])
 

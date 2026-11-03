@@ -145,3 +145,23 @@ groups:
         annotations:
           summary: "ASR confidence dropped > 10 % vs the 7-day average (drift?)"
           runbook_url: docs/runbooks/model-rollback.md
+
+  - name: gale.pilot
+    rules:
+      - alert: GaleCandidateDisagreement
+        expr: |
+          sum by (component, version) (increase(gale_shadow_compare_total{outcome!="agree"}[1d]))
+            / sum by (component, version) (increase(gale_shadow_compare_total[1d])) > 0.3
+          and sum by (component, version) (increase(gale_shadow_compare_total[1d])) > 50
+        labels: { severity: warning, team: gale-ml }
+        annotations:
+          summary: "Candidate {{ $labels.component }} {{ $labels.version }} disagrees with production on {{ $value | humanizePercentage }} of outputs"
+          runbook_url: docs/PILOT_PLAYBOOK.md
+      - alert: GalePilotJobFailed
+        expr: |
+          max by (job_name) (kube_job_status_failed{namespace="gale-app",
+            job_name=~"gale-(pilot-report|al-sampler|export-feedback)-.*"}) > 0
+        labels: { severity: warning, team: gale-ml }
+        annotations:
+          summary: "Pilot job {{ $labels.job_name }} failed"
+          runbook_url: docs/PILOT_PLAYBOOK.md

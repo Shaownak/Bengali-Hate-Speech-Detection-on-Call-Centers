@@ -55,6 +55,7 @@ externalSecrets:
     signing: gale/signing
     ingestAri: gale/ingest-ari
     pgBackup: gale/pg-backup
+    pilot: gale/pilot
 
 # --- data stores --------------------------------------------------------------------------------
 postgres:
@@ -242,6 +243,67 @@ retention:
   # Deletion is irreversible: the CronJob runs as a dry run until the DPO-approved policy is set
   # in configs/retention.yaml and `execute: true` is set here (ADR-018).
   execute: false
+
+# --- pilot & feedback loop (docs/06 §6, docs/02 §6; ADR-020) -------------------------------------
+pilot:
+  # The pilot policy every worker and job reads (ConfigMap gale-pilot → $GALE_PILOT_CONFIG);
+  # same schema as configs/pilot.yaml. Roll the workers after changing it.
+  config:
+    version: 1
+    stage: P-1
+    alerts: { default: hidden, visible_queues: [] }
+    candidates: {}
+    exit_criteria:
+      P-0: { precision: 0.80, min_reviewed: 200 }
+      P-1:
+        precision: 0.80
+        latency_p95_s: { provisional_event: 2.0, confirmed_event: 6.0, alert: 6.0 }
+        manual: [no stability incidents]
+      P-2: { alert_acceptance: 0.75, usefulness: 4.0, fairness_red_flags: 0 }
+      P-3: { manual: [incidents per 100 calls trending down, QA coverage 100%, time-to-intervene tracked] }
+    report:
+      timezone: Asia/Dhaka
+      notify:
+        email: { enabled: false, smtp_host: smtp.gale.internal, smtp_port: 587, starttls: true, sender: gale-reports@gale.internal, to: [] }
+        webhook: { enabled: false, format: slack }
+        dashboard_url: https://gale.gale.internal/en/admin/pilot
+    sampler:
+      budget: 300
+      golden_manifest: /etc/gale/golden/calls.jsonl
+      labelstudio:
+        url: http://label-studio.gale-app.svc.cluster.local:8080
+        project: GAL-E T2 active learning
+        audio_prefix: /data/local-files/?d=
+  # Secret with GALE_LS_TOKEN, GALE_SMTP_USER, GALE_SMTP_PASSWORD, GALE_REPORT_WEBHOOK_URL (optional
+  # keys; External Secrets remote key externalSecrets.remote.pilot)
+  secret: gale-pilot
+  # ConfigMap holding calls.jsonl with the golden call ids (data team). Without it the sampler and
+  # the feedback export refuse to run (CLAUDE.md rule 3).
+  goldenManifestConfigMap: gale-golden-manifest
+  prometheusUrl: http://prometheus-operated.monitoring.svc.cluster.local:9090
+  # SMTP relay / chat webhook / Label Studio outside the cluster (pilot jobs egress)
+  egressCidrs: []
+  report: { enabled: true, schedule: "0 7 * * 1", notify: true }        # Monday 07:00, last week
+  sampler: { enabled: true, schedule: "0 8 * * 1", push: true }         # → Label Studio
+  exportFeedback: { enabled: true, schedule: "15 2 * * *" }             # nightly, yesterday's reviews
+
+# Monthly retraining (Argo Workflows; needs the Argo CRDs + controller). Each run: prepare → train →
+# evaluate on the golden set → gate (configs/promotion_gate.yaml) → publish + register a SHADOW
+# candidate. Promotion stays the two-person approval in /admin/models.
+retrain:
+  enabled: true
+  serviceAccount: gale-retrain      # Argo executor; created by the chart (no API permissions needed)
+  schedule: "0 1 1 * *"             # 1st of the month, 01:00 Asia/Dhaka
+  feedbackDays: 30
+  split: golden
+  workVolumeSize: 20Gi
+  components:
+    fusion: { enabled: true, gpu: false }
+    text_clf: { enabled: true, gpu: true }
+    llm_judge: { enabled: false, gpu: true }   # LoRA recipe arrives with Prompt 9
+  resources:
+    cpu: { requests: { cpu: "1", memory: 2Gi }, limits: { memory: 4Gi } }
+    gpu: { requests: { cpu: "4", memory: 24Gi }, limits: { memory: 32Gi } }
 
 observability:
   serviceMonitors: true

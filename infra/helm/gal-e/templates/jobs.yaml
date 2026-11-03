@@ -14,14 +14,28 @@ containers:
     imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
     args: {{- toYaml $args | nindent 6 }}
     envFrom: {{- include "gale.envFrom" $root | nindent 6 }}
+      {{- with $root.Values.pilot.secret }}
+      - secretRef: { name: {{ . }}, optional: true }   # LS token, SMTP, webhook (pilot jobs)
+      {{- end }}
     resources:
       requests: { cpu: 100m, memory: 256Mi }
       limits: { memory: 512Mi }
     securityContext: {{- include "gale.containerSecurity" . | nindent 6 }}
-    volumeMounts: [{ name: tmp, mountPath: /tmp }]
+    volumeMounts:
+      - { name: tmp, mountPath: /tmp }
+      - { name: pilot, mountPath: /etc/gale/pilot, readOnly: true }
+      {{- if $root.Values.pilot.goldenManifestConfigMap }}
+      - { name: golden, mountPath: /etc/gale/golden, readOnly: true }
+      {{- end }}
 volumes:
   - name: tmp
     emptyDir: { sizeLimit: 256Mi }
+  - name: pilot
+    configMap: { name: gale-pilot }
+  {{- with $root.Values.pilot.goldenManifestConfigMap }}
+  - name: golden
+    configMap: { name: {{ . }}, optional: true }   # missing → sampler/export refuse (rule 3)
+  {{- end }}
 {{- end -}}
 {{- if .Values.migrations.enabled }}
 ---

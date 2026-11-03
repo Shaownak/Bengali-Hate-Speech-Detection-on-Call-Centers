@@ -11,6 +11,7 @@ import { QueryState } from "@/components/query-state";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Label, Select } from "@/components/ui/field";
+import { UsefulnessCard } from "@/components/usefulness-card";
 import { useAuth } from "@/lib/auth";
 import { useDirectory } from "@/lib/hooks";
 import { unwrap, useApi } from "@/lib/use-api";
@@ -43,6 +44,7 @@ function Analytics() {
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-semibold">{t("title")}</h1>
+      {me?.role === "supervisor" && <UsefulnessCard />}
       <div role="tablist" className="flex gap-1">
         {tabs.map((k) => (
           <Button

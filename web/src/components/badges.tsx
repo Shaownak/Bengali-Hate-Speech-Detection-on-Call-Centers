@@ -1,21 +1,4 @@
-import {
-  Ban,
-  CircleCheck,
-  CircleDashed,
-  Ear,
-  Flame,
-  Hand,
-  type LucideIcon,
-  Megaphone,
-  MessageSquareWarning,
-  ShieldAlert,
-  Skull,
-  Smile,
-  Swords,
-  UserX,
-  Volume2,
-  Zap,
-} from "lucide-react";
+import { Ban, CircleCheck, CircleDashed, Ear, EyeOff, Flame, Hand, Megaphone, MessageSquareWarning, ShieldAlert, Skull, Smile, Swords, UserX, Volume2, Zap, type LucideIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { asSeverity, SEVERITY } from "@/lib/severity";
@@ -82,6 +65,21 @@ export function StatusBadge({ status }: { status: string }) {
     >
       <Icon aria-hidden className="size-3.5" />
       {t.has(status) ? t(status) : status}
+    </span>
+  );
+}
+
+/** Shadow mode (ADR-020): computed but not shown to supervisors yet — QA/admin only. */
+export function ShadowBadge() {
+  const t = useTranslations("status");
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full border border-dotted px-2 py-0.5 text-xs opacity-80"
+      data-shadow
+      title={t("shadowHint")}
+    >
+      <EyeOff aria-hidden className="size-3.5" />
+      {t("shadow")}
     </span>
   );
 }

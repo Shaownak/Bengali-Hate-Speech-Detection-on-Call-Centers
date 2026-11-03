@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 
 import { AuthGate } from "@/components/auth-gate";
-import { CategoryLabel, SeverityBadge, SpeakerLabel, StatusBadge } from "@/components/badges";
+import { CategoryLabel, SeverityBadge, ShadowBadge, SpeakerLabel, StatusBadge } from "@/components/badges";
 import { useReview } from "@/components/event-actions";
 import { QueryState } from "@/components/query-state";
 import { RedactedText } from "@/components/transcript";
@@ -15,6 +15,7 @@ import { Label, Select } from "@/components/ui/field";
 import { type PlayerApi, Waveform } from "@/components/waveform";
 import { Link } from "@/i18n/navigation";
 import type { Schemas } from "@/lib/api";
+import { can, useAuth } from "@/lib/auth";
 import { CATEGORIES } from "@/lib/categories";
 import { clock, pct } from "@/lib/format";
 import { keyAction } from "@/lib/review-keys";
@@ -33,10 +34,18 @@ function ReviewQueue() {
   const api = useApi();
   const qc = useQueryClient();
   const [i, setI] = useState(0);
+  const me = useAuth((s) => s.me);
+  // QA/admin also sample shadow-mode events (pilot P-1, ADR-020); supervisors never get them
+  const seesShadow = can(me, "pilot.read") && can(me, "review_queue.read");
+  const [shadow, setShadow] = useState<"all" | "live" | "shadow">("all");
   const queue = useQuery({
-    queryKey: ["review-queue"],
+    queryKey: ["review-queue", shadow],
     queryFn: async () =>
-      unwrap(await api.GET("/api/v1/review-queue", { params: { query: { limit: 100 } } })),
+      unwrap(
+        await api.GET("/api/v1/review-queue", {
+          params: { query: { limit: 100, ...(shadow === "all" ? {} : { shadow: shadow === "shadow" }) } },
+        }),
+      ),
   });
   const agreement = useQuery({
     queryKey: ["agreement"],
@@ -61,6 +70,23 @@ function ReviewQueue() {
       <p className="text-xs opacity-80" id="review-help">
         {t("help")}
       </p>
+      {seesShadow && (
+        <div className="flex items-center gap-2 text-sm">
+          <Label htmlFor="shadow-filter">{t("shadowFilter")}</Label>
+          <Select
+            id="shadow-filter"
+            value={shadow}
+            onChange={(ev) => {
+              setShadow(ev.target.value as typeof shadow);
+              setI(0);
+            }}
+          >
+            <option value="all">{t("shadowAll")}</option>
+            <option value="live">{t("shadowLive")}</option>
+            <option value="shadow">{t("shadowOnly")}</option>
+          </Select>
+        </div>
+      )}
       <QueryState
         isLoading={queue.isLoading}
         error={queue.error}
@@ -154,6 +180,7 @@ function ReviewItem({
         <CategoryLabel category={e.category} />
         <SeverityBadge level={e.severity} />
         <StatusBadge status={e.status ?? "provisional"} />
+        {e.shadow && <ShadowBadge />}
         <span className="text-sm font-normal">
           {tc("evidence")} {clock(e.ts_start)} · {t("uncertainty")} {pct(1 - Math.abs(e.probability - 0.5) * 2)}
         </span>

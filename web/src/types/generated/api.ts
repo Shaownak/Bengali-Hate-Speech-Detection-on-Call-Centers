@@ -136,6 +136,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/calls/{call_id}/missed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Missed */
+        get: operations["list_missed_api_v1_calls__call_id__missed_get"];
+        put?: never;
+        /** Report Missed */
+        post: operations["report_missed_api_v1_calls__call_id__missed_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/calls/{call_id}/segments": {
         parameters: {
             query?: never;
@@ -400,6 +418,95 @@ export interface paths {
         put?: never;
         /** Reject Promotion */
         post: operations["reject_promotion_api_v1_models_promotions__promotion_id__reject_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pilot/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** My Feedback */
+        get: operations["my_feedback_api_v1_pilot_feedback_get"];
+        put?: never;
+        /**
+         * Rate Week
+         * @description One rating per user and week; posting again replaces it.
+         */
+        post: operations["rate_week_api_v1_pilot_feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pilot/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Reports */
+        get: operations["list_reports_api_v1_pilot_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pilot/reports/{week}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Report */
+        get: operations["get_report_api_v1_pilot_reports__week__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pilot/reports/{week}/html": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Report Html */
+        get: operations["get_report_html_api_v1_pilot_reports__week__html_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/pilot/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pilot Status */
+        get: operations["pilot_status_api_v1_pilot_status_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1037,6 +1144,30 @@ export interface components {
          * @enum {string}
          */
         EventStatus: "provisional" | "confirmed" | "dismissed_by_llm" | "reviewed_true" | "reviewed_false";
+        /** FeedbackIn */
+        FeedbackIn: {
+            /** Comment */
+            comment?: string | null;
+            /**
+             * Rating
+             * @description usefulness of GAL-E alerts this week, 1–5
+             */
+            rating: number;
+        };
+        /** FeedbackOut */
+        FeedbackOut: {
+            /** Comment */
+            comment: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Rating */
+            rating: number;
+            /** Week */
+            week: string;
+        };
         /** HeatCell */
         HeatCell: {
             /** Agent Incidents */
@@ -1160,6 +1291,61 @@ export interface components {
              */
             user_id: string;
         };
+        /** MissedEventIn */
+        MissedEventIn: {
+            category: components["schemas"]["Category"];
+            /** Comment */
+            comment?: string | null;
+            /**
+             * Severity
+             * @enum {integer}
+             */
+            severity: 1 | 2 | 3;
+            /**
+             * Speaker
+             * @enum {string}
+             */
+            speaker: "agent" | "customer";
+            /** Ts End */
+            ts_end: number;
+            /** Ts Start */
+            ts_start: number;
+        };
+        /** MissedEventOut */
+        MissedEventOut: {
+            /**
+             * Call Id
+             * Format: uuid
+             */
+            call_id: string;
+            /** Category */
+            category: string;
+            /** Comment */
+            comment: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Reporter User Id
+             * Format: uuid
+             */
+            reporter_user_id: string;
+            /** Severity */
+            severity: number;
+            /** Speaker */
+            speaker: string;
+            /** Ts End */
+            ts_end: number;
+            /** Ts Start */
+            ts_start: number;
+        };
         /** ModelVersionOut */
         ModelVersionOut: {
             /** Active */
@@ -1183,8 +1369,105 @@ export interface components {
             name: string;
             /** Research Only */
             research_only: boolean;
+            /**
+             * Shadow
+             * @default false
+             */
+            shadow: boolean;
             /** Version */
             version: string;
+        };
+        /** PilotCandidateOut */
+        PilotCandidateOut: {
+            /** Component */
+            component: string;
+            /** Percent */
+            percent: number;
+            /** Queues */
+            queues: string[];
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "shadow" | "canary";
+            /** Version */
+            version: string;
+        };
+        /** PilotReportBrief */
+        PilotReportBrief: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Exit */
+            exit?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Has Html
+             * @default false
+             */
+            has_html: boolean;
+            /** Headline */
+            headline?: {
+                [key: string]: unknown;
+            };
+            /** Stage */
+            stage: string;
+            /** Week */
+            week: string;
+        };
+        /** PilotReportOut */
+        PilotReportOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Exit */
+            exit?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Has Html
+             * @default false
+             */
+            has_html: boolean;
+            /** Headline */
+            headline?: {
+                [key: string]: unknown;
+            };
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Stage */
+            stage: string;
+            /** Week */
+            week: string;
+        };
+        /** PilotStatus */
+        PilotStatus: {
+            /**
+             * Alerts Default
+             * @enum {string}
+             */
+            alerts_default: "hidden" | "visible";
+            /** Candidates */
+            candidates: components["schemas"]["PilotCandidateOut"][];
+            /** Exit Criteria */
+            exit_criteria: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
+            /** Stage */
+            stage: string;
+            /** Visible Queues */
+            visible_queues: string[];
+            /** Week */
+            week: string;
         };
         /** PromoteIn */
         PromoteIn: {
@@ -1802,6 +2085,72 @@ export interface operations {
             };
         };
     };
+    list_missed_api_v1_calls__call_id__missed_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                call_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MissedEventOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_missed_api_v1_calls__call_id__missed_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                call_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MissedEventIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MissedEventOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     call_segments_api_v1_calls__call_id__segments_get: {
         parameters: {
             query?: never;
@@ -2329,12 +2678,169 @@ export interface operations {
             };
         };
     };
+    my_feedback_api_v1_pilot_feedback_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackOut"] | null;
+                };
+            };
+        };
+    };
+    rate_week_api_v1_pilot_feedback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reports_api_v1_pilot_reports_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PilotReportBrief"][];
+                };
+            };
+        };
+    };
+    get_report_api_v1_pilot_reports__week__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                week: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PilotReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_report_html_api_v1_pilot_reports__week__html_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                week: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/html": string;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pilot_status_api_v1_pilot_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PilotStatus"];
+                };
+            };
+        };
+    };
     review_queue_api_v1_review_queue_get: {
         parameters: {
             query?: {
                 category?: components["schemas"]["Category"] | null;
                 limit?: number;
                 offset?: number;
+                /** @description QA/admin: only shadow-mode (true) or live (false) events */
+                shadow?: boolean | null;
             };
             header?: never;
             path?: never;

@@ -7,6 +7,7 @@ import { use, useMemo, useRef, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import { SeverityBadge, StatusBadge } from "@/components/badges";
 import { EventTable } from "@/components/event-table";
+import { MissedEvents } from "@/components/missed-events";
 import { QueryState } from "@/components/query-state";
 import { Scorecard } from "@/components/scorecard";
 import { TimelineChart } from "@/components/timeline-chart";
@@ -240,6 +241,7 @@ function CallDetail({ callId }: { callId: string }) {
               <EventTable events={evs} onSeek={seek} />
             </QueryState>
           </Card>
+          <MissedEvents callId={callId} time={time} />
         </div>
       )}
     </QueryState>

@@ -9,6 +9,10 @@ Deviations from docs/01 §4, recorded in ADR-016:
 - ``users.agent_id`` links an agent login to its ``agents`` row; ``reviews.kind`` separates QA
   verdicts from agent disputes; ``events.acked_*`` record acknowledgements;
 - ``model_versions.research_only`` (ADR-012) and ``model_promotions`` (two-person approval).
+
+Pilot additions (migration 0002, ADR-020): ``model_versions.shadow`` (a registered candidate not yet
+promoted), ``pilot_reports`` (weekly report), ``pilot_feedback`` (supervisor usefulness rating),
+``missed_events`` (false negatives found by QA), ``al_samples`` (items sent to annotation).
 """
 
 from __future__ import annotations
@@ -24,6 +28,7 @@ from sqlalchemy import (
     ARRAY,
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -253,6 +258,7 @@ class ModelVersion(Base):
     deployed_at: Mapped[datetime | None] = mapped_column(TS)
     active: Mapped[bool] = mapped_column(Boolean, default=False)
     research_only: Mapped[bool] = mapped_column(Boolean, default=False)
+    shadow: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
 
 
 class ModelPromotion(Base):
@@ -279,6 +285,60 @@ class AuditLog(Base):
     ip: Mapped[str | None] = mapped_column(String(64))
     ts: Mapped[datetime] = mapped_column(TS, default=now, server_default=func.now())
     details_jsonb: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+
+
+class PilotReport(Base):
+    __tablename__ = "pilot_reports"
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    week: Mapped[str] = mapped_column(String(8), unique=True)  # ISO week, e.g. 2026-W44
+    stage: Mapped[str] = mapped_column(String(8))
+    payload_jsonb: Mapped[dict[str, Any]] = mapped_column(JSONB)  # aggregates only, no text
+    html_key: Mapped[str | None] = mapped_column(Text)  # object-store key of the HTML report
+    created_at: Mapped[datetime] = mapped_column(TS, default=now)
+
+
+class PilotFeedback(Base):
+    __tablename__ = "pilot_feedback"
+    __table_args__ = (
+        UniqueConstraint("user_id", "week"),
+        CheckConstraint("rating BETWEEN 1 AND 5", name="rating"),
+    )
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    week: Mapped[str] = mapped_column(String(8), index=True)
+    rating: Mapped[int] = mapped_column(Integer)  # usefulness 1..5 (docs/06 §6 P-2)
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(TS, default=now)
+
+
+class MissedEvent(Base):
+    """A false negative found by QA: abuse in a call that GAL-E did not flag (docs/02 §6)."""
+
+    __tablename__ = "missed_events"
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    call_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("calls.id"), index=True)
+    reporter_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    speaker: Mapped[str] = mapped_column(String(16))
+    category: Mapped[str] = mapped_column(String(32))
+    severity: Mapped[int] = mapped_column(Integer)
+    ts_start: Mapped[float] = mapped_column(Float)
+    ts_end: Mapped[float] = mapped_column(Float)
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(TS, default=now, index=True)
+
+
+class AlSample(Base):
+    """One item the active-learning sampler sent to annotation; ``ref`` dedupes across weeks."""
+
+    __tablename__ = "al_samples"
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    ref: Mapped[str] = mapped_column(String(300), unique=True)
+    week: Mapped[str] = mapped_column(String(8), index=True)
+    bucket: Mapped[str] = mapped_column(String(32))
+    call_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("calls.id"))
+    event_id: Mapped[str | None] = mapped_column(String(255))
+    pushed: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(TS, default=now)
 
 
 # --- engine, sessions, migrations ---------------------------------------------------------------

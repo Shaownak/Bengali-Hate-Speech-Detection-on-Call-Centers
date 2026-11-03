@@ -3,7 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import type { ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
-import { CategoryLabel, SeverityBadge, StatusBadge } from "@/components/badges";
+import { CategoryLabel, SeverityBadge, ShadowBadge, StatusBadge } from "@/components/badges";
 import { Heatmap } from "@/components/heatmap";
 import { RiskMeter } from "@/components/risk-meter";
 import { activeWord, RedactedText } from "@/components/transcript";
@@ -38,6 +38,15 @@ describe("accessible severity", () => {
     expect(screen.getByText("Provisional")).toHaveAttribute(
       "title",
       expect.stringContaining("Fast path"),
+    );
+  });
+
+  it("marks shadow-mode events with text and an explanation", () => {
+    const { container } = wrap(<ShadowBadge />, "bn");
+    expect(screen.getByText("শ্যাডো")).toBeInTheDocument();
+    expect(container.querySelector("[data-shadow]")).toHaveAttribute(
+      "title",
+      expect.stringContaining("সুপারভাইজার"),
     );
   });
 

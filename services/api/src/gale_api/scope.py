@@ -26,6 +26,11 @@ def call_scope(p: Principal) -> ColumnElement[bool]:
     return false()
 
 
+def event_scope(p: Principal) -> ColumnElement[bool]:
+    """Shadow-mode events (ADR-020) are visible to QA and admins only."""
+    return true() if p.sees_shadow else EventRow.shadow.is_(False)
+
+
 def parse_uuid(value: str) -> uuid.UUID:
     try:
         return uuid.UUID(value)
@@ -44,7 +49,7 @@ def get_event(db: Session, p: Principal, event_id: str) -> tuple[EventRow, Call]
     row = db.execute(
         select(EventRow, Call)
         .join(Call, Call.id == EventRow.call_id)
-        .where(EventRow.id == event_id, call_scope(p))
+        .where(EventRow.id == event_id, call_scope(p), event_scope(p))
     ).first()
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "event not found")

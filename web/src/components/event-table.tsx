@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
 
-import { CategoryLabel, SeverityBadge, SpeakerLabel, StatusBadge } from "@/components/badges";
+import { CategoryLabel, SeverityBadge, ShadowBadge, SpeakerLabel, StatusBadge } from "@/components/badges";
 import { EventActions, useReview } from "@/components/event-actions";
 import { RedactedText } from "@/components/transcript";
 import { Button } from "@/components/ui/button";
@@ -167,6 +167,7 @@ export function EventTable({ events, onSeek }: { events: EventOut[]; onSeek?: (t
                   <td className="p-2 tabular-nums">{pct(e.probability)}</td>
                   <td className="p-2">
                     <StatusBadge status={e.status ?? "provisional"} />
+                    {e.shadow && <ShadowBadge />}
                     {e.alert && <span className="ml-1 text-xs">🔔</span>}
                   </td>
                   <td className="p-2">{e.latest_verdict ?? "—"}</td>

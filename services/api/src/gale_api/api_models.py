@@ -288,6 +288,7 @@ class ModelVersionOut(_M):
     deployed_at: datetime | None
     active: bool
     research_only: bool
+    shadow: bool = False  # registered candidate, not promoted yet (ADR-020)
 
 
 class PromoteIn(BaseModel):
@@ -366,3 +367,76 @@ class Agreement(_M):
     events_with_multiple_verdicts: int
     reviewers: int
     pairwise_agreement: float | None
+
+
+# --- pilot & feedback loop (ADR-020) ---------------------------------------------------------
+
+
+class PilotCandidateOut(BaseModel):
+    component: str
+    version: str
+    role: Literal["shadow", "canary"]
+    percent: float
+    queues: list[str]
+
+
+class PilotStatus(BaseModel):
+    stage: str
+    alerts_default: Literal["hidden", "visible"]
+    visible_queues: list[str]
+    candidates: list[PilotCandidateOut]
+    exit_criteria: dict[str, dict[str, Any]]
+    week: str
+
+
+class PilotReportBrief(BaseModel):
+    week: str
+    stage: str
+    created_at: datetime
+    exit: list[dict[str, Any]] = Field(default_factory=list)
+    headline: dict[str, Any] = Field(default_factory=dict)
+    has_html: bool = False
+
+
+class PilotReportOut(PilotReportBrief):
+    payload: dict[str, Any]
+
+
+class FeedbackIn(BaseModel):
+    rating: int = Field(ge=1, le=5, description="usefulness of GAL-E alerts this week, 1–5")
+    comment: str | None = Field(default=None, max_length=2000)
+
+
+class FeedbackOut(BaseModel):
+    week: str
+    rating: int
+    comment: str | None
+    created_at: datetime
+
+
+class MissedEventIn(BaseModel):
+    speaker: Literal["agent", "customer"]
+    category: Category
+    severity: Severity
+    ts_start: float = Field(ge=0)
+    ts_end: float = Field(ge=0)
+    comment: str | None = Field(default=None, max_length=2000)
+
+    @model_validator(mode="after")
+    def _span(self) -> MissedEventIn:
+        if self.ts_end <= self.ts_start:
+            raise ValueError("ts_end must be after ts_start")
+        return self
+
+
+class MissedEventOut(_M):
+    id: uuid.UUID
+    call_id: uuid.UUID
+    reporter_user_id: uuid.UUID
+    speaker: str
+    category: str
+    severity: int
+    ts_start: float
+    ts_end: float
+    comment: str | None
+    created_at: datetime

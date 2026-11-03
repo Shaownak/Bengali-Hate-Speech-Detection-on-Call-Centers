@@ -26,6 +26,7 @@ from prometheus_client import Histogram
 from gale_asr_worker.steps import transcribe, utterance_chunks
 from gale_audio_worker.overtalk import overtalk_signals
 from gale_audio_worker.shout import suppress_line_artefacts
+from gale_fusion_engine.calibration import calibration_path, load_calibrator
 from gale_fusion_engine.fusion import FusionEngine
 from gale_fusion_engine.rules import parse_rules
 from gale_llm_judge.client import JudgeUnavailableError
@@ -98,7 +99,12 @@ def run_postcall(
     oracle = FixtureOracle.for_audio(wav) if s.model_mode == "stub" else None
     pm = models or build_models(s, oracle)
     thresholds = load_thresholds(s.config_dir)
-    engine = FusionEngine(parse_rules(load_rules(s.config_dir)), thresholds, mode="postcall")
+    engine = FusionEngine(
+        parse_rules(load_rules(s.config_dir)),
+        thresholds,
+        mode="postcall",
+        calibrate=load_calibrator(calibration_path(s.model_dir)),  # same as real time (ADR-020)
+    )
     stages: dict[str, float] = {}
     notes: list[str] = []
 

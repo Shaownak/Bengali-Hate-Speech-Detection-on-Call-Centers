@@ -18,7 +18,10 @@ from galecore.models.base import (
     SERModel,
     ShoutDetector,
     TextClassifier,
+    TextClfOutput,
+    TextContext,
     VADModel,
+    WindowInput,
 )
 from galecore.models.oracle import FixtureOracle
 from galecore.models.stubs import (
@@ -32,9 +35,16 @@ from galecore.models.stubs import (
     StubTextClassifier,
     StubVAD,
 )
-from galecore.schemas import Category
+from galecore.schemas import AsrSegment, CallScorecard, Category, FusedEvent, WindowJudgement
 
-__all__ = ["FixtureOracle", "ModelSet", "RealModelsUnavailableError", "load_models"]
+__all__ = [
+    "FixtureOracle",
+    "ModelSet",
+    "RealModelsUnavailableError",
+    "VersionedLLMJudge",
+    "VersionedTextClassifier",
+    "load_models",
+]
 
 
 class RealModelsUnavailableError(RuntimeError):
@@ -78,3 +88,39 @@ def load_models(settings: Settings | None = None, oracle: FixtureOracle | None =
         register=StubRegister(),
         llm=StubLLMJudge(oracle),
     )
+
+
+class VersionedTextClassifier(TextClassifier):
+    """A classifier whose outputs carry another version label: a pilot candidate (ADR-020).
+
+    In stub mode the candidate is the stub under its candidate version, which exercises the
+    routing end to end; real candidates load from ``$GALE_MODEL_DIR/candidates/text_clf/<version>``.
+    """
+
+    def __init__(self, inner: TextClassifier, version: str) -> None:
+        self.inner, self.version = inner, version
+
+    def classify(self, ctx: TextContext) -> TextClfOutput:
+        out = self.inner.classify(ctx)
+        return TextClfOutput(
+            scores=out.scores,
+            severity=out.severity,
+            aggression=out.aggression,
+            model_version=self.version,
+        )
+
+
+class VersionedLLMJudge(LLMJudge):
+    """An LLM judge reported under a candidate version (ADR-020); see ``VersionedTextClassifier``.
+    Real candidates are a second LoRA adapter served by the same vLLM server."""
+
+    def __init__(self, inner: LLMJudge, version: str) -> None:
+        self.inner, self.version = inner, version
+
+    def judge_window(self, window: WindowInput) -> WindowJudgement:
+        return self.inner.judge_window(window)
+
+    def judge_call(
+        self, call_id: str, segments: list[AsrSegment], events: list[FusedEvent]
+    ) -> CallScorecard:
+        return self.inner.judge_call(call_id, segments, events)

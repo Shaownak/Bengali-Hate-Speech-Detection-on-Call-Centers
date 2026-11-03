@@ -12,10 +12,10 @@ import hashlib
 from collections.abc import Callable
 from typing import Any
 
+from galecore.labelstudio import event_regions
 from galecore.schemas import AsrSegment, FusedEvent
 from ml.data.manifest import ChannelRow
 
-CHANNEL_INDEX = {"agent": 0, "customer": 1}
 AudioUrl = Callable[[str], str]
 
 
@@ -68,29 +68,7 @@ def t1_task(
 def t2_task(
     call_id: str, stereo_audio: str, events: list[FusedEvent], url: AudioUrl, model_version: str
 ) -> dict[str, Any]:
-    result: list[dict[str, Any]] = []
-    for i, e in enumerate(events):
-        rid = f"e{i}"
-        value = {"start": e.ts_start, "end": e.ts_end, "channel": CHANNEL_INDEX[e.speaker.value]}
-        result.append(
-            {
-                "id": rid,
-                "from_name": "category",
-                "to_name": "audio",
-                "type": "labels",
-                "value": {**value, "labels": [e.category.value]},
-                "score": e.probability,
-            }
-        )
-        result.append(
-            {
-                "id": rid,
-                "from_name": "severity",
-                "to_name": "audio",
-                "type": "choices",
-                "value": {**value, "choices": [str(e.severity)]},
-            }
-        )
+    result = event_regions(events)
     return {
         "data": {"audio": url(stereo_audio), "call_id": call_id},
         "predictions": [{"model_version": model_version, "result": result}] if result else [],

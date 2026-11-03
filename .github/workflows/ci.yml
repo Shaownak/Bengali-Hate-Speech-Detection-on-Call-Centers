@@ -74,6 +74,7 @@ jobs:
           - { service: fusion_engine }
           - { service: postcall_worker, args: "--build-arg PACKAGE=gale-postcall --build-arg RUN_CMD='python -m gale_postcall worker'" }
           - { service: web, dockerfile: infra/docker/web.Dockerfile }
+          - { service: trainer, dockerfile: infra/docker/trainer.Dockerfile }
     steps:
       - uses: actions/checkout@v5
       - name: build image

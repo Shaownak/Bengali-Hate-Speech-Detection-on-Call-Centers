@@ -19,6 +19,7 @@ const NAV: ReadonlyArray<{ href: string; key: string; perm: string; agentOnly?: 
   { href: "/admin/lexicon", key: "lexicon", perm: "lexicon.read" },
   { href: "/admin/rules", key: "rules", perm: "rules.read" },
   { href: "/admin/models", key: "models", perm: "models.read" },
+  { href: "/admin/pilot", key: "pilot", perm: "pilot.read" },
   { href: "/admin/health", key: "health", perm: "models.read" },
   { href: "/admin/audit", key: "audit", perm: "audit.read" },
 ];

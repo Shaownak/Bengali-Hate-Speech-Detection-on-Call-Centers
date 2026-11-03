@@ -1,0 +1,197 @@
+{{- /*
+Monthly retraining (docs/02 §6, ADR-020) as an Argo WorkflowTemplate + one CronWorkflow per
+component, in gale-ml (no internet egress). Steps share a per-run work volume:
+  prepare (feedback from the object store, golden calls dropped) → train (GPU for text_clf/LLM)
+  → evaluate (production vs candidate, golden set) → gate → publish (models PVC) → register
+  (api image: a SHADOW candidate row; promotion stays two-person in /admin/models).
+Argo expressions are escaped from Helm with {{`{{…}}`}}.
+*/ -}}
+{{- define "gale.trainerContainer" -}}
+{{- $root := index . 0 -}}{{- $resources := index . 1 -}}
+image: {{ include "gale.image" (list $root "trainer") }}
+imagePullPolicy: {{ $root.Values.global.imagePullPolicy }}
+command: [sh, -c]
+args:
+  - >-
+    exec python -m ml.retrain {{`{{inputs.parameters.args}}`}}
+    --component {{`{{workflow.parameters.component}}`}}
+    --version {{`{{workflow.parameters.component}}-{{workflow.creationTimestamp.Y}}{{workflow.creationTimestamp.m}}{{workflow.creationTimestamp.d}}`}}
+    --work /work
+envFrom: {{- include "gale.envFrom" $root | nindent 2 }}
+env:
+  - { name: MLFLOW_RUN_ID, value: {{`"{{workflow.uid}}"`}} }
+resources: {{- toYaml $resources | nindent 2 }}
+securityContext: {{- include "gale.containerSecurity" $root | nindent 2 }}
+volumeMounts:
+  - { name: work, mountPath: /work }
+  - { name: models, mountPath: {{ $root.Values.models.mountPath }} }
+  - { name: tmp, mountPath: /tmp }
+  - { name: pilot, mountPath: /etc/gale/pilot, readOnly: true }
+  {{- if $root.Values.pilot.goldenManifestConfigMap }}
+  - { name: golden, mountPath: /etc/gale/golden, readOnly: true }
+  {{- end }}
+{{- end -}}
+{{- if .Values.retrain.enabled }}
+{{- $root := . -}}
+{{- $r := .Values.retrain -}}
+{{- $ns := include "gale.ns" (list . "ml") -}}
+{{- $gpuRes := deepCopy $r.resources.gpu -}}
+{{- $_ := set $gpuRes.requests "nvidia.com/gpu" 1 -}}
+{{- $_ := set $gpuRes.limits "nvidia.com/gpu" 1 }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $r.serviceAccount }}
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-retrain") | nindent 4 }}
+automountServiceAccountToken: false
+---
+# Argo's executor reports step results; nothing else (no access to pods, secrets or other objects)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gale-retrain-executor
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-retrain") | nindent 4 }}
+rules:
+  - apiGroups: [argoproj.io]
+    resources: [workflowtaskresults]
+    verbs: [create, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gale-retrain-executor
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-retrain") | nindent 4 }}
+roleRef: { apiGroup: rbac.authorization.k8s.io, kind: Role, name: gale-retrain-executor }
+subjects:
+  - { kind: ServiceAccount, name: {{ $r.serviceAccount }}, namespace: {{ $ns }} }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: gale-retrain
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list . "gale-retrain") | nindent 4 }}
+spec:
+  entrypoint: retrain
+  serviceAccountName: {{ $r.serviceAccount }}
+  podGC: { strategy: OnPodSuccess }
+  ttlStrategy: { secondsAfterCompletion: 1209600 }   # keep finished runs 14 days (gate report)
+  activeDeadlineSeconds: 86400
+  podPriorityClassName: {{ .Values.priorityClasses.batch.name }}
+  securityContext: {{- include "gale.podSecurity" .Values.podSecurity.runAsUser | nindent 4 }}
+  {{- with .Values.global.imagePullSecrets }}
+  imagePullSecrets: {{- toYaml . | nindent 4 }}
+  {{- end }}
+  podMetadata:
+    labels:
+      app.kubernetes.io/name: gale-retrain
+      app.kubernetes.io/part-of: gal-e
+  arguments:
+    parameters:
+      - name: component
+      - name: gpu
+        value: "false"
+  volumeClaimTemplates:
+    - metadata: { name: work }
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: { requests: { storage: {{ $r.workVolumeSize }} } }
+  volumes:
+    - name: models
+      persistentVolumeClaim: { claimName: {{ .Values.models.pvcName }} }
+    - name: tmp
+      emptyDir: { sizeLimit: 2Gi }
+    - name: pilot
+      configMap: { name: gale-pilot }
+    {{- with .Values.pilot.goldenManifestConfigMap }}
+    - name: golden
+      configMap: { name: {{ . }} }
+    {{- end }}
+  templates:
+    - name: retrain
+      dag:
+        tasks:
+          - name: prepare
+            template: step
+            arguments:
+              parameters:
+                - { name: args, value: "prepare --store-days {{ $r.feedbackDays }} --golden-manifest /etc/gale/golden/calls.jsonl" }
+          - name: train-cpu
+            depends: prepare
+            template: step
+            when: {{`"{{workflow.parameters.gpu}} != true"`}}
+            arguments: { parameters: [{ name: args, value: train }] }
+          - name: train-gpu
+            depends: prepare
+            template: step-gpu
+            when: {{`"{{workflow.parameters.gpu}} == true"`}}
+            arguments: { parameters: [{ name: args, value: train }] }
+          - name: evaluate
+            depends: "train-cpu.Succeeded || train-gpu.Succeeded"
+            template: step
+            arguments: { parameters: [{ name: args, value: "evaluate --split {{ $r.split }}" }] }
+          - name: gate
+            depends: evaluate
+            template: step
+            arguments: { parameters: [{ name: args, value: gate }] }
+          - name: publish
+            depends: gate
+            template: step
+            arguments: { parameters: [{ name: args, value: publish }] }
+          - name: register
+            depends: publish
+            template: register
+
+    - name: step
+      inputs: { parameters: [{ name: args }] }
+      container: {{- include "gale.trainerContainer" (list . $r.resources.cpu) | nindent 8 }}
+
+    - name: step-gpu
+      inputs: { parameters: [{ name: args }] }
+      nodeSelector: {{- toYaml .Values.gpuPools.l4.nodeSelector | nindent 8 }}
+      tolerations: {{- toYaml .Values.gpuPools.l4.tolerations | nindent 8 }}
+      container: {{- include "gale.trainerContainer" (list . $gpuRes) | nindent 8 }}
+
+    # register the passed candidate as a shadow model version (Postgres: db-client label)
+    - name: register
+      metadata:
+        labels: { gale.io/db-client: "true" }
+      container:
+        image: {{ include "gale.image" (list . "api") }}
+        imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+        args: [python, -m, gale_api, register-model, /work/candidate.json]
+        envFrom: {{- include "gale.envFrom" . | nindent 10 }}
+        resources: { requests: { cpu: 100m, memory: 256Mi }, limits: { memory: 512Mi } }
+        securityContext: {{- include "gale.containerSecurity" . | nindent 10 }}
+        volumeMounts:
+          - { name: work, mountPath: /work, readOnly: true }
+          - { name: tmp, mountPath: /tmp }
+{{- range $component, $c := $r.components }}
+{{- if $c.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: gale-retrain-{{ replace "_" "-" $component }}
+  namespace: {{ $ns }}
+  labels: {{- include "gale.labels" (list $root "gale-retrain") | nindent 4 }}
+spec:
+  schedules: [{{ $r.schedule | quote }}]
+  timezone: Asia/Dhaka
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  workflowSpec:
+    workflowTemplateRef: { name: gale-retrain }
+    arguments:
+      parameters:
+        - { name: component, value: {{ $component }} }
+        - { name: gpu, value: {{ $c.gpu | quote }} }
+{{- end }}
+{{- end }}
+{{- end }}

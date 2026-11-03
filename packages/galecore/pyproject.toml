@@ -19,6 +19,7 @@ dependencies = [
     "opentelemetry-sdk>=1.28",  # enabled only when OTEL_EXPORTER_OTLP_ENDPOINT is set
     "opentelemetry-exporter-otlp-proto-http>=1.28",
     "minio>=7.2",  # S3/MinIO object store (presigned URLs)
+    "httpx>=0.27",  # Label Studio client, Prometheus queries, report webhooks
 ]
 
 [build-system]

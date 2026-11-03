@@ -123,10 +123,10 @@ Exit gate: load test at 2× peak passes; security findings closed.
 
 ### P7 — Pilot & feedback loop (weeks 15–22) · Prompt 15
 Exit gate: pilot exit criteria (`06_EVALUATION.md` §6).
-- [ ] Shadow mode (alerts hidden), `shadow=true` signals, weekly shadow comparison
-- [ ] Supervisor-pilot tooling, review-queue → nightly feedback export
-- [ ] Active-learning sampler (FPs, FNs, low confidence, signal disagreement, new slang candidates)
-- [ ] Monthly retrain jobs + promotion gate; weekly metrics report
+- [x] Shadow mode (alerts hidden per queue, `shadow=true` events/signals), shadow & canary candidate routing for text_clf / fusion / llm_judge, shadow-agreement metric (ADR-020)
+- [x] Supervisor-pilot tooling: QA shadow sampling, "report a miss", weekly usefulness rating, `/admin/pilot`; nightly feedback export
+- [x] Active-learning sampler (FPs, FNs, low confidence, signal disagreement, new slang candidates) → Label Studio, golden calls excluded
+- [x] Monthly retrain (Argo) + promotion gate (`configs/promotion_gate.yaml`); weekly metrics report (precision, acceptance, latency, drift, fairness, KPIs, exit criteria) + email/webhook; `docs/PILOT_PLAYBOOK.md`. Real fusion calibration fitting; text_clf/LLM trainers stub-tested only (GPU prompts 6–10)
 - [ ] **[HUMAN]** Agent/union communication (coaching-only policy) 🔒; supervisors review alerts; QA weekly sampling
 
 ---
@@ -164,6 +164,7 @@ Resolutions from the Prompt 0 review, **accepted 2026-11-02**. Each gets its own
 | D-23 | Streaming services (ADR-015): one `galecore.streaming.Worker` per service; lexicon fast path on ASR partials; latency measured from the word (lexicon) or utterance end (register/classifier); replay-based restart recovery; post-call jobs yield to real-time backlog; provisional alerts can be retracted via `events.fused`. | P4 |
 | D-24 | API & persistence (ADR-016): an `api_persister` consumer writes bus messages to Postgres (idempotent upserts); post-call runs publish `postcall.results`. String pipeline ids; monthly partitions on `call_started_at`; trigram index only where `pg_trgm` exists. Role from the token, scoping from the DB (out of scope = 404). WS auth via first message, 250 ms batches. Two-person model promotion; `research_only` never promotable. Gateway carries optional `agent_id`/`queue`. | P5 |
 | D-25 | Web dashboard (ADR-017): client-rendered screens over the generated API client; sign-in via Keycloak PKCE (`oidc-client-ts`) or the dev issuer, token in sessionStorage; one `LiveSocket` (first-message auth, backoff) + pure Zustand reducers; wavesurfer for stereo/per-channel audio; CSV in the browser, PDF via print. Small API additions (`/me`, `/directory`, `/reviews/agreement`, `/thresholds`, note/flag reviews, heatmap, more call filters). | P5 |
+| D-27 | Pilot & feedback loop (ADR-020): `configs/pilot.yaml` (Helm `pilot.config` → `$GALE_PILOT_CONFIG`) holds stage, alert visibility, candidates; fusion marks events of hidden queues `shadow`, the API hides them from supervisors/agents (QA/admin only). Candidates route deterministically per (component, call): shadow (outputs `shadow=true`, compared) or canary. Precision/acceptance from latest verdicts (`correct`/`wrong_severity` = TP), Wilson CIs, PSI drift, fairness flags (≥ 30 calls, −10 pts precision or 1.5× rate). New tables: `pilot_reports`, `pilot_feedback`, `missed_events`, `al_samples`, `model_versions.shadow`. Gate: no gated metric worse than its tolerance (1 pt = 0.01) on the same golden set; passed candidates register as shadow, promotion stays two-person. | P7 |
 | D-26 | Production infra (ADR-018): real-time workers scale by call-affine shards (StatefulSets, `GALE_SHARD_COUNT`, own group per replica), KEDA only for the post-call worker; one gateway per PBX; Valkey bus, CNPG Postgres (PITR), external S3; External Secrets/SOPS; digest-pinned non-root images; retention/DSAR gated by DPO approval; trace id = call UUID; ingress controller-agnostic. | P6 |
 | D-15 | Mono/diarized audio: `Channel.mixed` is allowed only before diarization. Fusion accepts only `agent`/`customer`. Segments that can't be attributed are stored but never alert. | P1 |
 
@@ -455,6 +456,84 @@ Smaller inconsistencies, resolved in-line without an ADR:
 - a pen-test; DPO sign-off on `configs/retention.yaml` (then `retention.execute=true`);
 - a staging run of `make loadtest` at 2× peak with real models.
 
+## Prompt 15 summary (2026-11-02)
+
+**Built (ADR-020, `docs/PILOT_PLAYBOOK.md` for the ops team):**
+- **Shadow mode & canaries.**
+  - `galecore.pilot` + `configs/pilot.yaml`: stage, alert visibility per queue, candidates with
+    role shadow/canary, percent and queues.
+  - Fusion tags events of hidden queues `shadow`. The API hides them from supervisors and agents
+    everywhere (lists, counts, analytics, WebSockets, review/ack → 404); QA and admin keep them,
+    with a badge and a review-queue filter.
+  - text_clf, fusion (calibration) and llm_judge candidates run beside the stable model (shadow
+    signals `~<version>`, `gale_shadow_compare_total`) or instead of it (canary).
+  - Fusion calibration loader; real-time and post-call fusion load `fusion/calibration.json`.
+- **Weekly report** (`python -m gale_api pilot-report`, Mon 07:00 CronJob):
+  - precision from reviews and alert acceptance (Wilson CIs);
+  - latency p95 and shadow agreement from Prometheus;
+  - drift (PSI, ASR confidence, events per 100 calls);
+  - fairness slices with red flags, business KPIs, usefulness ratings, misses;
+  - exit criteria per stage.
+
+  Stored in `pilot_reports` + the object store. JSON/Markdown/self-contained HTML; SMTP and
+  Slack-compatible webhook summaries (aggregates only).
+- **Feedback capture:**
+  - `POST /calls/{id}/missed` (QA-found false negatives, "Report a miss" on the call page);
+  - `POST /pilot/feedback` (weekly 1–5 usefulness card for supervisors);
+  - `/admin/pilot` (stage, visibility, candidates, reports with exit criteria, sandboxed full
+    report).
+- **Active-learning sampler** (`al-sample`, Mon 08:00 → Label Studio):
+  - five buckets with quotas, per-call cap, deterministic per week, never the same item twice;
+  - golden calls excluded, and it refuses to run without the golden manifest;
+  - the Label Studio client moved to `galecore.labelstudio`.
+- **Nightly feedback export** (`export-feedback` → `datasets/feedback/…jsonl`): redacted span text,
+  context, signal scores, label; golden dropped.
+- **Retraining** (`python -m ml.retrain prepare|train|evaluate|gate|publish|run`):
+  - `ml.fusion.calibrate`: isotonic/Platt per (source, category), D-13;
+  - evaluation of production vs candidate on the same set via a model-dir overlay, with a `set_id`
+    fingerprint in eval reports;
+  - promotion gate (`configs/promotion_gate.yaml`) → `candidate.json` →
+    `python -m gale_api register-model` (shadow row);
+  - promotion refuses a failed gate and approval clears `shadow`.
+- **Infra:**
+  - Helm `pilot` / `retrain` values; ConfigMap `gale-pilot`; three CronJobs;
+  - Argo `WorkflowTemplate` + monthly `CronWorkflow` per component (GPU step for text_clf), with
+    minimal executor RBAC;
+  - NetworkPolicies for pilot jobs and retrain (register → DB only);
+  - `trainer.Dockerfile`, built in CI;
+  - alerts `GaleCandidateDisagreement`, `GalePilotJobFailed`;
+  - `make pilot-report | al-sample | retrain`.
+- **Web:** shadow badges, review-queue shadow filter, missed-events card, usefulness card, models
+  page shows shadow + gate status, `/admin/pilot`, bn/en strings.
+
+**Verified:**
+- Unit/integration tests:
+  - policy and bucketing;
+  - calibration;
+  - the streaming stack in shadow mode (all events hidden; candidate signals tagged and never
+    fused; agreement counted) and in canary mode (same events as baseline on stubs);
+  - report maths and rendering (no ids);
+  - shadow visibility per role, incl. the live hub;
+  - feedback and missed events;
+  - sampler buckets, dedupe, golden exclusion, Label Studio push (mock);
+  - export, register/promote, notifications;
+  - gate pass and fail on stub end-to-end retrain runs;
+  - static chart checks (pilot values valid per environment; jobs never skip the golden check).
+- RBAC matrix covers the 8 new endpoints.
+- Playwright against `make dev-up` (6 scenarios, new: QA reports a miss → supervisor rates the week → `pilot-report` job → `/admin/pilot` with exit criteria and the full report). Screenshot `docs/screenshots/13-pilot.png`.
+
+**Not verified here:** Argo / Label Studio / SMTP / Prometheus integration, the GPU text-classifier
+fine-tune, and the trainer image build (CI). The LLM LoRA retrain stays disabled until Prompt 9.
+
+**Needs a human:**
+- Argo Workflows and self-hosted Label Studio in the cluster (project with the T2 config);
+- the `gale/pilot` secret and the golden-manifest ConfigMap;
+- SMTP/webhook receivers;
+- agent/union communication of the coaching-only policy before P-2 🔒;
+- Q-05 for gender/dialect fairness slices;
+- the pilot itself: QA sampling, supervisors' reviews and ratings, the pilot lead's stage
+  sign-offs.
+
 ## Next step
 
-Run **Prompt 6: P3a ASR fine-tuning** on the GPU box (🔒 GPU + data). Prompts 6–10 need a GPU and annotated data. Prompt 11 (P4) is built on the simulator; its exit gate waits on a staging PBX. Prompts 12–13 (P5 API + dashboard) are done; the P5 exit gate is a UX review with supervisors and QA. Prompt 14 (P6) is built and CI-validated; its exit gate needs the staging cluster and a GPU load test 🔒. **Prompt 15 (P7 pilot tooling & feedback loop)** can be built next.
+Run **Prompt 6: P3a ASR fine-tuning** on the GPU box (🔒 GPU + data). Prompts 6–10 need a GPU and annotated data. Prompt 11 (P4) is built on the simulator; its exit gate waits on a staging PBX. Prompts 12–13 (P5 API + dashboard) are done; the P5 exit gate is a UX review with supervisors and QA. Prompt 14 (P6) is built and CI-validated; its exit gate needs the staging cluster and a GPU load test 🔒. Prompt 15 (P7) tooling is built; the pilot itself runs on the staging cluster with real calls, following `docs/PILOT_PLAYBOOK.md` 🔒. All prompts that can run without a GPU, real data or a cluster are now done.

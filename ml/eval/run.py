@@ -11,6 +11,7 @@ Reports go to ``reports/`` (JSON, Markdown, HTML) and to MLflow when ``MLFLOW_TR
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import sys
 from pathlib import Path
@@ -47,6 +48,13 @@ def confidence_intervals(r: Result) -> dict[str, tuple[float, float] | None]:
     return {"events": M.bootstrap_ci(r.per_call, f1)}
 
 
+def set_id(es: EvalSet) -> str:
+    """Fingerprint of the evaluation set (its call ids): the promotion gate only compares reports
+    computed on the same set (ADR-020)."""
+    ids = "|".join(sorted(c.call_id for c in es.calls))
+    return hashlib.sha256(ids.encode()).hexdigest()[:16]
+
+
 def evaluate(
     component: str,
     es: EvalSet,
@@ -55,7 +63,11 @@ def evaluate(
     tags: dict[str, str] | None = None,
 ) -> tuple[Result, dict[str, Path]]:
     result = EVALUATORS[component](es, Context(settings))
-    extra: dict[str, Any] = {"calls": len(es.calls), "models": settings.model_mode}
+    extra: dict[str, Any] = {
+        "calls": len(es.calls),
+        "models": settings.model_mode,
+        "set_id": set_id(es),
+    }
     extra["ci"] = {k: list(v) if v else None for k, v in confidence_intervals(result).items()}
     if result.matched is not None and component in ("system", "fusion", "shout"):
         extra["slices"] = slice_report(es, result.matched)

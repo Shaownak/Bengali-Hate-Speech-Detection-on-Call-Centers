@@ -1,0 +1,38 @@
+# Promotion gate (docs/02 §6, docs/06; ADR-020): a retrained model may become a shadow candidate
+# only if, on the golden set, no gated metric regresses by more than its tolerance against the
+# production model evaluated in the same run. "1 pt" = 0.01 on metrics in [0, 1].
+#
+# Per pipeline component: which ml.eval components to run, and the metrics to compare
+# (dotted paths into the report's headline; direction: higher | lower is better).
+version: 1
+default_tolerance: 0.01
+
+components:
+  text_clf:
+    evals:
+      textclf: {macro_f1: higher, ece: lower}
+      system: &system
+        events.f1: higher
+        events.precision: higher
+        events.recall: higher
+        alerts.precision: higher
+        alerts.recall: higher
+        call_spearman: higher
+        false_alerts_per_100_calls: {direction: lower, tolerance: 1.0}   # 1 pt = 1 per 100 calls
+  fusion:
+    evals:
+      fusion:
+        events.f1: higher
+        events.precision: higher
+        events.recall: higher
+        severity_accuracy: higher
+        ece: lower
+      system: *system
+  llm_judge:
+    evals:
+      llm:
+        decision_accuracy: higher
+        json_validity: higher
+        grounding_rate: higher
+        window_latency_s.p95: {direction: lower, tolerance: 0.25}         # seconds
+      system: *system
