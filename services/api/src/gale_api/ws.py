@@ -48,6 +48,7 @@ from galecore.schemas import (
     GaleModel,
     Signal,
 )
+from galecore.streaming import until_ready
 
 log = get_logger(__name__)
 
@@ -165,7 +166,8 @@ class LiveHub:
         return n
 
     async def run(self, stop: asyncio.Event) -> None:
-        await self.start_positions()
+        if not await until_ready(stop, self.start_positions, "live_hub"):
+            return
         while not stop.is_set():
             try:
                 n = await self.poll()

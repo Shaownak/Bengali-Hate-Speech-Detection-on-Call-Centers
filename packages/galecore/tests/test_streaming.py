@@ -6,7 +6,7 @@ from fakeredis import FakeAsyncRedis
 
 from galecore.bus import CALL_LIFECYCLE, SIGNALS, BusClient
 from galecore.schemas import CallLifecycle, Category, Channel, Signal, SignalSource
-from galecore.streaming import CallClock, Worker, span, trace_id_for
+from galecore.streaming import CallClock, Worker, span, trace_id_for, until_ready
 
 
 def sig(call_id: str, t: float) -> Signal:
@@ -137,3 +137,42 @@ def test_spans_share_the_call_trace_and_export_is_opt_in(monkeypatch) -> None:  
     spans = exporter.get_finished_spans()
     assert {s.context.trace_id for s in spans} == {trace_id_for(call)}
     assert {s.name for s in spans} == {"a", "b", "c"}
+
+
+class _FlakyBus(BusClient):
+    """A bus that is unreachable for the first ``down`` group creations (pod started first)."""
+
+    def __init__(self, redis: FakeAsyncRedis, down: int) -> None:
+        super().__init__(redis)
+        self.down = down
+
+    async def ensure_group(self, stream: str, group: str) -> None:
+        if self.down > 0:
+            self.down -= 1
+            raise ConnectionError("bus not up yet")
+        await super().ensure_group(stream, group)
+
+
+async def test_worker_waits_for_the_bus_instead_of_dying() -> None:
+    redis = FakeAsyncRedis()
+    w = Collector(_FlakyBus(redis, down=2))
+    stop = asyncio.Event()
+    task = asyncio.create_task(w.run(stop, idle_sleep=0.01))
+    await BusClient(redis).publish(SIGNALS, sig("c1", 1.0))
+    for _ in range(200):
+        if w.seen:
+            break
+        await asyncio.sleep(0.02)
+    stop.set()
+    await task
+    assert w.seen == ["c1:1.0"]
+
+
+async def test_until_ready_stops_with_the_worker() -> None:
+    stop = asyncio.Event()
+
+    async def never() -> None:
+        raise ConnectionError("down")
+
+    stop.set()
+    assert await until_ready(stop, never, "t") is False

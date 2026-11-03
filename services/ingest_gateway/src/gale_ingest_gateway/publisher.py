@@ -27,7 +27,7 @@ from galecore.bus import CALL_LIFECYCLE, BusClient, audio_stream
 from galecore.logging import get_logger
 from galecore.objectstore import ObjectStore
 from galecore.schemas import AudioFrame, CallLifecycle, Channel, GaleModel
-from galecore.streaming import STAGE_LATENCY
+from galecore.streaming import STAGE_LATENCY, until_ready
 
 log = get_logger(__name__)
 DROPPED = Counter(
@@ -118,11 +118,27 @@ class BusPublisher:
                 stream, msg, idem = await asyncio.wait_for(self.queue.get(), timeout=0.1)
             except TimeoutError:
                 continue
-            await self.bus.publish(stream, msg, idem_key=idem)
-            self.published += 1
+            await self._publish(stream, msg, idem, stop)
             if isinstance(msg, AudioFrame) and msg.call_id in self.wall_start:
                 lag = time.time() - (self.wall_start[msg.call_id] + msg.ts_end)
                 STAGE_LATENCY.labels("ingest_gateway", "frame_on_bus").observe(max(0.0, lag))
+
+    async def _publish(
+        self, stream: str, msg: GaleModel, idem: str | None, stop: asyncio.Event
+    ) -> None:
+        """Publish one message, retrying while the bus is unreachable: a failed XADD must not end
+        the publisher task (every later frame of every call would be lost)."""
+
+        async def once() -> None:
+            await self.bus.publish(stream, msg, idem_key=idem)
+
+        try:
+            await once()  # also while draining after stop
+        except Exception as e:
+            log.warning("bus_publish_failed", stream=stream, error=type(e).__name__)
+            if not await until_ready(stop, once, "ingest_publisher", max_delay=2.0):
+                return
+        self.published += 1
 
     async def drain(self) -> None:
         while not self.queue.empty():

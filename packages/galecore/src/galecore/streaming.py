@@ -7,11 +7,13 @@
   its real latency: ``now − (call start + media time of the evidence)``.
 - ``STAGE_LATENCY``: Prometheus histogram per service and stage (docs/01 §5 budget).
 - ``span``: OpenTelemetry span with ``gale.call_id`` (a no-op until an SDK is configured).
+- ``until_ready``: retry a consumer's bus setup until the bus answers (pods start in any order).
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 import uuid
 from collections.abc import Awaitable, Callable, Iterator
@@ -53,6 +55,30 @@ def span(name: str, call_id: str, **attrs: Any) -> Iterator[None]:
     attributes = {"gale.call_id": call_id, **attrs}
     with _tracer.start_as_current_span(name, context=ctx, attributes=attributes):
         yield
+
+
+async def until_ready(
+    stop: asyncio.Event,
+    fn: Callable[[], Awaitable[None]],
+    what: str,
+    *,
+    first_delay: float = 0.5,
+    max_delay: float = 10.0,
+) -> bool:
+    """Run ``fn`` (consumer-group creation, start positions) until it succeeds; False if stopped
+    first. In a cluster the bus may come up after its consumers. A failure here used to end the
+    consumer task silently while the pod still reported ready (kind smoke, 2026-11-03)."""
+    delay = first_delay
+    while not stop.is_set():
+        try:
+            await fn()
+            return True
+        except Exception as e:
+            log.warning("bus_setup_failed", consumer=what, error=type(e).__name__, retry_s=delay)
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(stop.wait(), delay)
+            delay = min(delay * 2, max_delay)
+    return False
 
 
 def trace_id_for(call_id: str) -> int:
@@ -221,7 +247,9 @@ class Worker:
                 log.debug("lag_probe_failed", stream=s.stream, error=type(e).__name__)
 
     async def run(self, stop: asyncio.Event, idle_sleep: float = 0.02) -> None:
-        await self.setup()
+        if not await until_ready(stop, self.setup, self.group):
+            return
+        log.info("worker_started", service=self.service, group=self.group, streams=len(self.subs))
         while not stop.is_set():
             try:
                 n = await self.poll()

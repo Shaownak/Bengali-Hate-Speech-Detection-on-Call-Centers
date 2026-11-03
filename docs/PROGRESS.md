@@ -549,6 +549,17 @@ CI on `main` had been red since Prompt 12; the jobs pass on Windows, so this was
   oracle now falls back to the fixture name under `GALE_FIXTURE_CALLS_DIR`. The chart mounts a
   dev-only ConfigMap there (`devFixtures`, refused unless env=dev + stub), created by
   `infra/kind/secrets.sh`.
+- **kind smoke, root cause**: the new smoke diagnostics showed audio on the bus but **no consumer
+  groups at all**. Pods start in parallel, so every consumer's first `XGROUP CREATE` ran before
+  Valkey was up. The connection error ended the background task silently, while readiness
+  (`PING`, which reconnects) stayed green. `make dev-up` starts the bus first, so this never showed
+  locally.
+  - `galecore.streaming.until_ready` now retries bus setup with backoff, logging
+    `bus_setup_failed`; `worker_started` is logged once consuming. It is used by every `Worker`
+    (all ML workers, the post-call worker, the API persister) and by the API live hub.
+  - The gateway publisher retries a failed publish instead of ending its task.
+- **docker (web)**: Trivy flagged Debian packages in the Node base image and the bundled npm. The
+  runtime stage now installs the Debian security updates and removes npm/corepack/yarn.
 
 ## Next step
 
