@@ -2,8 +2,10 @@
 words are <GALI_n> placeholders (CLAUDE.md rule 2)."""
 
 import csv
+import io
 import json
 import random
+import zipfile
 from pathlib import Path
 
 import httpx
@@ -129,17 +131,33 @@ def raw(tmp_path: Path) -> Path:
         pa.table({"text": [f"<GALI_13> করিম {i}" for i in range(5)], "label": [0, 1, 2, 3, 4]}),
         r / "karim_bn_hate" / "train.parquet",
     )
-    # T5: xlsx with one 0/1 column per class (incl. spam → dropped)
+    # T5: one 0/1 column per class (incl. spam → dropped)
+    write_csv_rows(
+        r / "cyberbully_multilabel" / "cyberbully_multilabel.csv",
+        ["Gender", "Profession", "comment", "bully", "sexual", "religious", "threat", "spam"],
+        [
+            ["female", "social", "<GALI_14> সাইবার এক", 1, 0, 0, 0, 0],
+            ["male", "actor", "অফার পেতে লিংকে ক্লিক করুন সাইবার দুই", 0, 0, 0, 0, 1],
+            ["female", "social", "সাধারণ মন্তব্য সাইবার তিন", 0, 0, 0, 0, 0],
+        ],
+    )
+    # T12: one xlsx per harassment type, with a title row above the header
     from openpyxl import Workbook
 
     wb = Workbook()
     ws = wb.active
-    ws.append(["Comment", "bully", "sexual", "religious", "threat", "spam"])
-    ws.append(["<GALI_14> সাইবার এক", 1, 0, 0, 0, 0])
-    ws.append(["অফার পেতে লিংকে ক্লিক করুন সাইবার দুই", 0, 0, 0, 0, 1])
-    ws.append(["সাধারণ মন্তব্য সাইবার তিন", 0, 0, 0, 0, 0])
-    (r / "cyberbully_multilabel").mkdir(parents=True)
-    wb.save(r / "cyberbully_multilabel" / "data.xlsx")
+    ws.append(["Trolling — Moderate Abuse Level (Severity: 1)"])
+    ws.append(["Post_ID", "Platform", "Text_Content", "Harassment_Type", "Severity_Level"])
+    ws.append([1, "Facebook", "<GALI_16> ট্রল মন্তব্য এক", "Trolling ", 1.0])
+    (r / "banglaharassnet").mkdir(parents=True)
+    wb.save(r / "banglaharassnet" / "trolling.xlsx")
+    # T3: unpacked Mendeley archive (nested folder), Bangla file + its English twin
+    for name in ("bangla_context_toxicity_train", "bangla_context_toxicity_train_ENGLISH"):
+        write_csv_rows(
+            r / "banglacat" / "BanglaCAT_Mendeley 2" / "train" / f"{name}.csv",
+            ["row_id", "previous_reply", "target_reply", "level_1_class", "toxicity_type"],
+            [["a1", "আগের মন্তব্য", "<GALI_18> উপহাস ক্যাট", "Toxic", "Mockery / Ridicule"]],
+        )
     # T2 + T4: BD-SHS parents and BIDWESH dialect children
     write_csv_rows(
         r / "bdshs" / "test.csv",
@@ -166,12 +184,14 @@ def raw(tmp_path: Path) -> Path:
             ["यह बहुत अच्छा है", 0, ""],
         ],
     )
-    # R2: official Bangla version + Roman original
-    write_csv_rows(
-        r / "codemixed_chaos" / "chaos.csv",
-        ["bangla_text", "text", "toxic", "type"],
-        [["তুমি একটা <GALI_15> কোডমিক্স", "tumi ekta <GALI_15>", 1, "Troll"]],
-    )
+    # R2: the Bangla workbook, one 0/1 column per class (xlsx floats)
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Text", "Vulgar-based", "Troll-based", "Insult-based", "Non-Toxic"])
+    ws.append(["তুমি একটা <GALI_15> কোডমিক্স", 0.0, 1.0, 0.0, 0.0])
+    ws.append(["ভালো ভিডিও কোডমিক্স দুই", 0.0, 0.0, 0.0, 1.0])
+    (r / "codemixed_chaos").mkdir(parents=True)
+    wb.save(r / "codemixed_chaos" / "bangla.xlsx")
     # R3 eval-only, R4 pairs
     write_csv_rows(
         r / "mixtox_sa" / "mixtox.csv", ["text", "label"], [["মিক্সটক্স মন্তব্য একটি", "toxic"]]
@@ -209,8 +229,9 @@ def test_register_covers_docs09_and_is_rendered() -> None:
         if d.kind == "text":
             assert d.key in TEXT_LOADERS
             assert d.key in mapper.sources
-        if d.download_allowed:
-            assert set(d.download) <= set(d.files)
+        if d.download_allowed:  # every download lands as a `files` entry or an archive
+            assert set(d.download) <= set(d.files) | set(d.archives)
+            assert set(d.archives) <= set(d.download)
     assert DATASETS_MD.read_text(encoding="utf-8") == register_markdown(REG)
 
 
@@ -372,20 +393,27 @@ def test_asr_noise_and_rewrite() -> None:
 def test_build_end_to_end(raw: Path, tmp_path: Path) -> None:
     res = build(REG, raw, "research", asr_noise=0.5, seed=3)
     st = res.stats
-    assert "banglacat" in st["missing"]
+    assert "trac2_bn" in st["missing"]
     assert st["dropped_language"] == 2  # the English and the Hindi BanTH rows
     assert st["transliterated"] == 1
     assert st["leakage_pairs"] == 0
     rows = {r.uid: r for r in res.rows}
     assert rows["banth:banth_train:0"].text_bn.startswith("তুমি একটা <GALI_2>")
-    assert rows["codemixed_chaos:chaos:0"].text_bn.startswith(
-        "তুমি একটা <GALI_15>"
-    )  # official Bangla version
+    chaos = rows["codemixed_chaos:bangla:0"]
+    assert chaos.text_bn.startswith("তুমি একটা <GALI_15>")
+    assert (chaos.labels["sarcasm_mockery"], chaos.labels["insult"], chaos.toxic_any) == (1, 0, 1)
+    assert rows["codemixed_chaos:bangla:1"].toxic_any == 0  # Non-Toxic = 1
+    troll = rows["banglaharassnet:trolling:0"]  # title row skipped
+    assert (troll.labels["sarcasm_mockery"], troll.severity) == (1, 1)
+    cat = [r for r in res.rows if r.source == "banglacat" and not r.synthetic]
+    assert len(cat) == 1  # the _ENGLISH twin is not loaded
+    assert cat[0].labels["sarcasm_mockery"] == 1
+    assert cat[0].context == ["আগের মন্তব্য"]
     assert rows["mixtox_sa:mixtox:0"].split == "test"  # eval only
     assert rows["bidwesh:noakhali:0"].split == "test"  # parent is in BD-SHS test
     assert rows["karim_bn_hate:train:1"].weight == 0.3  # Political → low weight
     assert not any(
-        r.uid.startswith("cyberbully_multilabel:data:1") for r in res.rows
+        r.uid.startswith("cyberbully_multilabel:cyberbully_multilabel:1") for r in res.rows
     )  # spam dropped
     assert all(r.research_only for r in res.rows)
     assert any(r.synthetic and r.aug == "asr_noise" for r in res.rows)
@@ -422,7 +450,7 @@ def test_build_end_to_end(raw: Path, tmp_path: Path) -> None:
 
 def test_missing_data_message(tmp_path: Path) -> None:
     with pytest.raises(MissingDataError, match="place the files"):
-        list(TEXT_LOADERS["banglacat"](REG.get("banglacat"), tmp_path))
+        list(TEXT_LOADERS["trac2_bn"](REG.get("trac2_bn"), tmp_path))
 
 
 def test_download_with_checksum(tmp_path: Path) -> None:
@@ -438,7 +466,32 @@ def test_download_with_checksum(tmp_path: Path) -> None:
     with pytest.raises(ChecksumError):
         download(bad, tmp_path / "x", transport=transport)
     with pytest.raises(PermissionError):
-        download(REG.get("banglacat"), tmp_path)
+        download(REG.get("trac2_bn"), tmp_path)
+
+
+def _zip(members: dict[str, str]) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for name, text in members.items():
+            z.writestr(name, text)
+    return buf.getvalue()
+
+
+def test_download_unpacks_archives(tmp_path: Path) -> None:
+    ds = REG.get("banglacat").model_copy(update={"sha256": {}})
+    member = "BanglaCAT_Mendeley 2/train/bangla_context_toxicity_train.csv"
+    body = _zip({member: "row_id,target_reply,level_1_class,toxicity_type\na,x,Toxic,Insult\n"})
+    ok = httpx.MockTransport(lambda r: httpx.Response(200, content=body))
+    download(ds, tmp_path, transport=ok)
+    assert (tmp_path / "banglacat" / "banglacat.zip").is_file()
+    assert (tmp_path / "banglacat" / member).is_file()
+    rows = list(TEXT_LOADERS["banglacat"](ds, tmp_path))
+    assert [(r.split, r.fields["types"]) for r in rows] == [("train", ["Insult"])]
+    evil = _zip({"../escape.csv": "x"})
+    bad = httpx.MockTransport(lambda r: httpx.Response(200, content=evil))
+    with pytest.raises(ValueError, match="escapes"):
+        download(ds, tmp_path / "e", transport=bad)
+    assert not (tmp_path / "e" / "escape.csv").exists()
 
 
 def test_lexicon_mining(tmp_path: Path) -> None:
@@ -479,3 +532,58 @@ def test_lexicon_mining(tmp_path: Path) -> None:
     assert all("<" not in c.term for c in cands)  # placeholders never become candidates
     write_csv(cands, tmp_path / "c.csv")
     assert (tmp_path / "c.csv").read_text(encoding="utf-8").startswith("candidate_id,term,variants")
+
+
+def _mendeley(files: dict[str, dict[str, bytes]], bad_hash: bool = False) -> httpx.MockTransport:
+    """A fake Mendeley public API: folder name → {file name: content}; "" is the root."""
+    import hashlib
+
+    folders = [{"id": f"f{i}", "name": n, "parent_id": "top"} for i, n in enumerate(files) if n]
+    ids = {"": "root", **{f["name"]: f["id"] for f in folders}}
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        path = req.url.path
+        if path.endswith("/folders/3"):
+            return httpx.Response(200, json=folders)
+        if path.endswith("/files"):
+            name = next(n for n, i in ids.items() if i == req.url.params["folder_id"])
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "filename": fn,
+                        "content_details": {
+                            "sha256_hash": "0" * 64
+                            if bad_hash
+                            else hashlib.sha256(body).hexdigest(),
+                            "download_url": f"https://files.test/{ids[name]}/{fn}",
+                        },
+                    }
+                    for fn, body in files[name].items()
+                ],
+            )
+        folder, fn = path.strip("/").split("/")
+        name = next(n for n, i in ids.items() if i == folder)
+        return httpx.Response(200, content=files[name][fn])
+
+    return httpx.MockTransport(handler)
+
+
+def test_mendeley_tree_mirror_resumes_and_verifies(tmp_path: Path) -> None:
+    pinned = REG.get("baad")
+    assert pinned.sha256["manifest"]  # the real release is pinned
+    ds = pinned.model_copy(update={"sha256": {}})  # this fake tree is not that release
+    tree = {"": {"readme.txt": b"r"}, "1. term_a": {"a1.wav": b"aa"}, "2. term_b": {"b1.wav": b"b"}}
+    got = download(ds, tmp_path, transport=_mendeley(tree))
+    assert (got["files"], got["fetched"]) == ("3", "3")
+    assert (tmp_path / "baad" / "1. term_a" / "a1.wav").read_bytes() == b"aa"
+    again = download(ds, tmp_path, transport=_mendeley(tree))
+    assert (again["skipped"], again["manifest"]) == ("3", got["manifest"])  # resumable, stable
+    src = json.loads((tmp_path / "baad" / "SOURCE.json").read_text(encoding="utf-8"))
+    assert "term_a" not in json.dumps(src)  # names never recorded
+    with pytest.raises(ChecksumError):
+        download(ds, tmp_path / "x", transport=_mendeley(tree, bad_hash=True))
+    with pytest.raises(ChecksumError, match="manifest"):  # upstream release changed
+        download(pinned, tmp_path / "z", transport=_mendeley(tree))
+    with pytest.raises(ValueError, match="unsafe"):
+        download(ds, tmp_path / "y", transport=_mendeley({"": {}, "..": {"x.wav": b"x"}}))

@@ -49,14 +49,19 @@ sources:
         Insult: [insult]
         Threat: [threat]
         Incitement: [threat]
+        Incitement / Encouragement of Harm: [threat]
         Mockery/Ridicule: [sarcasm_mockery]
+        Mockery / Ridicule: [sarcasm_mockery]
         Mockery: [sarcasm_mockery]
         Sexual Harassment: [sexual_harassment]
+        Sexual Harassment / Objectification: [sexual_harassment]
         Identity Attack: [hate_identity]
         Hate Speech: [hate_identity]
         Dehumanization: [{label: insult, severity_delta: 1}]
         Harassment: [insult]
         Toxic Endorsement: []
+        Toxic Endorsement / Agreement: [{label: insult, conf: 0.6}]
+        None: []
     toxic_any: {field: toxic, negative: ["0", "non-toxic", "nontoxic", "no", "false"]}
     context_flags: {field: context_case, map: {banter: banter, consensual banter: banter, quoted: reported_speech, quoted speech: reported_speech, sarcasm: null, veiled threat: null}}
 
@@ -114,13 +119,15 @@ sources:
     annotates: []
     toxic_any: {field: hate, negative: ["0", "non-hate", "not hate", "no", "false"]}
 
-  brac_online_comments:  # T11
-    annotates: [insult, sexual_harassment, threat]
+  brac_online_comments:  # T11 (labels: not bully / troll / sexual / religious / threat)
+    annotates: [insult, sexual_harassment, threat, sarcasm_mockery, hate_identity]
     fields:
       category:
         bully: [insult]
         harassment: [insult]
+        troll: [sarcasm_mockery]
         sexual: [sexual_harassment]
+        religious: [{label: hate_identity, weight: 0.3}]
         threat: [threat]
         not bully: []
         neutral: []
@@ -134,9 +141,11 @@ sources:
         cyberbullying: [insult]
         sexual harassment: [sexual_harassment]
         hate: [hate_identity]
+        hate speech: [hate_identity]
         neutral: []
     toxic_any: {field: category, negative: [neutral]}
-    severity: {field: severity, map: {low: 1, mild: 1, medium: 2, moderate: 2, high: 3, severe: 3}}
+    # the release's Severity_Level is 0 neutral … 4 sexual harassment ("extreme"); GAL-E caps at 3
+    severity: {field: severity, map: {"0.0": 0, "1.0": 1, "2.0": 2, "3.0": 3, "4.0": 3, "0": 0, "1": 1, "2": 2, "3": 3, "4": 3, low: 1, mild: 1, medium: 2, moderate: 2, high: 3, severe: 3}}
 
   bangla_toco:  # T13: binary with conversational context
     annotates: []
@@ -174,21 +183,19 @@ sources:
         Political: [{label: hate_identity, weight: 0.3}]
     toxic_any: {field: hate, negative: ["0", "no", "false", "non-hate"]}
 
-  codemixed_chaos:  # R2
+  codemixed_chaos:  # R2 (one 0/1 column per class; xlsx floats read as "1.0")
     annotates: [slang_profanity, insult, threat, sexual_harassment, sarcasm_mockery, hate_identity]
     fields:
-      type:
-        Vulgar: [slang_profanity]
-        Insult: [insult]
-        Threat: [threat]
-        Sexual: [sexual_harassment]
-        Troll: [sarcasm_mockery]
-        Religious-hostility: [{label: hate_identity, weight: 0.3}]
-        Religious: [{label: hate_identity, weight: 0.3}]
-        Race: [hate_identity]
-        Loathe: [insult]
-        Political: [{label: hate_identity, weight: 0.3}]
-    toxic_any: {field: toxic, negative: ["0", "non-toxic", "nontoxic", "no"]}
+      vulgar: {"1": [slang_profanity], "1.0": [slang_profanity]}
+      insult: {"1": [insult], "1.0": [insult]}
+      loathe: {"1": [insult], "1.0": [insult]}
+      threat: {"1": [threat], "1.0": [threat]}
+      sexual: {"1": [sexual_harassment], "1.0": [sexual_harassment]}
+      troll: {"1": [sarcasm_mockery], "1.0": [sarcasm_mockery]}
+      race: {"1": [hate_identity], "1.0": [hate_identity]}
+      religious: {"1": [{label: hate_identity, weight: 0.3}], "1.0": [{label: hate_identity, weight: 0.3}]}
+      political: {"1": [{label: hate_identity, weight: 0.3}], "1.0": [{label: hate_identity, weight: 0.3}]}
+    toxic_any: {field: non_toxic, negative: ["1", "1.0"]}
 
   mixtox_sa:  # R3: eval only
     annotates: []

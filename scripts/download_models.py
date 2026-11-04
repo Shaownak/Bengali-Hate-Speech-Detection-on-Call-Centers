@@ -140,6 +140,26 @@ PINS: tuple[ModelPin, ...] = (
         "llm/qwen3_5_9b",
         "LLM judge base (served by vLLM, docs/03 §7)",
     ),
+    ModelPin(
+        "qwen3_5_4b",
+        "Qwen/Qwen3.5-4B",
+        "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a",
+        "Apache-2.0",
+        "commercial_ok",
+        "llm/qwen3_5_4b",
+        "LLM judge base on a 12 GB GPU (ADR-021)",
+        "looked up 2026-11-03",
+    ),
+    ModelPin(
+        "qwen3_5_0_8b",
+        "Qwen/Qwen3.5-0.8B",
+        "2fc06364715b967f1860aea9cf38778875588b17",
+        "Apache-2.0",
+        "commercial_ok",
+        "llm/qwen3_5_0_8b",
+        "LLM judge trainer smoke runs (docs prompts §9)",
+        "looked up 2026-11-03",
+    ),
 )
 BY_KEY = {p.key: p for p in PINS}
 

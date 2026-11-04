@@ -38,6 +38,11 @@ class Dataset(BaseModel):
     version: str | None = None
     doi: str | None = None
     download: dict[str, str] = Field(default_factory=dict)
+    # download key → archive file name; the archive is unpacked into <raw>/<key>/ and `files`
+    # then names the members
+    archives: dict[str, str] = Field(default_factory=dict)
+    # a Mendeley Data folder tree to mirror ({id, version}), for datasets published as folders
+    mendeley: dict[str, str] = Field(default_factory=dict)
     sha256: dict[str, str] = Field(default_factory=dict)
     label_names: list[str] = Field(default_factory=list)
     eval_only: bool = False

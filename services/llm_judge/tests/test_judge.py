@@ -152,6 +152,30 @@ def test_grounding() -> None:
     )
 
 
+def test_grounding_tolerates_the_tokenizer_unicode_form() -> None:
+    """Qwen's tokenizer NFC-decomposes য় (U+09DF → য + ়): evidence the model copies must still
+    ground, and the signal carries the transcript's own (precomposed) text."""
+    yya_pre, yya_dec = "য়", "য়"
+    seg = SEGS[0].model_copy(update={"text_redacted": f"আপনি দি{yya_pre}েছেন <GALI_13>"})
+    w = WindowInput("c", [seg], [], [])
+    ids = utterance_ids(w.segments)
+    uid = ids[seg.segment_id]
+    spk = seg.channel.value
+    g = ground(
+        w,
+        WindowJudgement(
+            events=[judged(f"দি{yya_dec}েছেন <GALI_13>", uid=uid, spk=spk)],
+            provisional_decisions=[],
+        ),
+        ids,
+        "llm:test",
+    )
+    assert g.rejected == {}
+    span = g.signals[0].evidence
+    assert span.text_span == f"দি{yya_pre}েছেন <GALI_13>"
+    assert seg.text_redacted[span.char_start : span.char_end] == span.text_span
+
+
 def reply(content: object, status: int = 200) -> httpx.Response:
     text = content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
     return httpx.Response(
@@ -199,6 +223,7 @@ def test_client_window_and_call() -> None:
     sc = j.judge_call("c", SEGS, [])
     assert sc.escalation.who_escalated_first == "customer"
     assert seen[0]["temperature"] == 0
+    assert seen[0]["chat_template_kwargs"] == {"enable_thinking": False}
     assert seen[0]["model"] == "m"
     assert seen[0]["messages"][0]["role"] == "system"  # type: ignore[index]
     assert j.version == "llm:m"

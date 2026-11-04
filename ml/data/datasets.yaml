@@ -45,14 +45,21 @@ datasets:
     key: banglacat
     name: BanglaCAT (2026)
     doi: 10.17632/8vr3w68c7x
+    version: v1 (Mendeley, files retrieved 2026-11-03)
     url: https://data.mendeley.com/datasets/8vr3w68c7x
-    licence: VERIFY
+    licence: CC BY 4.0 (Mendeley dataset page + LICENSE.md in the archive)
     commercial_ok: unknown
-    download_allowed: false
+    download_allowed: true
     kind: text
-    files: {train: "train.*", test: "test.*"}
-    columns: {text: [bangla_text, text_bn, bangla, text], context: [context, thread_context, previous], toxic: [toxic, label, is_toxic], types: [toxicity_type, type, types, category], context_case: [context_type, case, context_case]}
-    format: VERIFY
+    # the Bangla files only; the *_ENGLISH.csv twins are machine translations of the same rows
+    files: {train: "*/train/bangla_context_toxicity_train.csv", test: "*/test/bangla_toxicity_test_set_HIERARCHICAL_FINAL.csv"}
+    archives: {archive: banglacat.zip}
+    download:
+      archive: https://data.mendeley.com/public-files/datasets/8vr3w68c7x/files/b6a1ee5f-8503-487d-89df-b1e87a28f2be/file_downloaded
+    sha256:
+      archive: 6abb1ab2aba091f7078233ea3d5d993b05e359173f80dc619343c8dd9a7132ac
+    columns: {id: [row_id], text: [target_reply, reply], context: [previous_reply, context], toxic: [level_1_class], types: [toxicity_type]}
+    format: csv (utf-8-sig)
   - id: T4
     key: bidwesh
     name: BIDWESH (2025) — BD-SHS in Barishal / Noakhali / Chittagong dialects
@@ -68,14 +75,19 @@ datasets:
     key: cyberbully_multilabel
     name: Bangla Multilabel Cyberbully / Sexual Harassment / Threat / Spam (2024)
     doi: 10.17632/sz5558wrd4.3
+    version: v3 (Mendeley, retrieved 2026-11-03)
     url: https://data.mendeley.com/datasets/sz5558wrd4/3
-    licence: VERIFY
+    licence: CC BY 4.0 (Mendeley dataset page)
     commercial_ok: unknown
-    download_allowed: false
+    download_allowed: true
     kind: text
-    files: {all: "*.*"}
+    files: {all: cyberbully_multilabel.csv}
+    download:
+      all: https://data.mendeley.com/public-files/datasets/sz5558wrd4/files/13a89a8c-2da9-4ae6-98fc-076fb4ae1c6c/file_downloaded
+    sha256:
+      all: 86a6ec8b3067df91c750756785b0b7d28533c61ba48a7387654b91e630f86c90
     columns: {text: [comment, text, comments], bully: [bully, cyberbully], sexual: [sexual, sexual_harassment], religious: [religious], threat: [threat], spam: [spam]}
-    format: VERIFY
+    format: csv
   - id: T6
     key: violens
     name: Vio-Lens / BLP-2023 Task 1
@@ -142,26 +154,47 @@ datasets:
     key: brac_online_comments
     name: Bangla Online Comments (BRAC, 2021)
     doi: 10.17632/9xjx8twk8p
+    version: v1 (Mendeley, retrieved 2026-11-03)
     url: https://data.mendeley.com/datasets/9xjx8twk8p
-    licence: VERIFY
+    licence: CC BY 4.0 (Mendeley dataset page)
     commercial_ok: unknown
-    download_allowed: false
+    download_allowed: true
     kind: text
-    files: {all: "*.*"}
-    columns: {text: [comment, text, Comment], category: [category, label, Category]}
-    format: VERIFY
+    files: {all: brac_online_comments.xlsx}
+    download:
+      all: https://data.mendeley.com/public-files/datasets/9xjx8twk8p/files/d50be61b-4718-476a-a28d-fad2375bbef5/file_downloaded
+    sha256:
+      all: e28af237db7bf4bd6cd0bac4d99ba97180a277444e53623cf14f3c317a63d24d
+    # `Category` is the commented-on person's profession, not a label
+    columns: {text: [comment, text, Comment], category: [label]}
+    format: xlsx
   - id: T12
     key: banglaharassnet
     name: BanglaHarassNet (2026)
     doi: 10.17632/cw6jrvxmhf.1
+    version: v1 (Mendeley, retrieved 2026-11-03)
     url: https://data.mendeley.com/datasets/cw6jrvxmhf/1
-    licence: VERIFY
+    licence: CC BY 4.0 (Mendeley dataset page)
     commercial_ok: unknown
-    download_allowed: false
+    download_allowed: true
     kind: text
-    files: {all: "*.*"}
-    columns: {text: [text, comment, content], category: [label, category, class], severity: [severity, level]}
-    format: VERIFY
+    # one workbook per harassment type, each with a title row above the header (readers skip it)
+    files: {cyberbullying: cyberbullying.xlsx, hate: hate_speech.xlsx, neutral: neutral.xlsx, sexual: sexual_harassment.xlsx, trolling: trolling.xlsx}
+    download:
+      cyberbullying: https://data.mendeley.com/public-files/datasets/cw6jrvxmhf/files/e657df45-a0e1-4f1a-b07f-4140b2e40b2c/file_downloaded
+      hate: https://data.mendeley.com/public-files/datasets/cw6jrvxmhf/files/68131c50-c5dc-4f7e-b3ef-f43fadd2bf19/file_downloaded
+      neutral: https://data.mendeley.com/public-files/datasets/cw6jrvxmhf/files/66027a30-27f7-449a-943c-547339cd75d5/file_downloaded
+      sexual: https://data.mendeley.com/public-files/datasets/cw6jrvxmhf/files/d0cce32f-c632-4fa5-a1d6-8421a776709a/file_downloaded
+      trolling: https://data.mendeley.com/public-files/datasets/cw6jrvxmhf/files/b88b7dc3-2978-491e-85d7-5eae6f254e92/file_downloaded
+    sha256:
+      cyberbullying: 68a7e5eab98505146c788ba34a0b964772ba4ff3003c789f3b3f82d21a9704c2
+      hate: d818cb3373a29f9475f0f39f0e1f2519994ee825764ce4e78b7820727ef2bd23
+      neutral: 88e660adb4e606c575e92e745857c9ab001d9f951fea3806fe5bbd9e5a984aef
+      sexual: 72539f4fb0277fcea39b2a735f3d0aae8e46f1586ccc0597e8dde6f98349dcd1
+      trolling: d64b3eba96607d1fb70eff171a3c6415a2be06ecab913e3e8bd3963474789bbf
+    # Post_ID restarts in every workbook (P001 ×5): uids come from <file>:<row> instead
+    columns: {text: [Text_Content, text, comment], category: [Harassment_Type, label, category], severity: [Severity_Level, severity]}
+    format: xlsx
   - id: T13
     key: bangla_toco
     name: Bangla-ToCo (2025)
@@ -211,14 +244,21 @@ datasets:
     key: codemixed_chaos
     name: Code-mixed Chaos (2025) — Bangla-translated version
     doi: 10.17632/23dp3t88vk
+    version: v1 (Mendeley, retrieved 2026-11-03)
     url: https://data.mendeley.com/datasets/23dp3t88vk
-    licence: VERIFY
+    licence: CC BY 4.0 (Mendeley dataset page)
     commercial_ok: unknown
-    download_allowed: false
+    download_allowed: true
     kind: text
-    files: {all: "*.*"}
-    columns: {text: [bangla_text, bangla, translated_text, text], text_roman: [text, banglish, comment], toxic: [toxic, label, is_toxic], type: [type, toxic_type, category]}
-    format: VERIFY
+    # Bangla.xlsx and Banglish.xlsx are row-aligned versions of the same comments; one 0/1 column
+    # per class. Only the Bangla file is loaded (the Banglish twin would be a duplicate)
+    files: {all: bangla.xlsx}
+    download:
+      all: https://data.mendeley.com/public-files/datasets/23dp3t88vk/files/61dd39f9-4e66-4182-9845-2cfacc0be6ff/file_downloaded
+    sha256:
+      all: 0f53d73c55299d6fdc37a133ac26866634ca700df25cac27d8e27e0a1ba9c0fd
+    columns: {text: [Text, text], vulgar: [Vulgar-based], religious: [Religious-Hostility], troll: [Troll-based], insult: [Insult-based], loathe: [Loathe-based], threat: [Threat-based], race: [Race-based], sexual: [Sexual-based], political: [Political-Chaos], non_toxic: [Non-Toxic]}
+    format: xlsx
   - id: R3
     key: mixtox_sa
     name: MixTox-SA (2025)
@@ -248,10 +288,15 @@ datasets:
     key: baad
     name: BAAD v3 (Bangla Abusive Audio Dataset)
     doi: 10.17632/w24g8xn23c.3
+    version: v3 (Mendeley folder tree, retrieved 2026-11-03)
     url: https://data.mendeley.com/datasets/w24g8xn23c/3
-    licence: CC BY 4.0 (confirm in legal review)
+    licence: CC BY 4.0 (Mendeley dataset page; confirm in legal review)
     commercial_ok: unknown
-    download_allowed: false
+    download_allowed: true
+    # one folder per term (the folder names are the abusive words: never printed or committed)
+    mendeley: {id: w24g8xn23c, version: "3"}
+    sha256:  # hash of the sorted (path, sha256) manifest of all 6,180 files
+      manifest: 7358be83a1c2bbda216cab847846ad285f8154b8c37e516c0ea3f02d3e9162df
     kind: audio
     files: {all: "**/*.wav"}
     columns: {term: parent_dir, speaker: filename_prefix}

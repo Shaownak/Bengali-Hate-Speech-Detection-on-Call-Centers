@@ -16,6 +16,11 @@ export TMP := $(GALE)/tmp
 export TEMP := $(GALE)/tmp
 export TMPDIR := $(GALE)/tmp
 export HF_HOME := $(GALE)/hf
+export HF_HUB_DISABLE_TELEMETRY := 1
+# CUDA / torch kernel caches default to the user profile on C:
+export CUDA_CACHE_PATH := $(GALE)/cache/cuda
+export TORCHINDUCTOR_CACHE_DIR := $(GALE)/cache/torchinductor
+export TRITON_CACHE_DIR := $(GALE)/cache/triton
 export GALE_MODEL_DIR := $(GALE)/models
 export PRE_COMMIT_HOME := $(GALE)/pre-commit
 export PYTHONUTF8 := 1
@@ -27,6 +32,14 @@ else
   PY := $(ROOT)/.venv/bin/python
 endif
 UV ?= uv
+# GPU venv for LLM fine-tuning, kept out of the workspace lock (D-12, ADR-021)
+LLM_VENV := $(GALE)/venv-llm
+ifeq ($(OS),Windows_NT)
+  LLM_PY := $(LLM_VENV)/Scripts/python.exe
+else
+  LLM_PY := $(LLM_VENV)/bin/python
+endif
+TORCH_INDEX ?= https://download.pytorch.org/whl/cu128
 PNPM ?= pnpm
 DEV_STACK ?= local
 PY_PKGS := -p galecore -p gale_postcall -p gale_api -p gale_ingest_gateway -p gale_audio_worker \
@@ -34,7 +47,7 @@ PY_PKGS := -p galecore -p gale_postcall -p gale_api -p gale_ingest_gateway -p ga
 
 .PHONY: help setup dev-up dev-down dev-status check check-py check-web lint fmt typecheck test \
         test-web gen-types gen-types-check simulate fixtures fixtures-wav golden-check report eval bakeoff e2e e2e-install helm-check dashboards loadtest \
-        pilot-report al-sample retrain clean-caches
+        pilot-report al-sample retrain clean-caches llm-venv llm-models llm-sft llm-train llm-eval llm-serve
 
 help: ## list targets
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*## "}{printf "  %-16s %s\n",$$1,$$2}'
@@ -168,6 +181,27 @@ e2e: ## Playwright against the dev stack + simulator (run `make dev-up` first)
 
 e2e-install: ## download Chromium for Playwright into .gale/ (not the user profile)
 	cd web && PLAYWRIGHT_BROWSERS_PATH=$(GALE)/ms-playwright $(PNPM) exec playwright install chromium
+
+llm-venv: ## GPU venv for the LLM judge (torch CUDA + transformers + peft) in .gale/venv-llm
+	$(UV) venv $(LLM_VENV) --python 3.12 --allow-existing
+	$(UV) pip install --python $(LLM_PY) --index-url $(TORCH_INDEX) torch==$$(sed -n 's/^torch==//p' ml/llm/requirements-gpu.txt)
+	grep -v '^torch==' ml/llm/requirements-gpu.txt > $(GALE)/tmp/llm-requirements.txt
+	$(UV) pip install --python $(LLM_PY) -r $(GALE)/tmp/llm-requirements.txt -e packages/galecore -e services/llm_judge
+
+llm-models: ## download the pinned judge bases (MODELS="qwen3_5_4b qwen3_5_0_8b") into GALE_MODEL_DIR
+	$(LLM_PY) scripts/download_models.py $${MODELS:-qwen3_5_4b qwen3_5_0_8b}
+
+llm-sft: ## build judge SFT windows from the open data → .gale/data/llm (needs `python -m ml.data.open build`)
+	$(PY) -m ml.llm.sft --train $${TRAIN:-12000} --dev $${DEV:-400} --test $${TEST:-400}
+
+llm-train: ## LoRA fine-tune: make llm-train MODEL=qwen3_5_4b RUN=qwen3_5_4b_open_v1 [ARGS="--epochs 1"]
+	$(LLM_PY) -m ml.llm.train --base $(GALE_MODEL_DIR)/llm/$(MODEL) --run $(RUN) $(ARGS)
+
+llm-serve: ## local OpenAI-compatible judge on :8100: make llm-serve MODEL=qwen3_5_4b RUN=… (no RUN = base model)
+	$(LLM_PY) -m ml.llm.serve --base $(GALE_MODEL_DIR)/llm/$(MODEL) $(if $(RUN),--adapter $(GALE_MODEL_DIR)/llm/runs/$(RUN)/adapter)
+
+llm-eval: ## score a run on a split: make llm-eval MODEL=qwen3_5_4b RUN=… [SPLIT=test] [N=400]
+	$(LLM_PY) -m ml.llm.evaluate --base $(GALE_MODEL_DIR)/llm/$(MODEL) --run $(RUN) --split $${SPLIT:-test} $(if $(N),--n $(N))
 
 clean-caches: ## delete .gale caches (keeps pgdata, models)
 	rm -rf $(GALE)/uv-cache $(GALE)/pnpm-cache $(GALE)/tmp/* $(GALE)/pre-commit

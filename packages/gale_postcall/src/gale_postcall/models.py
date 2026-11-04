@@ -96,6 +96,11 @@ def _real(settings: Settings, stubs: ModelSet) -> PipelineModels:  # pragma: no 
         kws=s.kws,
         text_clf=HFTextClassifier(md) if backend("text_clf") == "hf" else s.text_clf,
         register=RuleRegisterDetector(),
-        llm=OpenAICompatibleJudge(settings.llm_base_url, settings.llm_model),
+        llm=OpenAICompatibleJudge(
+            settings.llm_base_url,
+            settings.llm_model,
+            window_timeout_s=settings.llm_window_timeout_s,
+            call_timeout_s=settings.llm_call_timeout_s,
+        ),
         versions={"mode": "real", **{k: f"{v.backend}:{v.version}" for k, v in comps.items()}},
     )

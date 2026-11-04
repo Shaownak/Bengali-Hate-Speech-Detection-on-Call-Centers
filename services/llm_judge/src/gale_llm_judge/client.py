@@ -83,6 +83,10 @@ class OpenAICompatibleJudge(LLMJudge):
             "temperature": 0,
             "max_tokens": max_tokens,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            # thinking off (docs/03 §7.3): Qwen3.x templates default to a reasoning block, and
+            # the judge was fine-tuned on prompts ending in an empty one (vLLM passes this
+            # through to the chat template; other templates ignore it)
+            "chat_template_kwargs": {"enable_thinking": False},
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {"name": name, "schema": schema, "strict": True},

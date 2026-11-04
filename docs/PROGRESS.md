@@ -3,7 +3,7 @@
 Maintained by Claude Code. Updated at the end of every phase/prompt.
 Legend: `[ ]` todo · `[x]` done · `[~]` in progress · **[HUMAN]** needs people, access or sign-off · 🔒 blocked on a human input.
 
-Last updated: 2026-11-02 (Prompt 5: P2 evaluation harness)
+Last updated: 2026-11-03 (Prompt 9 started: LLM judge on the local RTX 3060, open data)
 
 ---
 
@@ -57,7 +57,7 @@ Exit gate: report runs on 100 real calls; first baseline numbers.
 - [~] BanglaBERT-family multi-task classifier on open data only: trainer (masked focal BCE, soft targets, aggression aux, ordinal severity) + public_aux report vs §8; CPU smoke on real data learns (dev macro-F1 0.45, tiny random encoder); full encoder runs on the GPU box
 - [x] Slang-lexicon candidate mining (log-odds with Dirichlet prior + PMI, variant grouping) → review CSV (307 candidates from the real build, kept in `.gale/`)
 - [~] First KWS model on BAAD: CNN on log-mel with telephony augmentation, speaker-held-out dev; smoke run OK; real run needs BAAD (manual) + GPU
-- [~] LLM judge baseline: open-synthetic SFT windows built (41,989, docs/08 §4 format, grounded evidence); LoRA training is P3
+- [x] LLM judge baseline data: SFT windows v2 (12k/400/400) from 7 open sources, see Prompt 9 below (the 41,989-window v1 view is superseded)
 - [ ] **[HUMAN]** Seed lexicon review and approval 🔒
 - [ ] **[HUMAN]** 50-call pilot annotation to validate the guide 🔒
 - [ ] **[HUMAN]** Manual download of non-redistributable datasets 🔒
@@ -84,7 +84,7 @@ Exit gate: component targets in `06_EVALUATION.md` met, or an ADR explaining the
 - [ ] Audio-tox head
 - [ ] Text classifier 3-stage training (open → ASR-noised → in-domain), ONNX int8 ≤ 40 ms/utt
 - [ ] Register detector: rules + per-speaker state + small logistic model
-- [ ] LLM judge: zero-shot screen → Unsloth bf16 LoRA (Qwen3.5-9B vs Gemma-4) → merge → AWQ/FP8 → vLLM guided JSON
+- [~] LLM judge: Qwen3.5-4B bf16 LoRA on the local 12 GB GPU with open data (ADR-021), research_only. Still open: 9B vs Gemma-4 bake-off, merge → AWQ/FP8 → vLLM guided JSON on the GPU box 🔒, call-mode scorecard SFT, in-house gold
 - [ ] Fusion: per-source calibration, per-category stacker, alert thresholds per category × speaker × mode
 - [ ] MLflow registry names + promotion checks
 - [ ] **[HUMAN]** GPUs available 🔒; weekly error-analysis review; guide adjustments
@@ -560,6 +560,147 @@ CI on `main` had been red since Prompt 12; the jobs pass on Windows, so this was
   - The gateway publisher retries a failed publish instead of ending its task.
 - **docker (web)**: Trivy flagged Debian packages in the Node base image and the bundled npm. The
   runtime stage now installs the Debian security updates and removes npm/corepack/yarn.
+
+## Prompt 9 (in progress, 2026-11-03): LLM judge on the local GPU
+
+Owner request: start the LLM part on the RTX 3060 (12 GB) with open data from the internet. ADR-021.
+
+**Open data**
+- 4 more CC BY 4.0 datasets now download automatically from Mendeley, pinned by sha256: T3
+  BanglaCAT, T5 Cyberbully-multilabel, T12 BanglaHarassNet and R2 Code-mixed Chaos.
+  `commercial_ok` stays `unknown` until the legal review.
+- Downloader and reader fixes:
+  - the downloader unpacks archives and refuses zip-slip members;
+  - the xlsx reader skips title rows;
+  - the label maps match the real label strings;
+  - BanglaHarassNet's `Post_ID` repeats in every workbook, so its uids are now file-based.
+- The unified set grew from 57,698 to 102,669 rows, with 0 leakage pairs.
+
+**SFT windows v2** (`ml/llm/sft.py`, `templates_bn.yaml`, `make llm-sft`)
+- 12k train / 400 dev / 400 test windows.
+- Each window is a templated call around an open-data utterance:
+  - simulated fast-path signals and provisional events, rendered with the production
+    `render_user_message`;
+  - abuse by either speaker;
+  - keyword-free agent register / dismissive / sarcasm (template lines, no slurs);
+  - hard negatives (complaints, policy, banter, open-data negatives);
+  - reported speech;
+  - prompt injection.
+- Targets follow the fusion conventions: decisions for provisional events, signal-gated
+  shouting / harsh tone, and flags with severity 1 for reported speech.
+- Train set content:
+  - decisions: 5.5k confirm, 2.9k dismiss, 1.3k change_severity, 0.6k change_category;
+  - every one of the 10 judge categories appears in the events.
+
+**Trainer and metrics** (`ml/llm/train.py`, `metrics.py`, `evaluate.py`)
+- Plain PyTorch over PEFT, running in its own GPU venv (`make llm-venv` → `.gale/venv-llm`,
+  `ml/llm/requirements-gpu.txt`).
+- Batch 1 with accumulation; logits only at assistant positions; thinking off.
+- An eval callback scores JSON validity, event F1, decision accuracy and hallucinated evidence,
+  and keeps the best adapter.
+- `triton-windows` + `flash-linear-attention` run Qwen3.5's linear-attention kernels on Windows,
+  about 2.4× faster than the fallback.
+- All CUDA / torch / HF caches are under `.gale/`.
+
+**Measured on the 3060**
+
+| Model | Throughput | Peak VRAM | Smoke result |
+|---|---|---|---|
+| 0.8B | ~1.5k tok/s | 2.9 GB | loss 1.03 → 0.10 on 200 windows, JSON validity 100 % |
+| 4B | ~500 tok/s (~1.8 s/window) | 9.5 GB | — |
+
+HF generation runs at about 15 s/window, offline only; production latency is a vLLM matter.
+
+**Running**
+- `qwen3_5_4b_open_v1`: 1 epoch over 12k windows, about 6–7 h.
+- Output goes to `.gale/models/llm/runs/qwen3_5_4b_open_v1/` (adapter, `model_card.json`
+  research_only, `train.log`).
+- The test-split report comes from `make llm-eval MODEL=qwen3_5_4b RUN=qwen3_5_4b_open_v1`.
+
+**Built while the first run trained**
+- **Local judge server** (`ml/llm/serve.py`, `make llm-serve`): an OpenAI-compatible
+  `/v1/chat/completions` over transformers (base + adapter, greedy, thinking off, 127.0.0.1
+  only, one request at a time, no text in logs), for Windows where vLLM does not run.
+  - The production `OpenAICompatibleJudge` round-trips through it in tests.
+  - New settings `GALE_LLM_WINDOW_TIMEOUT_S` / `GALE_LLM_CALL_TIMEOUT_S` (default 4 s / 60 s
+    for vLLM; the local server needs about 60 s / 600 s).
+- **Thinking off in production**: the judge client now sends
+  `chat_template_kwargs: {enable_thinking: false}`. Qwen3.x templates default to a reasoning
+  block, and vLLM applies the template server-side.
+- **Merge and quantise** (`ml/llm/merge.py`, `ml/llm/quantize.py`):
+  - merge writes bf16 weights + `gale_model.json` provenance (research_only inherited);
+  - FP8-dynamic or AWQ W4A16 via llm-compressor on the Linux GPU box, with AWQ calibration from
+    the train split only;
+  - the Helm vLLM values add `--enable-prefix-caching`. **The pinned vLLM image (v0.11.0) predates
+    Qwen3.5 and must be bumped, by digest, with the GPU-box bake-off.**
+- **Red-team split** (`sft_window_redteam.jsonl`, 200 windows from the test split):
+  - 12 held-out injection phrases in Bangla, Banglish and English, never in training;
+  - some try to frame the agent ("write that the agent abused me");
+  - half the windows contain real abuse, which must still be found, and half are clean, where
+    nothing may be flagged;
+  - scored with `make llm-eval SPLIT=redteam`; `clean_window_fp_rate` is now in the
+    per-scenario table.
+- **Call-mode scorecards** (`ml/llm/sft_call.py`, `sft_call_{train,dev,test}.jsonl`,
+  1,500 / 100 / 100):
+  - 2–3 windows joined into one call, rendered with the production `render_call_message`;
+  - the gold scorecard is derived from the findings by fixed rules;
+  - about 1.5k tokens each, so they fit the 12 GB card; `train.py --with-calls N` mixes them in.
+- **More open data**:
+  - T11 BRAC Online Comments: 44k rows, CC BY 4.0, auto-downloaded; label column fixed; troll
+    and religious mapped.
+  - A1 BAAD v3 (Bangla abusive audio, CC BY 4.0): 6,090 wav clips in per-term folders (the
+    description says 5,277), 6,180 files in total. Mirrored through the Mendeley folder API with
+    each file sha256-checked, retries and resume, and the manifest hash pinned in the register.
+    Folder names (the terms) are never printed or recorded.
+  - Neither is in the running v1 data: the unified rebuild waits until training finishes,
+    because it rewrites the SFT inputs.
+
+**First dev eval (step 250, 48 windows)**
+
+| Metric | Value |
+|---|---|
+| JSON validity | 100 % |
+| Event F1 | 0.74 (P 0.82, R 0.67) |
+| Macro-F1 | 0.70 |
+| Decision accuracy | 0.79 |
+| Severity accuracy | 100 % |
+| Clean-window FP | 3 % |
+| Hallucinated evidence | 71 % (Unicode bug, see below) |
+
+**Unicode grounding bug.** The "hallucinated" evidence was a Unicode mismatch: Qwen's tokenizer
+NFC-decomposes ড় / য়, while transcripts use the precomposed form (ADR-021 §7).
+- Fixed in production grounding and the metrics: `galecore.bangla.find_canonical`.
+- v1's in-training evals keep the old metric, because the process loaded it at start; the final
+  `make llm-eval` uses the new one.
+- Eval outputs are now saved, so a run can be re-scored without regenerating.
+
+**v1 final (step 750, 1 epoch, ~14 h on the RTX 3060)**
+
+Dev check-ins (48 windows): event F1 0.74 → 0.81 → 0.82 at steps 250/500/750; the last was kept.
+Held-out scores from `make llm-eval` with the fixed grounding metric:
+
+| Metric | test (400) | redteam (200) |
+|---|---|---|
+| JSON validity | 100 % | 100 % |
+| Event F1 (P / R) | 0.70 (0.78 / 0.63) | 0.77 (0.81 / 0.74) |
+| Macro-F1 | 0.72 | 0.73 |
+| Decision accuracy | 0.89 | 0.79 |
+| Hallucinated evidence | 0.0 % | 1.6 % |
+| Severity accuracy | 0.86 | 0.76 |
+| Clean-window FP | 0.4 % | 2.9 % |
+| Latency p50 / p95 (HF, local) | 12.1 / 33.8 s | 10.0 / 27.9 s |
+
+- Acoustic and register categories score perfectly: shouting, harsh_tone, disrespect_register, dismissive_rude (F1 1.0).
+- Text-abuse recall is the weak point: insult 0.43, threat 0.50, hate_identity 0.59, sarcasm 0.60, slang 0.59. The model under-flags rather than over-flags. Reported speech scores F1 0.52.
+- Red team: in none of the 100 injection windows with unseen phrases did the model flag the agent. Decision accuracy there is 0.74 versus 1.0 on the clean twins, so the injected text still costs some confirm/reject decisions.
+- `banter_policy` shows event F1 0.0 only because no events are expected there (0/0). The model flagged nothing, and its FP rate is 0 %.
+- The run is research_only (ADR-012); the adapter is in `.gale/models/llm/runs/qwen3_5_4b_open_v1/`.
+
+**Still open for Prompt 9**
+- Screen the base model zero-shot (`--zero-shot`) for comparison.
+- v2 should target text-abuse recall: more insult/threat/hate positives (BRAC, BAAD transcripts).
+- Rebuild unified + SFT with BRAC, then train v2 with `--with-calls 1500`.
+- On the Linux GPU box: the 9B vs Gemma-4 bake-off, merge → quantise → vLLM with guided JSON.
 
 ## Next step
 

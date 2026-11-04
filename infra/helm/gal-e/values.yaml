@@ -220,7 +220,10 @@ vllm:
   replicas: 1
   model: /models/llm/gale-llm-judge
   servedModelName: gale-llm-judge
-  extraArgs: ["--max-model-len", "8192", "--gpu-memory-utilization", "0.9"]
+  # merged judge (ml/llm/merge.py → quantize.py); prefix caching reuses the shared system prompt
+  # (docs/08 §5). The image must support the judge's base architecture (Qwen3.5 needs a newer
+  # vLLM than this pin: bump it, by digest, with the GPU-box bake-off)
+  extraArgs: ["--max-model-len", "8192", "--gpu-memory-utilization", "0.9", "--enable-prefix-caching"]
   resources: { requests: { cpu: "4", memory: 32Gi, nvidia.com/gpu: 1 }, limits: { memory: 32Gi, nvidia.com/gpu: 1 } }
 
 ingress:

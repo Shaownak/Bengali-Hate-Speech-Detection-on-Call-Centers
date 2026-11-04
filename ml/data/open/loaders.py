@@ -212,14 +212,27 @@ def load_banth(
 
 def load_codemixed_chaos(
     ds: Dataset, root: Path
-) -> Iterator[RawRow]:  # R2: prefer the Bangla version
-    spec = dict(ds.columns)
-    spec["text_bn"] = spec.pop("text")
-    spec["text"] = spec.pop("text_roman")
-    ds2 = ds.model_copy(update={"columns": spec})
+) -> Iterator[RawRow]:  # R2: the Bangla version, one 0/1 column per class
     yield from _text_rows(
-        ds2, root, fields=("toxic", "type"), multi=("type",), required=("text", "toxic")
+        ds,
+        root,
+        fields=CODEMIXED_CLASSES,
+        required=("text", "non_toxic"),
     )
+
+
+CODEMIXED_CLASSES = (
+    "vulgar",
+    "religious",
+    "troll",
+    "insult",
+    "loathe",
+    "threat",
+    "race",
+    "sexual",
+    "political",
+    "non_toxic",
+)
 
 
 def load_mixtox_sa(

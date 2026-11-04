@@ -73,7 +73,11 @@ def main(argv: list[str] | None = None) -> int:
         for ds in targets:
             got = download(ds, a.raw)
             print(
-                f"{ds.id} {ds.key}: " + ", ".join(f"{s} sha256={h[:12]}…" for s, h in got.items())
+                f"{ds.id} {ds.key}: "
+                + ", ".join(
+                    f"{s}={h}" if ds.mendeley and s != "manifest" else f"{s} sha256={h[:12]}…"
+                    for s, h in got.items()
+                )
             )
         return 0
     if a.cmd == "status":

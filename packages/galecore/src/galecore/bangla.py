@@ -102,6 +102,40 @@ def normalize(
     return s
 
 
+def unicode_canonical(text: str) -> str:
+    """The Unicode part of ``normalize()`` only (NFC, nukta recomposition, khanda-ta, invisible
+    characters removed): no digit, case or whitespace changes."""
+    s = unicodedata.normalize("NFC", text).replace(_KHANDA_TA_LEGACY, "ৎ").translate(_INVISIBLE)
+    for decomposed, composed in _NUKTA_COMPOSE.items():
+        s = s.replace(decomposed, composed)
+    return s
+
+
+def find_canonical(text: str, needle: str) -> tuple[int, int] | None:
+    """``(start, end)`` of ``needle`` in ``text``: exact if possible, else the shortest span of
+    ``text`` equal to ``needle`` under ``unicode_canonical``. Model tokenizers normalise Unicode
+    (Qwen applies NFC, which decomposes ড় / ঢ় / য়), so text a model copies verbatim can come back
+    in another form; the span returned always indexes the original ``text``."""
+    if not needle.strip():
+        return None
+    i = text.find(needle)
+    if i >= 0:
+        return i, i + len(needle)
+    want = unicode_canonical(needle)
+    canon = unicode_canonical(text)
+    if want not in canon:
+        return None
+    slack = len(needle) // 2 + 2
+    for start in range(len(text)):
+        if not unicode_canonical(text[start:]).startswith(want):
+            continue
+        lo, hi = max(start + 1, start + len(want) - slack), start + len(needle) + slack
+        for end in range(lo, min(len(text), hi) + 1):
+            if unicode_canonical(text[start:end]) == want:
+                return start, end
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Phonetic key (docs/02 §4): merges letters that ASR and writers confuse
 # ---------------------------------------------------------------------------

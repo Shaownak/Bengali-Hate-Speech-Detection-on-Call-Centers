@@ -20,6 +20,8 @@ Licence fields come from the HF repo metadata (looked up 2026-11-02) and are **n
 | `muril` | [google/muril-base-cased](https://huggingface.co/google/muril-base-cased) | `afd9f36c7923` | Apache-2.0 | **commercial_ok** | text classifier encoder (bake-off, commercial fallback) |  |
 | `indicbert_v2` | [ai4bharat/IndicBERTv2-MLM-only](https://huggingface.co/ai4bharat/IndicBERTv2-MLM-only) | `8598f13fe524` | MIT | **commercial_ok** | text classifier encoder (bake-off) |  |
 | `qwen3_5_9b` | [Qwen/Qwen3.5-9B](https://huggingface.co/Qwen/Qwen3.5-9B) | `c20223623576` | Apache-2.0 | **commercial_ok** | LLM judge base (served by vLLM, docs/03 §7) |  |
+| `qwen3_5_4b` | [Qwen/Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B) | `851bf6e806ef` | Apache-2.0 | **commercial_ok** | LLM judge base on a 12 GB GPU (ADR-021) | looked up 2026-11-03 |
+| `qwen3_5_0_8b` | [Qwen/Qwen3.5-0.8B](https://huggingface.co/Qwen/Qwen3.5-0.8B) | `2fc06364715b` | Apache-2.0 | **commercial_ok** | LLM judge trainer smoke runs (docs prompts §9) | looked up 2026-11-03 |
 
 Not models but bundled at runtime: none. DSP shouting is code (rule fallback); its LightGBM model
 is trained in-house (P3) and stored in the model registry, not on HF.

@@ -37,6 +37,9 @@ def read_table(path: Path, fmt: str = "auto") -> list[dict[str, Any]]:
 
         ws = load_workbook(path, read_only=True, data_only=True).worksheets[0]
         rows = list(ws.iter_rows(values_only=True))
+        # some releases put a one-cell title row above the header (BanglaHarassNet)
+        while len(rows) > 1 and sum(v is not None for v in rows[0]) < 2:
+            rows = rows[1:]
         header = (
             [str(h).strip() if h is not None else f"col{i}" for i, h in enumerate(rows[0])]
             if rows

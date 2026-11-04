@@ -1,7 +1,10 @@
 """Post-validation of LLM output in code, not in the model (docs/08 §2).
 
-- every ``evidence`` must be an exact substring of the referenced utterance (or of some
-  utterance in the window when no id is given), else the event is dropped (``llm_ungrounded``);
+- every ``evidence`` must be a substring of the referenced utterance (or of some utterance in
+  the window when no id is given), else the event is dropped (``llm_ungrounded``). The match is
+  exact up to Unicode form (``galecore.bangla.find_canonical``): model tokenizers NFC-normalise,
+  which decomposes ড় / য়, while transcripts use the precomposed form. The signal keeps the
+  transcript's own span;
 - ``speaker`` must match that utterance's channel;
 - ``shouting`` / ``harsh_tone`` are accepted only when acoustic signals for that speaker in the
   window support them: the LLM cannot hear audio.
@@ -14,6 +17,7 @@ from dataclasses import dataclass
 
 from prometheus_client import Counter
 
+from galecore.bangla import find_canonical
 from galecore.models.base import WindowInput
 from galecore.models.stubs import stable_id
 from galecore.schemas import (
@@ -54,10 +58,11 @@ def ground(
 
     out = []
     for ev in judgement.events:
-        seg = _find(ev, by_uid, window.segments)
-        if seg is None:
+        found = _find(ev, by_uid, window.segments)
+        if found is None:
             reject("llm_ungrounded")
             continue
+        seg, (start, end) = found
         if seg.channel.value != ev.speaker.value:
             reject("speaker_mismatch")
             continue
@@ -71,7 +76,6 @@ def ground(
         ):
             reject("no_acoustic_support")
             continue
-        start = seg.text_redacted.index(ev.evidence)
         out.append(
             Signal(
                 call_id=window.call_id,
@@ -83,9 +87,9 @@ def ground(
                 ts_start=seg.ts_start,
                 ts_end=seg.ts_end,
                 evidence=Evidence(
-                    text_span=ev.evidence,
+                    text_span=seg.text_redacted[start:end],
                     char_start=start,
-                    char_end=start + len(ev.evidence),
+                    char_end=end,
                     segment_id=seg.segment_id,
                     features={"severity": float(ev.severity)},
                 ),
@@ -97,10 +101,14 @@ def ground(
 
 def _find(
     ev: JudgedEvent, by_uid: dict[str, AsrSegment], segments: list[AsrSegment]
-) -> AsrSegment | None:
-    if not ev.evidence.strip():
-        return None
+) -> tuple[AsrSegment, tuple[int, int]] | None:
     if ev.utterance_id is not None:
         seg = by_uid.get(ev.utterance_id)
-        return seg if seg is not None and ev.evidence in seg.text_redacted else None
-    return next((s for s in segments if ev.evidence in s.text_redacted), None)
+        candidates = [seg] if seg is not None else []
+    else:
+        candidates = segments
+    for s in candidates:
+        span = find_canonical(s.text_redacted, ev.evidence)
+        if span is not None:
+            return s, span
+    return None

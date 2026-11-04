@@ -3,14 +3,15 @@ import unicodedata
 import pytest
 
 from galecore.bangla import (
-    normalize as n,
-)
-from galecore.bangla import (
+    find_canonical,
     phonetic_key,
     to_ascii_digits,
     to_bangla_digits,
     tokenize,
     words,
+)
+from galecore.bangla import (
+    normalize as n,
 )
 
 RRA_PRE, RRA_DEC = "ড়", "ড়"  # ড়
@@ -129,3 +130,20 @@ class TestTokenize:
 
     def test_gali_placeholder_is_one_token(self) -> None:
         assert words("তুই <GALI_12>!") == ["তুই", "<GALI_12>"]
+
+
+def test_find_canonical_matches_across_unicode_forms() -> None:
+    """LLM tokenizers (Qwen) NFC-normalise, which decomposes ড় / য় (composition exclusions):
+    evidence copied by the model must still ground on a transcript in the precomposed form,
+    and the span returned is the transcript's own text."""
+    yya_pre, yya_dec = "য়", "য়"
+    text = f"আপনি কি {RRA_PRE}া দি{yya_pre}েছেন? না <GALI_3> বলছি"
+    assert find_canonical(text, "<GALI_3>") == (text.index("<GALI_3>"), text.index("<GALI_3>") + 8)
+    needle = f"{RRA_DEC}া দি{yya_dec}েছেন"  # decomposed, as the model emits it
+    assert needle not in text
+    span = find_canonical(text, needle)
+    assert span is not None
+    assert text[span[0] : span[1]] == f"{RRA_PRE}া দি{yya_pre}েছেন"  # verbatim transcript text
+    assert find_canonical(text, "কেউ বলেনি") is None
+    assert find_canonical(text, "") is None
+    assert find_canonical(text, "   ") is None

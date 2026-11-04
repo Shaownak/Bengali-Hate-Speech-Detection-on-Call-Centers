@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     # LLM judge: our own vLLM (OpenAI-compatible) server, never an external API (CLAUDE.md rule 1)
     llm_base_url: str = "http://127.0.0.1:8100/v1"
     llm_model: str = "gale-llm-judge"
+    # docs/08 §5: 4 s window / 60 s call against vLLM; the local transformers server (ADR-021,
+    # `make llm-serve`) needs longer
+    llm_window_timeout_s: float = Field(default=4.0, gt=0)
+    llm_call_timeout_s: float = Field(default=60.0, gt=0)
 
     # Call-affine sharding of the stateful real-time workers (ADR-018): replica `shard_index` of
     # `shard_count` handles the calls whose audio shard % shard_count == shard_index. The index
